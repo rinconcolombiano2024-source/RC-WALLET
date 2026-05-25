@@ -11,42 +11,61 @@ function App() {
 
       setStatus("Conectando...");
 
-      // Detecta World App / MetaMask
-      const ethereum = window.ethereum;
+      // Intenta detectar providers
+      const provider =
+        window.ethereum ||
+        window.worldcoin ||
+        window.worldapp;
 
-      if (!ethereum) {
+      console.log("Provider:", provider);
 
-        alert("No se detectó World App");
+      // Si existe ethereum
+      if (window.ethereum) {
 
-        setStatus("World App no detectada");
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
+
+        if (accounts.length > 0) {
+
+          setWallet(accounts[0]);
+
+          setStatus("Conectada con ethereum");
+
+          return;
+        }
+      }
+
+      // Detecta World App browser
+      const userAgent = navigator.userAgent;
+
+      console.log(userAgent);
+
+      if (
+        userAgent.includes("WorldApp") ||
+        userAgent.includes("Worldcoin")
+      ) {
+
+        setStatus("World App detectada");
+
+        alert(
+          "World App detectada. Actualmente esta versión necesita integración oficial SDK."
+        );
 
         return;
       }
 
-      // Solicitar cuentas
-      const accounts = await ethereum.request({
-        method: "eth_requestAccounts",
-      });
+      alert("No se detectó provider");
 
-      if (accounts.length > 0) {
+      setStatus("Sin provider");
 
-        setWallet(accounts[0]);
+    } catch (error) {
 
-        setStatus("Wallet conectada");
-
-      } else {
-
-        setStatus("Sin cuentas");
-
-      }
-
-    } catch (err) {
-
-      console.log(err);
-
-      alert("Error conectando wallet");
+      console.log(error);
 
       setStatus("Error");
+
+      alert("Error conectando");
 
     }
 
@@ -77,7 +96,6 @@ function App() {
         <h1
           style={{
             fontSize: "70px",
-            marginBottom: "10px",
           }}
         >
           RC Wallet
@@ -86,7 +104,6 @@ function App() {
         <p
           style={{
             fontSize: "28px",
-            marginBottom: "30px",
           }}
         >
           Recuperación de fondos Worldcoin
@@ -98,8 +115,9 @@ function App() {
             padding: "18px",
             borderRadius: "15px",
             border: "none",
-            fontSize: "24px",
+            fontSize: "22px",
             cursor: "pointer",
+            marginTop: "20px",
             marginBottom: "30px",
           }}
         >
@@ -110,7 +128,7 @@ function App() {
 
         <h2
           style={{
-            fontSize: "50px",
+            fontSize: "45px",
             marginTop: "30px",
           }}
         >
@@ -119,7 +137,7 @@ function App() {
 
         <p
           style={{
-            fontSize: "28px",
+            fontSize: "24px",
           }}
         >
           {status}
@@ -127,7 +145,7 @@ function App() {
 
         <h2
           style={{
-            fontSize: "50px",
+            fontSize: "45px",
             marginTop: "30px",
           }}
         >
