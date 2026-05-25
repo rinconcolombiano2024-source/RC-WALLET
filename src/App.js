@@ -1,24 +1,114 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { ethers } from "ethers";
 
 export default function App() {
 
-  const [status, setStatus] = useState("Esperando conexión");
+  const [status, setStatus] = useState("Iniciando...");
   const [wallet, setWallet] = useState("No conectada");
+  const [balance, setBalance] = useState("0");
+  const [network, setNetwork] = useState("-");
+  const [providerDetected, setProviderDetected] = useState(false);
 
-  async function conectarWallet() {
+  // DETECCIÓN ULTRA AVANZADA
+  async function detectProvider() {
+
+    // Esperar carga World App
+    await new Promise(resolve => setTimeout(resolve, 2500));
 
     try {
 
-      // Detectar provider
+      // 1
+      if (window.ethereum) {
+        return window.ethereum;
+      }
+
+      // 2
+      if (window.worldEthereum) {
+        return window.worldEthereum;
+      }
+
+      // 3
+      if (
+        window.ethereum &&
+        window.ethereum.providers
+      ) {
+
+        const provider =
+          window.ethereum.providers.find(
+            p =>
+              p.isWorldApp ||
+              p.isMetaMask ||
+              p
+          );
+
+        if (provider) {
+          return provider;
+        }
+      }
+
+      // 4 legacy
+      if (
+        window.web3 &&
+        window.web3.currentProvider
+      ) {
+
+        return window.web3.currentProvider;
+      }
+
+      // 5 experimental
+      if (window.provider) {
+        return window.provider;
+      }
+
+      return null;
+
+    } catch (e) {
+
+      console.log(e);
+
+      return null;
+    }
+  }
+
+  // AUTO DETECTAR
+  useEffect(() => {
+
+    async function init() {
+
+      const provider =
+        await detectProvider();
+
+      if (provider) {
+
+        setProviderDetected(true);
+
+        setStatus("World App detectada");
+
+      } else {
+
+        setStatus("Provider no detectado");
+      }
+    }
+
+    init();
+
+  }, []);
+
+  // CONECTAR
+  async function connectWallet() {
+
+    try {
+
+      setStatus("Conectando wallet...");
+
       const ethereum =
-        window.ethereum ||
-        window.worldEthereum;
+        await detectProvider();
 
       if (!ethereum) {
 
-        alert("No se detectó provider");
-
         setStatus("Provider no detectado");
+
+        alert("World App no detectada");
 
         return;
       }
@@ -29,28 +119,66 @@ export default function App() {
           method: "eth_requestAccounts"
         });
 
-      if (!accounts || accounts.length === 0) {
+      if (
+        !accounts ||
+        accounts.length === 0
+      ) {
 
-        alert("No hay cuentas");
+        setStatus("No hay cuentas");
 
         return;
       }
 
-      const address = accounts[0];
+      // Provider ethers
+      const provider =
+        new ethers.BrowserProvider(
+          ethereum
+        );
+
+      // Signer
+      const signer =
+        await provider.getSigner();
+
+      // Dirección
+      const address =
+        await signer.getAddress();
 
       setWallet(address);
 
-      setStatus("World App detectada");
+      // Balance ETH
+      const ethBalance =
+        await provider.getBalance(
+          address
+        );
+
+      setBalance(
+        parseFloat(
+          ethers.formatEther(
+            ethBalance
+          )
+        ).toFixed(4)
+      );
+
+      // Red
+      const net =
+        await provider.getNetwork();
+
+      setNetwork(
+        net.name ||
+        net.chainId.toString()
+      );
+
+      setStatus("Wallet conectada");
 
       alert("RC Wallet conectada correctamente");
 
-    } catch (error) {
+    } catch (err) {
 
-      console.log(error);
+      console.log(err);
 
-      alert("Error conectando");
+      setStatus("Error conectando");
 
-      setStatus("Error");
+      alert("Error conectando wallet");
     }
   }
 
@@ -60,7 +188,7 @@ export default function App() {
       style={{
         background: "#020b5c",
         minHeight: "100vh",
-        padding: "20px",
+        padding: "30px",
         color: "white",
         fontFamily: "Arial"
       }}
@@ -69,8 +197,8 @@ export default function App() {
       <div
         style={{
           background: "#06146e",
-          borderRadius: "25px",
-          padding: "20px"
+          borderRadius: "30px",
+          padding: "25px"
         }}
       >
 
@@ -91,7 +219,7 @@ export default function App() {
         </p>
 
         <button
-          onClick={conectarWallet}
+          onClick={connectWallet}
           style={{
             padding: "16px",
             borderRadius: "15px",
@@ -101,7 +229,13 @@ export default function App() {
             marginTop: "20px"
           }}
         >
-          Conectar Wallet
+
+          {
+            providerDetected
+              ? "Conectar Wallet"
+              : "Esperando World App..."
+          }
+
         </button>
 
         <hr style={{ margin: "30px 0" }} />
@@ -110,7 +244,7 @@ export default function App() {
 
         <p>{status}</p>
 
-        <h2>Datos Wallet</h2>
+        <h2>Dirección</h2>
 
         <p
           style={{
@@ -120,10 +254,18 @@ export default function App() {
           {wallet}
         </p>
 
+        <h2>ETH Balance</h2>
+
+        <p>{balance}</p>
+
+        <h2>Red</h2>
+
+        <p>{network}</p>
+
       </div>
 
     </div>
 
   );
 
-}
+        }
