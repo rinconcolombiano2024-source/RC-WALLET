@@ -1,175 +1,214 @@
-import React, { useState, useEffect } from "react";
-import { MiniKit } from "@worldcoin/minikit-js";
+import React, { useState } from "react";
+import { ethers } from "ethers";
 
-function App() {
+export default function App() {
 
-  const [status, setStatus] = useState("Iniciando...");
-  const [walletAddress, setWalletAddress] =
-    useState("No conectada");
+  const [status, setStatus] = useState("Esperando conexión");
+  const [address, setAddress] = useState("No conectada");
+  const [balance, setBalance] = useState("0");
+  const [network, setNetwork] = useState("-");
+  const [tokens, setTokens] = useState([]);
 
-  useEffect(() => {
-
-    const init = async () => {
-
-      try {
-
-        if (!MiniKit.isInstalled()) {
-
-          setStatus(
-            "Abra RC Wallet desde World App"
-          );
-
-          return;
-        }
-
-        setStatus("World App detectada");
-
-      } catch (error) {
-
-        console.log(error);
-
-        setStatus("Error iniciando");
-      }
-    };
-
-    init();
-
-  }, []);
-
-  const connectWallet = async () => {
+  async function connectWallet() {
 
     try {
 
-      setStatus("Solicitando autorización...");
+      // Detectar provider
+      const providerDetected =
+        window.ethereum ||
+        window.worldEthereum ||
+        window.web3?.currentProvider;
 
-      const res =
-        await MiniKit.commandsAsync.walletAuth({
-
-          nonce: "rc-wallet-login",
-
-          requestId:
-            "rc-wallet-" + Date.now(),
-
-          expirationTime:
-            new Date(
-              Date.now() + 1000 * 60 * 60
-            ),
-
-          notBefore:
-            new Date(),
-        });
-
-      console.log("Wallet Auth:", res);
-
-      if (!res) {
-
-        setStatus("Autorización cancelada");
-
+      if (!providerDetected) {
+        alert("World App no detectada");
+        setStatus("Provider no detectado");
         return;
       }
 
-      // Intentar leer wallet address
-      const address =
-        res.address ||
-        res.walletAddress ||
-        res.wallet?.address ||
-        "Wallet conectada";
+      // Crear provider ethers v6
+      const provider = new ethers.BrowserProvider(providerDetected);
 
-      setWalletAddress(address);
+      // Solicitar cuentas
+      await provider.send("eth_requestAccounts", []);
+
+      // Obtener signer
+      const signer = await provider.getSigner();
+
+      // Dirección
+      const userAddress = await signer.getAddress();
+
+      setAddress(userAddress);
+
+      // Balance ETH
+      const ethBalance = await provider.getBalance(userAddress);
+
+      setBalance(
+        parseFloat(
+          ethers.formatEther(ethBalance)
+        ).toFixed(4)
+      );
+
+      // Red
+      const net = await provider.getNetwork();
+
+      setNetwork(net.name);
 
       setStatus("Wallet conectada");
 
-      alert(
-        "Wallet conectada correctamente"
-      );
+      // TOKENS A DETECTAR
+      const tokenList = [
 
-    } catch (error) {
+        {
+          name: "WLD",
+          symbol: "WLD",
+          contract: "0x163f8c2467924be0ae7b5347228cabf260318753"
+        },
 
-      console.log(error);
+        {
+          name: "USDC",
+          symbol: "USDC",
+          contract: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606EB48"
+        }
 
-      setStatus("Error conectando");
+      ];
 
-      alert(
-        "Error conectando wallet"
-      );
+      const abi = [
+        "function balanceOf(address owner) view returns (uint256)",
+        "function decimals() view returns (uint8)"
+      ];
+
+      let detected = [];
+
+      for (const token of tokenList) {
+
+        try {
+
+          const contract = new ethers.Contract(
+            token.contract,
+            abi,
+            provider
+          );
+
+          const rawBalance =
+            await contract.balanceOf(userAddress);
+
+          const decimals =
+            await contract.decimals();
+
+          const formatted =
+            ethers.formatUnits(rawBalance, decimals);
+
+          if (parseFloat(formatted) > 0) {
+
+            detected.push({
+              symbol: token.symbol,
+              balance: parseFloat(formatted).toFixed(4)
+            });
+
+          }
+
+        } catch (err) {
+          console.log(err);
+        }
+
+      }
+
+      setTokens(detected);
+
+      alert("RC Wallet conectada correctamente");
+
+    } catch (err) {
+
+      console.log(err);
+
+      alert("Error conectando wallet");
+
+      setStatus("Error");
+
     }
-  };
+
+  }
 
   return (
 
     <div
       style={{
-        background: "#020b52",
+        background: "#020b5c",
         minHeight: "100vh",
-        padding: "20px",
+        padding: "30px",
         color: "white",
-        fontFamily: "Arial",
+        fontFamily: "Arial"
       }}
     >
 
       <div
         style={{
-          background: "#04106d",
+          background: "#06146e",
           padding: "25px",
-          borderRadius: "25px",
+          borderRadius: "25px"
         }}
       >
 
-        <h1
-          style={{
-            fontSize: "70px",
-          }}
-        >
+        <h1 style={{ fontSize: "70px" }}>
           RC Wallet
         </h1>
 
-        <p
-          style={{
-            fontSize: "30px",
-          }}
-        >
+        <p style={{ fontSize: "20px" }}>
           Recuperación de fondos Worldcoin
         </p>
 
         <button
           onClick={connectWallet}
           style={{
-            padding: "16px",
-            width: "100%",
+            padding: "15px",
             borderRadius: "15px",
             border: "none",
-            fontSize: "22px",
+            fontSize: "20px",
             marginTop: "20px",
+            cursor: "pointer"
           }}
         >
           Conectar Wallet
         </button>
 
-        <hr
-          style={{
-            marginTop: "30px",
-          }}
-        />
+        <hr style={{ margin: "30px 0" }} />
 
         <h2>Estado</h2>
-
         <p>{status}</p>
 
-        <h2>Dirección Wallet</h2>
-
-        <p
-          style={{
-            wordBreak: "break-all",
-            fontSize: "14px",
-          }}
-        >
-          {walletAddress}
+        <h2>Dirección</h2>
+        <p style={{ wordBreak: "break-all" }}>
+          {address}
         </p>
+
+        <h2>ETH Balance</h2>
+        <p>{balance}</p>
+
+        <h2>Red</h2>
+        <p>{network}</p>
+
+        <hr style={{ margin: "30px 0" }} />
+
+        <h2>Tokens Detectados</h2>
+
+        {
+          tokens.length === 0 ? (
+            <p>No hay tokens detectados</p>
+          ) : (
+            tokens.map((token, index) => (
+              <div key={index}>
+                <p>
+                  {token.symbol}: {token.balance}
+                </p>
+              </div>
+            ))
+          )
+        }
 
       </div>
 
     </div>
-  );
-}
 
-export default App;
+  );
+
+}
