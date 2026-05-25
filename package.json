@@ -1,10 +1,10 @@
 {
   "name": "rc-wallet",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
 
   "engines": {
-    "node": "24.x"
+    "node": "22.x"
   },
 
   "dependencies": {
@@ -12,20 +12,18 @@
     "ethers": "^6.13.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "viem": "^2.51.0",
-    "ajv": "^8.17.1",
-    "ajv-keywords": "^5.1.0"
-  },
-
-  "overrides": {
-    "svgo": "^3.3.2",
-    "nth-check": "^2.1.1"
+    "react-scripts": "5.0.1"
   },
 
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build"
+    "start": "GENERATE_SOURCEMAP=false react-scripts start",
+    "build": "CI=false GENERATE_SOURCEMAP=false react-scripts build"
+  },
+
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
   },
 
   "browserslist": {
@@ -34,6 +32,7 @@
       "not dead",
       "not op_mini all"
     ],
+
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",
