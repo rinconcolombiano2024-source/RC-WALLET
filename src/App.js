@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { BrowserProvider } from "ethers";
 
 function App() {
 
+  const [status, setStatus] = useState("Esperando conexión");
   const [wallet, setWallet] = useState("No conectada");
-  const [balance, setBalance] = useState("0");
-  const [status, setStatus] = useState("Esperando");
 
   useEffect(() => {
 
@@ -16,6 +14,8 @@ function App() {
   async function detectarWorldApp() {
 
     const ua = navigator.userAgent;
+
+    console.log("USER AGENT:", ua);
 
     if (
       ua.toLowerCase().includes("world")
@@ -35,40 +35,41 @@ function App() {
 
     try {
 
-      if (!window.ethereum) {
+      setStatus("Conectando...");
 
-        alert("Provider no disponible");
+      // NUEVO MÉTODO
+      if (window.WorldApp) {
 
-        return;
+        const walletData =
+          await window.WorldApp.getUser();
+
+        console.log(walletData);
+
+        setWallet(
+          JSON.stringify(walletData)
+        );
+
+        setStatus("Wallet conectada");
+
+      } else {
+
+        alert(
+          "SDK World App no disponible"
+        );
+
+        setStatus(
+          "SDK no disponible"
+        );
+
       }
-
-      setStatus("Conectando wallet...");
-
-      const provider = new BrowserProvider(window.ethereum);
-
-      await provider.send("eth_requestAccounts", []);
-
-      const signer = await provider.getSigner();
-
-      const address = await signer.getAddress();
-
-      const ethBalance = await provider.getBalance(address);
-
-      setWallet(address);
-
-      setBalance(
-        Number(ethBalance) / 1000000000000000000
-      );
-
-      setStatus("Wallet conectada");
 
     } catch (err) {
 
       console.log(err);
 
-      setStatus("Error conectando");
+      alert("Error conectando");
 
-      alert("Error conectando wallet");
+      setStatus("Error");
 
     }
 
@@ -152,33 +153,16 @@ function App() {
             marginTop: "30px",
           }}
         >
-          Dirección
+          Datos Wallet
         </h2>
 
         <p
           style={{
-            fontSize: "16px",
+            fontSize: "14px",
             wordBreak: "break-all",
           }}
         >
           {wallet}
-        </p>
-
-        <h2
-          style={{
-            fontSize: "40px",
-            marginTop: "30px",
-          }}
-        >
-          ETH Balance
-        </h2>
-
-        <p
-          style={{
-            fontSize: "24px",
-          }}
-        >
-          {balance}
         </p>
 
       </div>
