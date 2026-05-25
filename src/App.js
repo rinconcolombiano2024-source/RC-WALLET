@@ -1,224 +1,137 @@
-import React, { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import React, {
+  useEffect,
+  useState
+} from "react";
+
+import {
+  MiniKit
+} from "@worldcoin/minikit-js";
 
 export default function App() {
 
-  const [status, setStatus] = useState("Iniciando...");
-  const [wallet, setWallet] = useState("No conectada");
-  const [balance, setBalance] = useState("0");
-  const [network, setNetwork] = useState("-");
-  const [providerReady, setProviderReady] = useState(false);
+  const [status, setStatus] =
+    useState("Iniciando...");
 
-  // DETECCIÓN AVANZADA
-  async function getEthereumProvider() {
+  const [walletData, setWalletData] =
+    useState(null);
 
-    // Esperar carga de World App
-    await new Promise(resolve => setTimeout(resolve, 3000));
+  const [installed, setInstalled] =
+    useState(false);
 
-    try {
-
-      // 1
-      if (window.ethereum) {
-        return window.ethereum;
-      }
-
-      // 2
-      if (window.worldEthereum) {
-        return window.worldEthereum;
-      }
-
-      // 3
-      if (
-        window.ethereum &&
-        window.ethereum.providers
-      ) {
-
-        const found =
-          window.ethereum.providers.find(
-            p =>
-              p.isWorldApp ||
-              p.isMetaMask ||
-              p
-          );
-
-        if (found) {
-          return found;
-        }
-      }
-
-      // 4 legacy
-      if (
-        window.web3 &&
-        window.web3.currentProvider
-      ) {
-
-        return window.web3.currentProvider;
-      }
-
-      return null;
-
-    } catch (e) {
-
-      console.log(e);
-
-      return null;
-    }
-  }
-
-  // AUTO INICIALIZAR
+  // INICIAR
   useEffect(() => {
 
     async function init() {
 
-      const provider =
-        await getEthereumProvider();
+      try {
 
-      if (provider) {
+        const isInstalled =
+          MiniKit.isInstalled();
 
-        setProviderReady(true);
+        console.log(
+          "MiniKit:",
+          isInstalled
+        );
 
-        setStatus("World App detectada");
+        if (isInstalled) {
 
-        // Intentar auto conectar
-        try {
+          setInstalled(true);
 
-          const accounts =
-            await provider.request({
-              method: "eth_accounts"
-            });
+          setStatus(
+            "World App detectada"
+          );
 
-          if (
-            accounts &&
-            accounts.length > 0
-          ) {
+        } else {
 
-            loadWallet(provider, accounts[0]);
-          }
+          setStatus(
+            "Abra RC Wallet desde World App"
+          );
 
-        } catch (e) {
-
-          console.log(e);
         }
 
-      } else {
+      } catch (err) {
+
+        console.log(err);
 
         setStatus(
-          "Mini App pendiente aprobación"
+          "Error iniciando MiniKit"
         );
+
       }
+
     }
 
     init();
 
   }, []);
 
-  // CARGAR WALLET
-  async function loadWallet(
-    ethereum,
-    address
-  ) {
-
-    try {
-
-      const provider =
-        new ethers.BrowserProvider(
-          ethereum
-        );
-
-      setWallet(address);
-
-      // BALANCE
-      const ethBalance =
-        await provider.getBalance(
-          address
-        );
-
-      setBalance(
-        parseFloat(
-          ethers.formatEther(
-            ethBalance
-          )
-        ).toFixed(4)
-      );
-
-      // RED
-      const net =
-        await provider.getNetwork();
-
-      setNetwork(
-        net.name ||
-        net.chainId.toString()
-      );
-
-      setStatus("Wallet conectada");
-
-    } catch (e) {
-
-      console.log(e);
-
-      setStatus(
-        "Error leyendo wallet"
-      );
-    }
-  }
-
   // CONECTAR
   async function connectWallet() {
 
     try {
 
-      setStatus("Conectando...");
+      setStatus(
+        "Conectando wallet..."
+      );
 
-      const ethereum =
-        await getEthereumProvider();
+      // AUTH OFICIAL
+      const res =
+        await MiniKit.commandsAsync.walletAuth({
 
-      if (!ethereum) {
+          nonce:
+            "rc-wallet-login",
 
-        alert(
-          "World App aún no aprobó completamente la Mini App"
-        );
+          requestId:
+            "rc-wallet-" + Date.now(),
 
-        setStatus(
-          "Provider no disponible"
-        );
+          expirationTime:
+            new Date(
+              Date.now() + 1000 * 60 * 60
+            ),
 
-        return;
-      }
+          notBefore:
+            new Date()
 
-      const accounts =
-        await ethereum.request({
-          method: "eth_requestAccounts"
         });
 
-      if (
-        !accounts ||
-        accounts.length === 0
-      ) {
+      console.log(
+        "WalletAuth:",
+        res
+      );
 
-        setStatus("No autorizado");
+      if (!res) {
+
+        setStatus(
+          "Conexión cancelada"
+        );
 
         return;
       }
 
-      await loadWallet(
-        ethereum,
-        accounts[0]
+      setWalletData(res);
+
+      setStatus(
+        "Wallet conectada correctamente"
       );
 
       alert(
         "RC Wallet conectada correctamente"
       );
 
-    } catch (e) {
+    } catch (err) {
 
-      console.log(e);
+      console.log(err);
 
-      setStatus("Error conectando");
+      setStatus(
+        "Error conectando wallet"
+      );
 
       alert(
         "Error conectando wallet"
       );
+
     }
+
   }
 
   return (
@@ -259,47 +172,56 @@ export default function App() {
 
         <button
           onClick={connectWallet}
+          disabled={!installed}
           style={{
             padding: "16px",
             borderRadius: "15px",
             border: "none",
             fontSize: "20px",
             cursor: "pointer",
-            marginTop: "20px"
+            marginTop: "20px",
+            opacity:
+              installed ? 1 : 0.5
           }}
         >
 
           {
-            providerReady
+            installed
               ? "Conectar Wallet"
-              : "Esperando aprobación..."
+              : "Esperando World App..."
           }
 
         </button>
 
-        <hr style={{ margin: "30px 0" }} />
+        <hr
+          style={{
+            margin: "30px 0"
+          }}
+        />
 
         <h2>Estado</h2>
 
         <p>{status}</p>
 
-        <h2>Dirección</h2>
+        <h2>Datos Wallet</h2>
 
-        <p
+        <pre
           style={{
-            wordBreak: "break-all"
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontSize: "12px"
           }}
         >
-          {wallet}
-        </p>
-
-        <h2>ETH Balance</h2>
-
-        <p>{balance}</p>
-
-        <h2>Red</h2>
-
-        <p>{network}</p>
+          {
+            walletData
+              ? JSON.stringify(
+                  walletData,
+                  null,
+                  2
+                )
+              : "No conectado"
+          }
+        </pre>
 
       </div>
 
