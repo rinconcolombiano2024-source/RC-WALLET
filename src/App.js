@@ -1,82 +1,22 @@
-import React, { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import React, { useState } from "react";
 
 export default function App() {
 
-  const [status, setStatus] = useState("Iniciando...");
-  const [address, setAddress] = useState("No conectada");
-  const [balance, setBalance] = useState("0");
-  const [network, setNetwork] = useState("-");
-  const [providerReady, setProviderReady] = useState(false);
+  const [status, setStatus] = useState("Esperando conexión");
+  const [wallet, setWallet] = useState("No conectada");
 
-  // DETECTAR PROVIDER
-  async function getProvider() {
-
-    // Esperar un poco
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Ethereum normal
-    if (window.ethereum) {
-      return window.ethereum;
-    }
-
-    // Algunos wallets usan providers[]
-    if (
-      window.ethereum &&
-      window.ethereum.providers
-    ) {
-
-      const provider =
-        window.ethereum.providers.find(
-          p => p.isMetaMask || p.isWorldApp || p
-        );
-
-      if (provider) {
-        return provider;
-      }
-    }
-
-    // World App WebView fallback
-    if (window.web3?.currentProvider) {
-      return window.web3.currentProvider;
-    }
-
-    return null;
-  }
-
-  useEffect(() => {
-
-    async function init() {
-
-      const provider = await getProvider();
-
-      if (provider) {
-
-        setProviderReady(true);
-
-        setStatus("World App detectada");
-
-      } else {
-
-        setStatus("Provider no detectado");
-      }
-    }
-
-    init();
-
-  }, []);
-
-  async function connectWallet() {
+  async function conectarWallet() {
 
     try {
 
-      setStatus("Conectando...");
-
-      const ethereum = await getProvider();
+      // Detectar provider
+      const ethereum =
+        window.ethereum ||
+        window.worldEthereum;
 
       if (!ethereum) {
 
-        alert("World App no detectada");
+        alert("No se detectó provider");
 
         setStatus("Provider no detectado");
 
@@ -96,52 +36,21 @@ export default function App() {
         return;
       }
 
-      const provider =
-        new ethers.BrowserProvider(
-          ethereum
-        );
+      const address = accounts[0];
 
-      const signer =
-        await provider.getSigner();
+      setWallet(address);
 
-      const userAddress =
-        await signer.getAddress();
+      setStatus("World App detectada");
 
-      setAddress(userAddress);
+      alert("RC Wallet conectada correctamente");
 
-      // BALANCE ETH
-      const ethBalance =
-        await provider.getBalance(
-          userAddress
-        );
+    } catch (error) {
 
-      setBalance(
-        parseFloat(
-          ethers.formatEther(
-            ethBalance
-          )
-        ).toFixed(4)
-      );
-
-      // RED
-      const chain =
-        await provider.getNetwork();
-
-      setNetwork(
-        chain.name || chain.chainId.toString()
-      );
-
-      setStatus("Wallet conectada");
-
-      alert("Wallet conectada correctamente");
-
-    } catch (err) {
-
-      console.log(err);
-
-      setStatus("Error");
+      console.log(error);
 
       alert("Error conectando");
+
+      setStatus("Error");
     }
   }
 
@@ -151,7 +60,7 @@ export default function App() {
       style={{
         background: "#020b5c",
         minHeight: "100vh",
-        padding: "30px",
+        padding: "20px",
         color: "white",
         fontFamily: "Arial"
       }}
@@ -160,8 +69,8 @@ export default function App() {
       <div
         style={{
           background: "#06146e",
-          borderRadius: "30px",
-          padding: "25px"
+          borderRadius: "25px",
+          padding: "20px"
         }}
       >
 
@@ -182,7 +91,7 @@ export default function App() {
         </p>
 
         <button
-          onClick={connectWallet}
+          onClick={conectarWallet}
           style={{
             padding: "16px",
             borderRadius: "15px",
@@ -192,13 +101,7 @@ export default function App() {
             marginTop: "20px"
           }}
         >
-
-          {
-            providerReady
-            ? "Conectar Wallet"
-            : "Esperando World App..."
-          }
-
+          Conectar Wallet
         </button>
 
         <hr style={{ margin: "30px 0" }} />
@@ -207,23 +110,15 @@ export default function App() {
 
         <p>{status}</p>
 
-        <h2>Dirección</h2>
+        <h2>Datos Wallet</h2>
 
         <p
           style={{
             wordBreak: "break-all"
           }}
         >
-          {address}
+          {wallet}
         </p>
-
-        <h2>ETH Balance</h2>
-
-        <p>{balance}</p>
-
-        <h2>Red</h2>
-
-        <p>{network}</p>
 
       </div>
 
