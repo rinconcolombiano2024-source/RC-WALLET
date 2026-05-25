@@ -7,13 +7,13 @@ export default function App() {
   const [wallet, setWallet] = useState("No conectada");
   const [balance, setBalance] = useState("0");
   const [network, setNetwork] = useState("-");
-  const [providerDetected, setProviderDetected] = useState(false);
+  const [providerReady, setProviderReady] = useState(false);
 
-  // DETECCIÓN ULTRA AVANZADA
-  async function detectProvider() {
+  // DETECCIÓN AVANZADA
+  async function getEthereumProvider() {
 
-    // Esperar carga World App
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    // Esperar carga de World App
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     try {
 
@@ -33,7 +33,7 @@ export default function App() {
         window.ethereum.providers
       ) {
 
-        const provider =
+        const found =
           window.ethereum.providers.find(
             p =>
               p.isWorldApp ||
@@ -41,8 +41,8 @@ export default function App() {
               p
           );
 
-        if (provider) {
-          return provider;
+        if (found) {
+          return found;
         }
       }
 
@@ -55,11 +55,6 @@ export default function App() {
         return window.web3.currentProvider;
       }
 
-      // 5 experimental
-      if (window.provider) {
-        return window.provider;
-      }
-
       return null;
 
     } catch (e) {
@@ -70,23 +65,46 @@ export default function App() {
     }
   }
 
-  // AUTO DETECTAR
+  // AUTO INICIALIZAR
   useEffect(() => {
 
     async function init() {
 
       const provider =
-        await detectProvider();
+        await getEthereumProvider();
 
       if (provider) {
 
-        setProviderDetected(true);
+        setProviderReady(true);
 
         setStatus("World App detectada");
 
+        // Intentar auto conectar
+        try {
+
+          const accounts =
+            await provider.request({
+              method: "eth_accounts"
+            });
+
+          if (
+            accounts &&
+            accounts.length > 0
+          ) {
+
+            loadWallet(provider, accounts[0]);
+          }
+
+        } catch (e) {
+
+          console.log(e);
+        }
+
       } else {
 
-        setStatus("Provider no detectado");
+        setStatus(
+          "Mini App pendiente aprobación"
+        );
       }
     }
 
@@ -94,58 +112,22 @@ export default function App() {
 
   }, []);
 
-  // CONECTAR
-  async function connectWallet() {
+  // CARGAR WALLET
+  async function loadWallet(
+    ethereum,
+    address
+  ) {
 
     try {
 
-      setStatus("Conectando wallet...");
-
-      const ethereum =
-        await detectProvider();
-
-      if (!ethereum) {
-
-        setStatus("Provider no detectado");
-
-        alert("World App no detectada");
-
-        return;
-      }
-
-      // Solicitar cuentas
-      const accounts =
-        await ethereum.request({
-          method: "eth_requestAccounts"
-        });
-
-      if (
-        !accounts ||
-        accounts.length === 0
-      ) {
-
-        setStatus("No hay cuentas");
-
-        return;
-      }
-
-      // Provider ethers
       const provider =
         new ethers.BrowserProvider(
           ethereum
         );
 
-      // Signer
-      const signer =
-        await provider.getSigner();
-
-      // Dirección
-      const address =
-        await signer.getAddress();
-
       setWallet(address);
 
-      // Balance ETH
+      // BALANCE
       const ethBalance =
         await provider.getBalance(
           address
@@ -159,7 +141,7 @@ export default function App() {
         ).toFixed(4)
       );
 
-      // Red
+      // RED
       const net =
         await provider.getNetwork();
 
@@ -170,15 +152,72 @@ export default function App() {
 
       setStatus("Wallet conectada");
 
-      alert("RC Wallet conectada correctamente");
+    } catch (e) {
 
-    } catch (err) {
+      console.log(e);
 
-      console.log(err);
+      setStatus(
+        "Error leyendo wallet"
+      );
+    }
+  }
+
+  // CONECTAR
+  async function connectWallet() {
+
+    try {
+
+      setStatus("Conectando...");
+
+      const ethereum =
+        await getEthereumProvider();
+
+      if (!ethereum) {
+
+        alert(
+          "World App aún no aprobó completamente la Mini App"
+        );
+
+        setStatus(
+          "Provider no disponible"
+        );
+
+        return;
+      }
+
+      const accounts =
+        await ethereum.request({
+          method: "eth_requestAccounts"
+        });
+
+      if (
+        !accounts ||
+        accounts.length === 0
+      ) {
+
+        setStatus("No autorizado");
+
+        return;
+      }
+
+      await loadWallet(
+        ethereum,
+        accounts[0]
+      );
+
+      alert(
+        "RC Wallet conectada correctamente"
+      );
+
+    } catch (e) {
+
+      console.log(e);
 
       setStatus("Error conectando");
 
-      alert("Error conectando wallet");
+      alert(
+        "Error conectando wallet"
+      );
     }
   }
 
@@ -231,9 +270,9 @@ export default function App() {
         >
 
           {
-            providerDetected
+            providerReady
               ? "Conectar Wallet"
-              : "Esperando World App..."
+              : "Esperando aprobación..."
           }
 
         </button>
@@ -268,4 +307,4 @@ export default function App() {
 
   );
 
-        }
+}
