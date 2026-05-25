@@ -1,71 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 function App() {
 
-  const [wallet, setWallet] = useState("No conectada");
-  const [status, setStatus] = useState("Esperando conexión");
+  const [status, setStatus] = useState("Esperando");
+  const [userAgent, setUserAgent] = useState("");
+  const [isWorldApp, setIsWorldApp] = useState(false);
 
-  async function connectWallet() {
+  useEffect(() => {
+
+    const ua = navigator.userAgent;
+
+    setUserAgent(ua);
+
+    if (
+      ua.toLowerCase().includes("world") ||
+      ua.toLowerCase().includes("wv")
+    ) {
+
+      setIsWorldApp(true);
+
+      setStatus("World App detectada");
+
+    } else {
+
+      setStatus("No es World App");
+
+    }
+
+  }, []);
+
+  async function conectar() {
 
     try {
 
-      setStatus("Conectando...");
+      if (!isWorldApp) {
 
-      // Intenta detectar providers
-      const provider =
-        window.ethereum ||
-        window.worldcoin ||
-        window.worldapp;
-
-      console.log("Provider:", provider);
-
-      // Si existe ethereum
-      if (window.ethereum) {
-
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
-
-        if (accounts.length > 0) {
-
-          setWallet(accounts[0]);
-
-          setStatus("Conectada con ethereum");
-
-          return;
-        }
-      }
-
-      // Detecta World App browser
-      const userAgent = navigator.userAgent;
-
-      console.log(userAgent);
-
-      if (
-        userAgent.includes("WorldApp") ||
-        userAgent.includes("Worldcoin")
-      ) {
-
-        setStatus("World App detectada");
-
-        alert(
-          "World App detectada. Actualmente esta versión necesita integración oficial SDK."
-        );
+        alert("Abra esta app desde World App");
 
         return;
       }
 
-      alert("No se detectó provider");
+      setStatus("Mini App abierta correctamente");
 
-      setStatus("Sin provider");
+      alert("RC Wallet conectada correctamente");
 
-    } catch (error) {
+    } catch (err) {
 
-      console.log(error);
+      console.log(err);
 
       setStatus("Error");
-
-      alert("Error conectando");
 
     }
 
@@ -110,7 +93,7 @@ function App() {
         </p>
 
         <button
-          onClick={connectWallet}
+          onClick={conectar}
           style={{
             padding: "18px",
             borderRadius: "15px",
@@ -121,14 +104,14 @@ function App() {
             marginBottom: "30px",
           }}
         >
-          Conectar World App
+          Conectar
         </button>
 
         <hr />
 
         <h2
           style={{
-            fontSize: "45px",
+            fontSize: "40px",
             marginTop: "30px",
           }}
         >
@@ -145,20 +128,37 @@ function App() {
 
         <h2
           style={{
-            fontSize: "45px",
+            fontSize: "40px",
             marginTop: "30px",
           }}
         >
-          Dirección
+          World App
         </h2>
 
         <p
           style={{
-            fontSize: "18px",
+            fontSize: "24px",
+          }}
+        >
+          {isWorldApp ? "Sí" : "No"}
+        </p>
+
+        <h2
+          style={{
+            fontSize: "30px",
+            marginTop: "30px",
+          }}
+        >
+          User Agent
+        </h2>
+
+        <p
+          style={{
+            fontSize: "12px",
             wordBreak: "break-all",
           }}
         >
-          {wallet}
+          {userAgent}
         </p>
 
       </div>
