@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { ethers } from "ethers";
 
 export default function App() {
-  const [status, setStatus] = useState("Esperando World App...");
-  const [address, setAddress] = useState("No conectada");
+  const [status, setStatus] = useState("Iniciando...");
+  const [address, setAddress] = useState("");
   const [balance, setBalance] = useState("0");
   const [network, setNetwork] = useState("-");
 
@@ -14,6 +14,13 @@ export default function App() {
 
   async function init() {
     try {
+      // Espera un poco para que World App cargue MiniKit
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Inicializar MiniKit
+      MiniKit.install();
+
+      // Detectar instalación
       if (!MiniKit.isInstalled()) {
         setStatus("Abra la app desde World App");
         return;
@@ -21,13 +28,15 @@ export default function App() {
 
       setStatus("World App detectada");
 
-      const provider = window.ethereum;
+      // Obtener provider
+      const provider = MiniKit.getProvider();
 
       if (!provider) {
         setStatus("Provider no detectado");
         return;
       }
 
+      // Solicitar conexión wallet
       const accounts = await provider.request({
         method: "eth_requestAccounts",
       });
@@ -37,63 +46,65 @@ export default function App() {
         return;
       }
 
-      const userAddress = accounts[0];
+      const wallet = accounts[0];
 
-      setAddress(userAddress);
+      setAddress(wallet);
+      setStatus("Wallet conectada");
 
+      // ethers provider
       const ethersProvider = new ethers.BrowserProvider(provider);
 
-      const balanceWei = await ethersProvider.getBalance(userAddress);
+      // Balance
+      const ethBalance = await ethersProvider.getBalance(wallet);
 
-      setBalance(ethers.formatEther(balanceWei));
+      setBalance(ethers.formatEther(ethBalance));
 
+      // Red
       const net = await ethersProvider.getNetwork();
 
       setNetwork(net.name);
-
-      setStatus("Wallet conectada");
     } catch (err) {
-      console.log(err);
-      setStatus("Error conectando");
+      console.error(err);
+      setStatus("Error: " + err.message);
     }
   }
 
   return (
     <div
       style={{
-        background: "#04146b",
+        background: "#05058C",
         minHeight: "100vh",
         color: "white",
-        padding: 30,
+        padding: "20px",
         fontFamily: "Arial",
       }}
     >
-      <h1 style={{ fontSize: 60 }}>RC Wallet</h1>
+      <h1 style={{ fontSize: "70px", marginBottom: "40px" }}>
+        RC Wallet
+      </h1>
 
-      <p style={{ fontSize: 30 }}>
-        Recuperación de fondos Worldcoin
-      </p>
+      <h2>Recuperación de fondos Worldcoin</h2>
 
       <button
         onClick={init}
         style={{
-          padding: 20,
-          fontSize: 24,
-          borderRadius: 15,
+          marginTop: "40px",
+          padding: "20px",
+          fontSize: "30px",
+          borderRadius: "20px",
           border: "none",
-          marginTop: 30,
         }}
       >
         Conectar Wallet
       </button>
 
-      <hr style={{ marginTop: 40, marginBottom: 40 }} />
+      <hr style={{ margin: "40px 0" }} />
 
       <h2>Estado</h2>
       <p>{status}</p>
 
       <h2>Dirección</h2>
-      <p>{address}</p>
+      <p>{address || "No conectada"}</p>
 
       <h2>ETH Balance</h2>
       <p>{balance}</p>
