@@ -1,38 +1,62 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
 export default function App() {
 
-  const [status, setStatus] = useState("Esperando conexión");
+  const [providerReady, setProviderReady] = useState(false);
+  const [status, setStatus] = useState("Iniciando...");
   const [address, setAddress] = useState("No conectada");
   const [balance, setBalance] = useState("0");
   const [network, setNetwork] = useState("-");
   const [tokens, setTokens] = useState([]);
 
-  async function waitForProvider() {
+  // BUSCAR PROVIDER
+  async function detectProvider() {
 
     return new Promise((resolve) => {
 
-      let attempts = 0;
+      let tries = 0;
 
       const interval = setInterval(() => {
 
-        attempts++;
+        tries++;
 
+        // Provider principal
         if (window.ethereum) {
 
           clearInterval(interval);
 
           resolve(window.ethereum);
 
+          return;
         }
 
-        if (attempts > 15) {
+        // Algunos wallets usan providers[]
+        if (
+          window.ethereum &&
+          window.ethereum.providers
+        ) {
+
+          const found =
+            window.ethereum.providers.find(
+              (p) => p
+            );
+
+          if (found) {
+
+            clearInterval(interval);
+
+            resolve(found);
+
+            return;
+          }
+        }
+
+        if (tries > 20) {
 
           clearInterval(interval);
 
           resolve(null);
-
         }
 
       }, 1000);
@@ -41,19 +65,44 @@ export default function App() {
 
   }
 
+  // AUTO DETECCIÓN
+  useEffect(() => {
+
+    async function init() {
+
+      const provider =
+        await detectProvider();
+
+      if (provider) {
+
+        setProviderReady(true);
+
+        setStatus("World App detectada");
+
+      } else {
+
+        setStatus("Provider no detectado");
+      }
+
+    }
+
+    init();
+
+  }, []);
+
   async function connectWallet() {
 
     try {
 
-      setStatus("Buscando provider...");
+      setStatus("Conectando...");
 
-      const ethereumProvider =
-        await waitForProvider();
+      const ethereum =
+        await detectProvider();
 
-      if (!ethereumProvider) {
+      if (!ethereum) {
 
         alert(
-          "World App no entregó provider"
+          "World App no detectada"
         );
 
         setStatus(
@@ -61,36 +110,47 @@ export default function App() {
         );
 
         return;
-
       }
 
-      setStatus("Provider detectado");
-
-      // Solicitar cuentas manualmente
+      // REQUEST MANUAL
       const accounts =
-        await ethereumProvider.request({
+        await ethereum.request({
           method: "eth_requestAccounts"
         });
 
-      if (!accounts || accounts.length === 0) {
+      if (
+        !accounts ||
+        accounts.length === 0
+      ) {
 
-        alert("No hay cuentas");
+        alert("Sin cuentas");
 
         return;
-
       }
 
+      // ETHERS V6
       const provider =
         new ethers.BrowserProvider(
-          ethereumProvider
+          ethereum
         );
 
+      const signer =
+        await provider.getSigner();
+
       const userAddress =
-        accounts[0];
+        await signer.getAddress();
 
       setAddress(userAddress);
 
-      // Balance ETH
+      // RED
+      const chain =
+        await provider.getNetwork();
+
+      setNetwork(
+        chain.name || chain.chainId.toString()
+      );
+
+      // BALANCE ETH
       const ethBalance =
         await provider.getBalance(
           userAddress
@@ -108,28 +168,18 @@ export default function App() {
 
       );
 
-      // Network
-      const net =
-        await provider.getNetwork();
-
-      setNetwork(
-        net.name || "Ethereum"
-      );
-
-      setStatus("Wallet conectada");
-
-      // TOKENS
-      const tokenList = [
+      // TOKENS ERC20
+      const tokenContracts = [
 
         {
           symbol: "WLD",
-          contract:
+          address:
             "0x163f8c2467924be0ae7b5347228cabf260318753"
         },
 
         {
           symbol: "USDC",
-          contract:
+          address:
             "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606EB48"
         }
 
@@ -139,24 +189,25 @@ export default function App() {
 
         "function balanceOf(address owner) view returns (uint256)",
 
-        "function decimals() view returns (uint8)"
+        "function decimals() view returns (uint8)",
 
+        "function symbol() view returns (string)"
       ];
 
       let detected = [];
 
-      for (const token of tokenList) {
+      for (const token of tokenContracts) {
 
         try {
 
           const contract =
             new ethers.Contract(
-              token.contract,
+              token.address,
               abi,
               provider
             );
 
-          const raw =
+          const rawBalance =
             await contract.balanceOf(
               userAddress
             );
@@ -166,7 +217,7 @@ export default function App() {
 
           const formatted =
             ethers.formatUnits(
-              raw,
+              rawBalance,
               decimals
             );
 
@@ -181,21 +232,45 @@ export default function App() {
               balance:
                 parseFloat(
                   formatted
-                ).toFixed(4)
+                ).toFixed(4),
 
+              contract:
+                token.address
             });
 
           }
 
         } catch (err) {
 
-          console.log(err);
+          console.log(
+            "Error token:",
+            err
+          );
 
         }
 
       }
 
       setTokens(detected);
+
+      setStatus(
+        "Wallet conectada"
+      );
+
+      // EVENTOS
+      ethereum.on?.(
+        "accountsChanged",
+        () => {
+          window.location.reload();
+        }
+      );
+
+      ethereum.on?.(
+        "chainChanged",
+        () => {
+          window.location.reload();
+        }
+      );
 
       alert(
         "RC Wallet conectada correctamente"
@@ -205,11 +280,11 @@ export default function App() {
 
       console.log(err);
 
+      setStatus("Error");
+
       alert(
         "Error conectando wallet"
       );
-
-      setStatus("Error");
 
     }
 
@@ -230,8 +305,8 @@ export default function App() {
       <div
         style={{
           background: "#06146e",
-          padding: "25px",
-          borderRadius: "25px"
+          borderRadius: "30px",
+          padding: "25px"
         }}
       >
 
@@ -245,7 +320,7 @@ export default function App() {
 
         <p
           style={{
-            fontSize: "20px"
+            fontSize: "22px"
           }}
         >
           Recuperación de fondos Worldcoin
@@ -254,22 +329,22 @@ export default function App() {
         <button
           onClick={connectWallet}
           style={{
-            padding: "15px",
+            padding: "16px",
             borderRadius: "15px",
             border: "none",
             fontSize: "20px",
-            marginTop: "20px",
-            cursor: "pointer"
+            cursor: "pointer",
+            marginTop: "20px"
           }}
         >
-          Conectar Wallet
+          {
+            providerReady
+              ? "Conectar Wallet"
+              : "Esperando World App..."
+          }
         </button>
 
-        <hr
-          style={{
-            margin: "30px 0"
-          }}
-        />
+        <hr style={{ margin: "30px 0" }} />
 
         <h2>Estado</h2>
 
@@ -293,11 +368,7 @@ export default function App() {
 
         <p>{network}</p>
 
-        <hr
-          style={{
-            margin: "30px 0"
-          }}
-        />
+        <hr style={{ margin: "30px 0" }} />
 
         <h2>Tokens Detectados</h2>
 
@@ -309,19 +380,30 @@ export default function App() {
             </p>
           )
           : (
-            tokens.map((token, index) => (
+            tokens.map(
+              (token, index) => (
 
-              <div key={index}>
+                <div
+                  key={index}
+                  style={{
+                    marginBottom: "15px"
+                  }}
+                >
 
-                <p>
-                  {token.symbol}
-                  {" : "}
-                  {token.balance}
-                </p>
+                  <p>
+                    {token.symbol}
+                  </p>
 
-              </div>
+                  <p>
+                    Balance:
+                    {" "}
+                    {token.balance}
+                  </p>
 
-            ))
+                </div>
+
+              )
+            )
           )
         }
 
@@ -331,4 +413,4 @@ export default function App() {
 
   );
 
-}
+  }
