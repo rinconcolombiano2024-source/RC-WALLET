@@ -1,232 +1,110 @@
-import React, {
-  useEffect,
-  useState
-} from "react";
-
-import {
-  MiniKit
-} from "@worldcoin/minikit-js";
+import React, { useState, useEffect } from "react";
+import { ethers } from "ethers";
+import { MiniKit } from "@worldcoin/minikit-js";
 
 export default function App() {
+  const [status, setStatus] = useState("Esperando World App...");
+  const [address, setAddress] = useState("");
+  const [balance, setBalance] = useState("0");
+  const [network, setNetwork] = useState("-");
 
-  const [status, setStatus] =
-    useState("Iniciando...");
-
-  const [walletData, setWalletData] =
-    useState(null);
-
-  const [installed, setInstalled] =
-    useState(false);
-
-  // INICIAR
   useEffect(() => {
-
-    async function init() {
-
-      try {
-
-        const isInstalled =
-          MiniKit.isInstalled();
-
-        console.log(
-          "MiniKit:",
-          isInstalled
-        );
-
-        if (isInstalled) {
-
-          setInstalled(true);
-
-          setStatus(
-            "World App detectada"
-          );
-
-        } else {
-
-          setStatus(
-            "Abra RC Wallet desde World App"
-          );
-
-        }
-
-      } catch (err) {
-
-        console.log(err);
-
-        setStatus(
-          "Error iniciando MiniKit"
-        );
-
-      }
-
-    }
-
-    init();
-
+    checkConnection();
   }, []);
 
-  // CONECTAR
-  async function connectWallet() {
-
+  const checkConnection = async () => {
     try {
-
-      setStatus(
-        "Conectando wallet..."
-      );
-
-      // AUTH OFICIAL
-      const res =
-        await MiniKit.commandsAsync.walletAuth({
-
-          nonce:
-            "rc-wallet-login",
-
-          requestId:
-            "rc-wallet-" + Date.now(),
-
-          expirationTime:
-            new Date(
-              Date.now() + 1000 * 60 * 60
-            ),
-
-          notBefore:
-            new Date()
-
-        });
-
-      console.log(
-        "WalletAuth:",
-        res
-      );
-
-      if (!res) {
-
-        setStatus(
-          "Conexión cancelada"
-        );
-
+      if (!MiniKit.isInstalled()) {
+        setStatus("Abra desde World App");
         return;
       }
 
-      setWalletData(res);
+      if (!window.ethereum) {
+        setStatus("Provider no detectado");
+        return;
+      }
 
-      setStatus(
-        "Wallet conectada correctamente"
-      );
-
-      alert(
-        "RC Wallet conectada correctamente"
-      );
-
-    } catch (err) {
-
-      console.log(err);
-
-      setStatus(
-        "Error conectando wallet"
-      );
-
-      alert(
-        "Error conectando wallet"
-      );
-
+      setStatus("World App detectada");
+    } catch (error) {
+      console.log(error);
+      setStatus("Error detectando");
     }
+  };
 
-  }
+  const connectWallet = async () => {
+    try {
+      if (!window.ethereum) {
+        alert("World App no detectada");
+        return;
+      }
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+
+      await provider.send("eth_requestAccounts", []);
+
+      const signer = await provider.getSigner();
+
+      const walletAddress = await signer.getAddress();
+
+      setAddress(walletAddress);
+
+      const ethBalance = await provider.getBalance(walletAddress);
+
+      setBalance(ethers.formatEther(ethBalance));
+
+      const net = await provider.getNetwork();
+
+      setNetwork(net.name);
+
+      setStatus("Wallet conectada");
+    } catch (err) {
+      console.log(err);
+      setStatus("Error conectando");
+    }
+  };
 
   return (
-
     <div
       style={{
-        background: "#020b5c",
+        background: "#05056b",
         minHeight: "100vh",
-        padding: "30px",
         color: "white",
-        fontFamily: "Arial"
+        padding: 30,
+        fontFamily: "Arial",
       }}
     >
+      <h1 style={{ fontSize: 70 }}>RC Wallet</h1>
 
-      <div
+      <p style={{ fontSize: 30 }}>
+        Recuperación de fondos Worldcoin
+      </p>
+
+      <button
+        onClick={connectWallet}
         style={{
-          background: "#06146e",
-          borderRadius: "30px",
-          padding: "25px"
+          padding: 20,
+          borderRadius: 20,
+          border: "none",
+          fontSize: 30,
+          marginTop: 20,
         }}
       >
+        Conectar Wallet
+      </button>
 
-        <h1
-          style={{
-            fontSize: "70px"
-          }}
-        >
-          RC Wallet
-        </h1>
+      <hr style={{ marginTop: 40, marginBottom: 40 }} />
 
-        <p
-          style={{
-            fontSize: "22px"
-          }}
-        >
-          Recuperación de fondos Worldcoin
-        </p>
+      <h2>Estado</h2>
+      <p>{status}</p>
 
-        <button
-          onClick={connectWallet}
-          disabled={!installed}
-          style={{
-            padding: "16px",
-            borderRadius: "15px",
-            border: "none",
-            fontSize: "20px",
-            cursor: "pointer",
-            marginTop: "20px",
-            opacity:
-              installed ? 1 : 0.5
-          }}
-        >
+      <h2>Dirección</h2>
+      <p>{address || "No conectada"}</p>
 
-          {
-            installed
-              ? "Conectar Wallet"
-              : "Esperando World App..."
-          }
+      <h2>ETH Balance</h2>
+      <p>{balance}</p>
 
-        </button>
-
-        <hr
-          style={{
-            margin: "30px 0"
-          }}
-        />
-
-        <h2>Estado</h2>
-
-        <p>{status}</p>
-
-        <h2>Datos Wallet</h2>
-
-        <pre
-          style={{
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            fontSize: "12px"
-          }}
-        >
-          {
-            walletData
-              ? JSON.stringify(
-                  walletData,
-                  null,
-                  2
-                )
-              : "No conectado"
-          }
-        </pre>
-
-      </div>
-
+      <h2>Red</h2>
+      <p>{network}</p>
     </div>
-
   );
-
 }
