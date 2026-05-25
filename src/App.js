@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ethers } from "ethers";
+import { MiniKit } from "@worldcoin/minikit-js";
 
 export default function App() {
 
@@ -9,38 +10,75 @@ export default function App() {
   const [network, setNetwork] = useState("-");
   const [tokens, setTokens] = useState([]);
 
+  async function verifyWorldApp() {
+
+    try {
+
+      if (!MiniKit.isInstalled()) {
+
+        alert("Abra esta Mini App desde World App");
+
+        setStatus("World App no detectada");
+
+        return;
+
+      }
+
+      alert("World App detectada correctamente");
+
+      setStatus("World App detectada");
+
+    } catch (err) {
+
+      console.log(err);
+
+      setStatus("Error detectando World App");
+
+    }
+
+  }
+
   async function connectWallet() {
 
     try {
 
-      // Detectar provider
-      const providerDetected =
-        window.ethereum ||
-        window.worldEthereum ||
-        window.web3?.currentProvider;
+      if (!MiniKit.isInstalled()) {
 
-      if (!providerDetected) {
-        alert("World App no detectada");
-        setStatus("Provider no detectado");
+        alert("Abra esta app desde World App");
+
         return;
+
       }
 
-      // Crear provider ethers v6
-      const provider = new ethers.BrowserProvider(providerDetected);
+      const providerDetected = window.ethereum;
 
-      // Solicitar cuentas
-      await provider.send("eth_requestAccounts", []);
+      if (!providerDetected) {
 
-      // Obtener signer
+        alert("Provider no disponible aún");
+
+        setStatus("Provider no detectado");
+
+        return;
+
+      }
+
+      const provider =
+        new ethers.BrowserProvider(providerDetected);
+
+      await provider.send(
+        "eth_requestAccounts",
+        []
+      );
+
       const signer = await provider.getSigner();
 
-      // Dirección
-      const userAddress = await signer.getAddress();
+      const userAddress =
+        await signer.getAddress();
 
       setAddress(userAddress);
 
-      // Balance ETH
-      const ethBalance = await provider.getBalance(userAddress);
+      const ethBalance =
+        await provider.getBalance(userAddress);
 
       setBalance(
         parseFloat(
@@ -48,26 +86,20 @@ export default function App() {
         ).toFixed(4)
       );
 
-      // Red
-      const net = await provider.getNetwork();
+      const net =
+        await provider.getNetwork();
 
       setNetwork(net.name);
 
       setStatus("Wallet conectada");
 
-      // TOKENS A DETECTAR
       const tokenList = [
 
         {
           name: "WLD",
           symbol: "WLD",
-          contract: "0x163f8c2467924be0ae7b5347228cabf260318753"
-        },
-
-        {
-          name: "USDC",
-          symbol: "USDC",
-          contract: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606EB48"
+          contract:
+            "0x163f8c2467924be0ae7b5347228cabf260318753"
         }
 
       ];
@@ -83,45 +115,49 @@ export default function App() {
 
         try {
 
-          const contract = new ethers.Contract(
-            token.contract,
-            abi,
-            provider
-          );
+          const contract =
+            new ethers.Contract(
+              token.contract,
+              abi,
+              provider
+            );
 
-          const rawBalance =
+          const raw =
             await contract.balanceOf(userAddress);
 
           const decimals =
             await contract.decimals();
 
           const formatted =
-            ethers.formatUnits(rawBalance, decimals);
+            ethers.formatUnits(raw, decimals);
 
           if (parseFloat(formatted) > 0) {
 
             detected.push({
               symbol: token.symbol,
-              balance: parseFloat(formatted).toFixed(4)
+              balance:
+                parseFloat(formatted).toFixed(4)
             });
 
           }
 
         } catch (err) {
+
           console.log(err);
+
         }
 
       }
 
       setTokens(detected);
 
-      alert("RC Wallet conectada correctamente");
+      alert("Wallet conectada correctamente");
 
     } catch (err) {
 
       console.log(err);
 
-      alert("Error conectando wallet");
+      alert("Error conectando");
 
       setStatus("Error");
 
@@ -158,14 +194,27 @@ export default function App() {
         </p>
 
         <button
+          onClick={verifyWorldApp}
+          style={{
+            padding: "15px",
+            borderRadius: "15px",
+            border: "none",
+            marginTop: "20px",
+            marginRight: "10px",
+            fontSize: "18px"
+          }}
+        >
+          Verificar World App
+        </button>
+
+        <button
           onClick={connectWallet}
           style={{
             padding: "15px",
             borderRadius: "15px",
             border: "none",
-            fontSize: "20px",
             marginTop: "20px",
-            cursor: "pointer"
+            fontSize: "18px"
           }}
         >
           Conectar Wallet
@@ -192,9 +241,11 @@ export default function App() {
         <h2>Tokens Detectados</h2>
 
         {
-          tokens.length === 0 ? (
+          tokens.length === 0
+          ? (
             <p>No hay tokens detectados</p>
-          ) : (
+          )
+          : (
             tokens.map((token, index) => (
               <div key={index}>
                 <p>
@@ -211,4 +262,4 @@ export default function App() {
 
   );
 
-}
+          }
