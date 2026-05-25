@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { ethers } from "ethers";
-import { MiniKit } from "@worldcoin/minikit-js";
 
 export default function App() {
 
@@ -10,31 +9,35 @@ export default function App() {
   const [network, setNetwork] = useState("-");
   const [tokens, setTokens] = useState([]);
 
-  async function verifyWorldApp() {
+  async function waitForProvider() {
 
-    try {
+    return new Promise((resolve) => {
 
-      if (!MiniKit.isInstalled()) {
+      let attempts = 0;
 
-        alert("Abra esta Mini App desde World App");
+      const interval = setInterval(() => {
 
-        setStatus("World App no detectada");
+        attempts++;
 
-        return;
+        if (window.ethereum) {
 
-      }
+          clearInterval(interval);
 
-      alert("World App detectada correctamente");
+          resolve(window.ethereum);
 
-      setStatus("World App detectada");
+        }
 
-    } catch (err) {
+        if (attempts > 15) {
 
-      console.log(err);
+          clearInterval(interval);
 
-      setStatus("Error detectando World App");
+          resolve(null);
 
-    }
+        }
+
+      }, 1000);
+
+    });
 
   }
 
@@ -42,71 +45,102 @@ export default function App() {
 
     try {
 
-      if (!MiniKit.isInstalled()) {
+      setStatus("Buscando provider...");
 
-        alert("Abra esta app desde World App");
+      const ethereumProvider =
+        await waitForProvider();
+
+      if (!ethereumProvider) {
+
+        alert(
+          "World App no entregó provider"
+        );
+
+        setStatus(
+          "Provider no detectado"
+        );
 
         return;
 
       }
 
-      const providerDetected = window.ethereum;
+      setStatus("Provider detectado");
 
-      if (!providerDetected) {
+      // Solicitar cuentas manualmente
+      const accounts =
+        await ethereumProvider.request({
+          method: "eth_requestAccounts"
+        });
 
-        alert("Provider no disponible aún");
+      if (!accounts || accounts.length === 0) {
 
-        setStatus("Provider no detectado");
+        alert("No hay cuentas");
 
         return;
 
       }
 
       const provider =
-        new ethers.BrowserProvider(providerDetected);
-
-      await provider.send(
-        "eth_requestAccounts",
-        []
-      );
-
-      const signer = await provider.getSigner();
+        new ethers.BrowserProvider(
+          ethereumProvider
+        );
 
       const userAddress =
-        await signer.getAddress();
+        accounts[0];
 
       setAddress(userAddress);
 
+      // Balance ETH
       const ethBalance =
-        await provider.getBalance(userAddress);
+        await provider.getBalance(
+          userAddress
+        );
 
       setBalance(
+
         parseFloat(
-          ethers.formatEther(ethBalance)
+
+          ethers.formatEther(
+            ethBalance
+          )
+
         ).toFixed(4)
+
       );
 
+      // Network
       const net =
         await provider.getNetwork();
 
-      setNetwork(net.name);
+      setNetwork(
+        net.name || "Ethereum"
+      );
 
       setStatus("Wallet conectada");
 
+      // TOKENS
       const tokenList = [
 
         {
-          name: "WLD",
           symbol: "WLD",
           contract:
             "0x163f8c2467924be0ae7b5347228cabf260318753"
+        },
+
+        {
+          symbol: "USDC",
+          contract:
+            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606EB48"
         }
 
       ];
 
       const abi = [
+
         "function balanceOf(address owner) view returns (uint256)",
+
         "function decimals() view returns (uint8)"
+
       ];
 
       let detected = [];
@@ -123,20 +157,32 @@ export default function App() {
             );
 
           const raw =
-            await contract.balanceOf(userAddress);
+            await contract.balanceOf(
+              userAddress
+            );
 
           const decimals =
             await contract.decimals();
 
           const formatted =
-            ethers.formatUnits(raw, decimals);
+            ethers.formatUnits(
+              raw,
+              decimals
+            );
 
-          if (parseFloat(formatted) > 0) {
+          if (
+            parseFloat(formatted) > 0
+          ) {
 
             detected.push({
+
               symbol: token.symbol,
+
               balance:
-                parseFloat(formatted).toFixed(4)
+                parseFloat(
+                  formatted
+                ).toFixed(4)
+
             });
 
           }
@@ -151,13 +197,17 @@ export default function App() {
 
       setTokens(detected);
 
-      alert("Wallet conectada correctamente");
+      alert(
+        "RC Wallet conectada correctamente"
+      );
 
     } catch (err) {
 
       console.log(err);
 
-      alert("Error conectando");
+      alert(
+        "Error conectando wallet"
+      );
 
       setStatus("Error");
 
@@ -185,27 +235,21 @@ export default function App() {
         }}
       >
 
-        <h1 style={{ fontSize: "70px" }}>
+        <h1
+          style={{
+            fontSize: "70px"
+          }}
+        >
           RC Wallet
         </h1>
 
-        <p style={{ fontSize: "20px" }}>
-          Recuperación de fondos Worldcoin
-        </p>
-
-        <button
-          onClick={verifyWorldApp}
+        <p
           style={{
-            padding: "15px",
-            borderRadius: "15px",
-            border: "none",
-            marginTop: "20px",
-            marginRight: "10px",
-            fontSize: "18px"
+            fontSize: "20px"
           }}
         >
-          Verificar World App
-        </button>
+          Recuperación de fondos Worldcoin
+        </p>
 
         <button
           onClick={connectWallet}
@@ -213,45 +257,70 @@ export default function App() {
             padding: "15px",
             borderRadius: "15px",
             border: "none",
+            fontSize: "20px",
             marginTop: "20px",
-            fontSize: "18px"
+            cursor: "pointer"
           }}
         >
           Conectar Wallet
         </button>
 
-        <hr style={{ margin: "30px 0" }} />
+        <hr
+          style={{
+            margin: "30px 0"
+          }}
+        />
 
         <h2>Estado</h2>
+
         <p>{status}</p>
 
         <h2>Dirección</h2>
-        <p style={{ wordBreak: "break-all" }}>
+
+        <p
+          style={{
+            wordBreak: "break-all"
+          }}
+        >
           {address}
         </p>
 
         <h2>ETH Balance</h2>
+
         <p>{balance}</p>
 
         <h2>Red</h2>
+
         <p>{network}</p>
 
-        <hr style={{ margin: "30px 0" }} />
+        <hr
+          style={{
+            margin: "30px 0"
+          }}
+        />
 
         <h2>Tokens Detectados</h2>
 
         {
           tokens.length === 0
           ? (
-            <p>No hay tokens detectados</p>
+            <p>
+              No hay tokens detectados
+            </p>
           )
           : (
             tokens.map((token, index) => (
+
               <div key={index}>
+
                 <p>
-                  {token.symbol}: {token.balance}
+                  {token.symbol}
+                  {" : "}
+                  {token.balance}
                 </p>
+
               </div>
+
             ))
           )
         }
@@ -262,4 +331,4 @@ export default function App() {
 
   );
 
-          }
+}
