@@ -6,27 +6,50 @@ const NETWORKS = [
   {
     name: "Ethereum",
     chainId: 1,
-    rpc: "https://ethereum-rpc.publicnode.com",
+    symbol: "ETH",
+    rpc: [
+      "https://ethereum-rpc.publicnode.com",
+      "https://rpc.ankr.com/eth",
+    ],
   },
+
   {
     name: "Optimism",
     chainId: 10,
-    rpc: "https://mainnet.optimism.io",
+    symbol: "ETH",
+    rpc: [
+      "https://mainnet.optimism.io",
+      "https://rpc.ankr.com/optimism",
+    ],
   },
+
   {
     name: "BNB",
     chainId: 56,
-    rpc: "https://bsc-dataseed.binance.org",
+    symbol: "BNB",
+    rpc: [
+      "https://bsc-dataseed.binance.org",
+      "https://rpc.ankr.com/bsc",
+    ],
   },
+
   {
     name: "Base",
     chainId: 8453,
-    rpc: "https://mainnet.base.org",
+    symbol: "ETH",
+    rpc: [
+      "https://mainnet.base.org",
+      "https://base-rpc.publicnode.com",
+    ],
   },
+
   {
     name: "World Chain",
     chainId: 480,
-    rpc: "https://worldchain-mainnet.g.alchemy.com/public",
+    symbol: "ETH",
+    rpc: [
+      "https://worldchain-mainnet.g.alchemy.com/public",
+    ],
   },
 ];
 
@@ -34,19 +57,27 @@ const TOKENS = [
   {
     symbol: "WLD",
     decimals: 18,
+
     addresses: {
       1: "0x163f8C2467924be0ae7B5347228CABF260318753",
-      10: "0xD5c28A9bE85cF5aD1F3bF8A3d4F7A9C9f3A8bF5A",
-      8453: "0x163f8C2467924be0ae7B5347228CABF260318753",
+
+      8453:
+        "0x163f8C2467924be0ae7B5347228CABF260318753",
     },
   },
+
   {
     symbol: "USDC",
     decimals: 6,
+
     addresses: {
       1: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+
       10: "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
-      8453: "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
+
+      8453:
+        "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
+
       56: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
     },
   },
@@ -54,21 +85,43 @@ const TOKENS = [
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
+
   "function transfer(address to, uint amount) returns (bool)",
+
   "function decimals() view returns (uint8)",
+
   "function symbol() view returns (string)",
+
+  "function name() view returns (string)",
 ];
 
 export default function App() {
-  const [status, setStatus] = useState("Iniciando...");
-  const [wallet, setWallet] = useState("");
-  const [network, setNetwork] = useState("");
-  const [ethBalance, setEthBalance] = useState("0");
-  const [tokens, setTokens] = useState([]);
-  const [provider, setProvider] = useState(null);
+  const [status, setStatus] =
+    useState("Iniciando...");
 
-  const [sendTo, setSendTo] = useState("");
-  const [sendAmount, setSendAmount] = useState("");
+  const [wallet, setWallet] =
+    useState("");
+
+  const [network, setNetwork] =
+    useState("");
+
+  const [nativeBalance, setNativeBalance] =
+    useState("0");
+
+  const [tokens, setTokens] =
+    useState([]);
+
+  const [provider, setProvider] =
+    useState(null);
+
+  const [sendTo, setSendTo] =
+    useState("");
+
+  const [sendAmount, setSendAmount] =
+    useState("");
+
+  const [selectedNetwork, setSelectedNetwork] =
+    useState("");
 
   useEffect(() => {
     connectWallet();
@@ -76,26 +129,31 @@ export default function App() {
 
   async function connectWallet() {
     try {
-      setStatus("Conectando...");
+      setStatus("Conectando wallet...");
 
-      if (!MiniKit.isInstalled()) {
-        setStatus("Abra la app desde World App");
+      await MiniKit.install();
+
+      if (!window.ethereum) {
+        setStatus(
+          "Abra RC Wallet desde World App"
+        );
+
         return;
       }
 
-      const miniProvider = window.ethereum;
+      const miniProvider =
+        window.ethereum;
 
-      if (!miniProvider) {
-        setStatus("Provider no detectado");
-        return;
-      }
+      const accounts =
+        await miniProvider.request({
+          method: "eth_requestAccounts",
+        });
 
-      const accounts = await miniProvider.request({
-        method: "eth_requestAccounts",
-      });
+      if (!accounts?.length) {
+        setStatus(
+          "Wallet no conectada"
+        );
 
-      if (!accounts || !accounts.length) {
-        setStatus("Wallet no conectada");
         return;
       }
 
@@ -103,29 +161,43 @@ export default function App() {
 
       setWallet(address);
 
-      const ethersProvider = new ethers.BrowserProvider(
-        miniProvider
-      );
-
-      setProvider(ethersProvider);
-
-      const balance = await ethersProvider.getBalance(
+      localStorage.setItem(
+        "rc_wallet_address",
         address
       );
 
-      setEthBalance(
+      const ethersProvider =
+        new ethers.BrowserProvider(
+          miniProvider
+        );
+
+      setProvider(ethersProvider);
+
+      const balance =
+        await ethersProvider.getBalance(
+          address
+        );
+
+      setNativeBalance(
         Number(
           ethers.formatEther(balance)
         ).toFixed(4)
       );
 
-      const net = await ethersProvider.getNetwork();
+      const net =
+        await ethersProvider.getNetwork();
 
       setNetwork(
         `${net.name} (${net.chainId})`
       );
 
-      setStatus("Wallet conectada");
+      setSelectedNetwork(
+        Number(net.chainId)
+      );
+
+      setStatus(
+        "Wallet conectada correctamente"
+      );
 
       await scanAllNetworks(address);
 
@@ -133,98 +205,280 @@ export default function App() {
       console.error(err);
 
       setStatus(
-        err?.message || "Error de conexión"
+        err?.message ||
+          "Error conectando wallet"
       );
     }
   }
 
-  async function scanAllNetworks(address) {
-    let foundTokens = [];
-
-    for (const net of NETWORKS) {
+  async function getWorkingProvider(
+    rpcList
+  ) {
+    for (const rpc of rpcList) {
       try {
-        const rpcProvider =
-          new ethers.JsonRpcProvider(net.rpc);
+        const provider =
+          new ethers.JsonRpcProvider(
+            rpc
+          );
 
-        for (const token of TOKENS) {
-          try {
-            const tokenAddress =
-              token.addresses[net.chainId];
+        await provider.getBlockNumber();
 
-            if (!tokenAddress) continue;
-
-            const contract = new ethers.Contract(
-              tokenAddress,
-              ERC20_ABI,
-              rpcProvider
-            );
-
-            const balance =
-              await contract.balanceOf(address);
-
-            const formatted = ethers.formatUnits(
-              balance,
-              token.decimals
-            );
-
-            if (Number(formatted) > 0) {
-              foundTokens.push({
-                network: net.name,
-                symbol: token.symbol,
-                balance: Number(formatted).toFixed(4),
-                address: tokenAddress,
-              });
-            }
-
-          } catch (e) {
-            console.log(
-              "Token error:",
-              net.name,
-              token.symbol
-            );
-          }
-        }
+        return provider;
 
       } catch (err) {
         console.log(
-          "RPC error:",
-          net.name
+          "RPC falló:",
+          rpc
         );
       }
     }
 
-    setTokens(foundTokens);
+    return null;
   }
 
-  async function sendNative() {
+  async function scanAllNetworks(
+    address
+  ) {
     try {
-      if (!provider) {
-        alert("Wallet no conectada");
-        return;
+      setStatus(
+        "Escaneando redes..."
+      );
+
+      let foundTokens = [];
+
+      for (const net of NETWORKS) {
+        try {
+          const rpcProvider =
+            await getWorkingProvider(
+              net.rpc
+            );
+
+          if (!rpcProvider) {
+            console.log(
+              "No RPC disponible:",
+              net.name
+            );
+
+            continue;
+          }
+
+          const nativeBalance =
+            await rpcProvider.getBalance(
+              address
+            );
+
+          const formattedNative =
+            Number(
+              ethers.formatEther(
+                nativeBalance
+              )
+            ).toFixed(4);
+
+          if (
+            Number(formattedNative) > 0
+          ) {
+            foundTokens.push({
+              network: net.name,
+
+              symbol: net.symbol,
+
+              balance:
+                formattedNative,
+
+              address:
+                "Native Coin",
+            });
+          }
+
+          for (const token of TOKENS) {
+            try {
+              const tokenAddress =
+                token.addresses[
+                  net.chainId
+                ];
+
+              if (!tokenAddress)
+                continue;
+
+              const contract =
+                new ethers.Contract(
+                  tokenAddress,
+                  ERC20_ABI,
+                  rpcProvider
+                );
+
+              const balance =
+                await contract.balanceOf(
+                  address
+                );
+
+              const formatted =
+                ethers.formatUnits(
+                  balance,
+                  token.decimals
+                );
+
+              if (
+                Number(formatted) > 0
+              ) {
+                foundTokens.push({
+                  network:
+                    net.name,
+
+                  symbol:
+                    token.symbol,
+
+                  balance:
+                    Number(
+                      formatted
+                    ).toFixed(4),
+
+                  address:
+                    tokenAddress,
+                });
+              }
+
+            } catch (err) {
+              console.log(
+                "Token error:",
+                token.symbol
+              );
+            }
+          }
+
+        } catch (err) {
+          console.log(
+            "Network error:",
+            net.name
+          );
+        }
       }
 
-      const signer =
-        await provider.getSigner();
+      setTokens(foundTokens);
 
-      const tx =
-        await signer.sendTransaction({
-          to: sendTo,
-          value: ethers.parseEther(sendAmount),
-        });
+      localStorage.setItem(
+        "rc_wallet_tokens",
+        JSON.stringify(foundTokens)
+      );
 
-      setStatus("Esperando confirmación...");
+      setStatus(
+        "Escaneo completado"
+      );
 
-      await tx.wait();
+    } catch (err) {
+      console.error(err);
 
-      setStatus("Transferencia completada");
+      setStatus(
+        "Error escaneando redes"
+      );
+    }
+  }
 
-      alert("Fondos enviados");
+  async function switchNetwork(
+    chainId
+  ) {
+    try {
+      if (!window.ethereum) return;
+
+      const hexChainId =
+        "0x" +
+        Number(chainId).toString(16);
+
+      await window.ethereum.request({
+        method:
+          "wallet_switchEthereumChain",
+
+        params: [
+          {
+            chainId: hexChainId,
+          },
+        ],
+      });
+
+      setStatus(
+        "Red cambiada"
+      );
 
     } catch (err) {
       console.error(err);
 
       alert(
-        err?.message || "Error enviando"
+        "No se pudo cambiar la red"
+      );
+    }
+  }
+
+  async function sendNative() {
+    try {
+      if (!provider) {
+        alert(
+          "Wallet no conectada"
+        );
+
+        return;
+      }
+
+      if (!sendTo) {
+        alert(
+          "Ingrese dirección"
+        );
+
+        return;
+      }
+
+      if (!sendAmount) {
+        alert(
+          "Ingrese cantidad"
+        );
+
+        return;
+      }
+
+      setStatus(
+        "Preparando transacción..."
+      );
+
+      const signer =
+        await provider.getSigner();
+
+      const feeData =
+        await provider.getFeeData();
+
+      console.log(
+        "Gas fee:",
+        feeData
+      );
+
+      const tx =
+        await signer.sendTransaction({
+          to: sendTo,
+
+          value:
+            ethers.parseEther(
+              sendAmount
+            ),
+        });
+
+      setStatus(
+        "Esperando confirmación..."
+      );
+
+      await tx.wait();
+
+      setStatus(
+        "Transferencia completada"
+      );
+
+      alert(
+        "Fondos enviados correctamente"
+      );
+
+    } catch (err) {
+      console.error(err);
+
+      alert(
+        err?.message ||
+          "Error enviando fondos"
       );
     }
   }
@@ -232,21 +486,47 @@ export default function App() {
   return (
     <div
       style={{
-        background: "#05058C",
+        background:
+          "linear-gradient(to bottom, #05058C, #02024d)",
+
         minHeight: "100vh",
+
         color: "white",
+
         padding: "20px",
+
         fontFamily: "Arial",
       }}
     >
-      <h1
+      <div
         style={{
-          fontSize: "55px",
-          marginBottom: "10px",
+          display: "flex",
+
+          alignItems: "center",
+
+          gap: "15px",
         }}
       >
-        RC Wallet
-      </h1>
+        <img
+          src="https://i.imgur.com/Xd8N7xB.png"
+          alt="logo"
+          width="70"
+          style={{
+            borderRadius: "50%",
+            animation:
+              "spin 12s linear infinite",
+          }}
+        />
+
+        <h1
+          style={{
+            fontSize: "55px",
+            marginBottom: "10px",
+          }}
+        >
+          RC Wallet
+        </h1>
+      </div>
 
       <h2>
         Recuperación Multi-Chain
@@ -256,107 +536,200 @@ export default function App() {
         onClick={connectWallet}
         style={{
           padding: "20px",
+
           fontSize: "25px",
+
           borderRadius: "20px",
+
           border: "none",
+
           marginTop: "20px",
+
           cursor: "pointer",
         }}
       >
         Conectar Wallet
       </button>
 
-      <hr style={{ margin: "30px 0" }} />
+      <hr
+        style={{
+          margin: "30px 0",
+        }}
+      />
 
       <h2>Estado</h2>
+
       <p>{status}</p>
 
       <h2>Wallet</h2>
+
       <p
         style={{
           wordBreak: "break-all",
         }}
       >
-        {wallet || "No conectada"}
+        {wallet ||
+          "No conectada"}
       </p>
 
       <h2>Red</h2>
+
       <p>{network || "-"}</p>
 
-      <h2>ETH Balance</h2>
-      <p>{ethBalance}</p>
+      <h2>Balance</h2>
 
-      <hr style={{ margin: "30px 0" }} />
+      <p>{nativeBalance}</p>
 
-      <h2>Tokens Detectados</h2>
+      <hr
+        style={{
+          margin: "30px 0",
+        }}
+      />
+
+      <h2>
+        Cambiar Red
+      </h2>
+
+      <select
+        value={selectedNetwork}
+        onChange={(e) => {
+          setSelectedNetwork(
+            e.target.value
+          );
+
+          switchNetwork(
+            e.target.value
+          );
+        }}
+        style={{
+          padding: "15px",
+
+          borderRadius: "10px",
+
+          width: "100%",
+        }}
+      >
+        {NETWORKS.map((net) => (
+          <option
+            key={net.chainId}
+            value={net.chainId}
+          >
+            {net.name}
+          </option>
+        ))}
+      </select>
+
+      <hr
+        style={{
+          margin: "30px 0",
+        }}
+      />
+
+      <h2>
+        Tokens Detectados
+      </h2>
 
       {tokens.length === 0 && (
-        <p>No se detectaron tokens</p>
+        <p>
+          No se detectaron fondos
+        </p>
       )}
 
-      {tokens.map((token, index) => (
-        <div
-          key={index}
-          style={{
-            background: "#1111aa",
-            padding: "15px",
-            borderRadius: "15px",
-            marginBottom: "15px",
-          }}
-        >
-          <p>
-            <b>Token:</b> {token.symbol}
-          </p>
-
-          <p>
-            <b>Balance:</b> {token.balance}
-          </p>
-
-          <p>
-            <b>Red:</b> {token.network}
-          </p>
-
-          <p
+      {tokens.map(
+        (token, index) => (
+          <div
+            key={index}
             style={{
-              wordBreak: "break-all",
-              fontSize: "12px",
+              background:
+                "#1111aa",
+
+              padding: "15px",
+
+              borderRadius:
+                "15px",
+
+              marginBottom:
+                "15px",
             }}
           >
-            {token.address}
-          </p>
-        </div>
-      ))}
+            <p>
+              <b>Token:</b>{" "}
+              {token.symbol}
+            </p>
 
-      <hr style={{ margin: "30px 0" }} />
+            <p>
+              <b>Balance:</b>{" "}
+              {token.balance}
+            </p>
 
-      <h2>Enviar Fondos</h2>
+            <p>
+              <b>Red:</b>{" "}
+              {token.network}
+            </p>
+
+            <p
+              style={{
+                wordBreak:
+                  "break-all",
+
+                fontSize:
+                  "12px",
+              }}
+            >
+              {token.address}
+            </p>
+          </div>
+        )
+      )}
+
+      <hr
+        style={{
+          margin: "30px 0",
+        }}
+      />
+
+      <h2>
+        Enviar Fondos
+      </h2>
 
       <input
         placeholder="Dirección destino"
         value={sendTo}
         onChange={(e) =>
-          setSendTo(e.target.value)
+          setSendTo(
+            e.target.value
+          )
         }
         style={{
           width: "100%",
+
           padding: "15px",
+
           marginBottom: "15px",
+
           borderRadius: "10px",
+
           border: "none",
         }}
       />
 
       <input
-        placeholder="Cantidad ETH"
+        placeholder="Cantidad"
         value={sendAmount}
         onChange={(e) =>
-          setSendAmount(e.target.value)
+          setSendAmount(
+            e.target.value
+          )
         }
         style={{
           width: "100%",
+
           padding: "15px",
+
           marginBottom: "15px",
+
           borderRadius: "10px",
+
           border: "none",
         }}
       />
@@ -365,14 +738,32 @@ export default function App() {
         onClick={sendNative}
         style={{
           padding: "20px",
+
           fontSize: "20px",
+
           borderRadius: "15px",
+
           border: "none",
+
           cursor: "pointer",
         }}
       >
-        Enviar
+        Enviar Fondos
       </button>
+
+      <style>
+        {`
+          @keyframes spin {
+            from {
+              transform: rotate(0deg);
+            }
+
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}
+      </style>
     </div>
   );
 }
