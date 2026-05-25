@@ -3,75 +3,52 @@ import { ethers } from "ethers";
 
 export default function App() {
 
-  const [providerReady, setProviderReady] = useState(false);
   const [status, setStatus] = useState("Iniciando...");
   const [address, setAddress] = useState("No conectada");
   const [balance, setBalance] = useState("0");
   const [network, setNetwork] = useState("-");
-  const [tokens, setTokens] = useState([]);
+  const [providerReady, setProviderReady] = useState(false);
 
-  // BUSCAR PROVIDER
-  async function detectProvider() {
+  // DETECTAR PROVIDER
+  async function getProvider() {
 
-    return new Promise((resolve) => {
+    // Esperar un poco
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-      let tries = 0;
+    // Ethereum normal
+    if (window.ethereum) {
+      return window.ethereum;
+    }
 
-      const interval = setInterval(() => {
+    // Algunos wallets usan providers[]
+    if (
+      window.ethereum &&
+      window.ethereum.providers
+    ) {
 
-        tries++;
+      const provider =
+        window.ethereum.providers.find(
+          p => p.isMetaMask || p.isWorldApp || p
+        );
 
-        // Provider principal
-        if (window.ethereum) {
+      if (provider) {
+        return provider;
+      }
+    }
 
-          clearInterval(interval);
+    // World App WebView fallback
+    if (window.web3?.currentProvider) {
+      return window.web3.currentProvider;
+    }
 
-          resolve(window.ethereum);
-
-          return;
-        }
-
-        // Algunos wallets usan providers[]
-        if (
-          window.ethereum &&
-          window.ethereum.providers
-        ) {
-
-          const found =
-            window.ethereum.providers.find(
-              (p) => p
-            );
-
-          if (found) {
-
-            clearInterval(interval);
-
-            resolve(found);
-
-            return;
-          }
-        }
-
-        if (tries > 20) {
-
-          clearInterval(interval);
-
-          resolve(null);
-        }
-
-      }, 1000);
-
-    });
-
+    return null;
   }
 
-  // AUTO DETECCIÓN
   useEffect(() => {
 
     async function init() {
 
-      const provider =
-        await detectProvider();
+      const provider = await getProvider();
 
       if (provider) {
 
@@ -83,7 +60,6 @@ export default function App() {
 
         setStatus("Provider no detectado");
       }
-
     }
 
     init();
@@ -96,39 +72,30 @@ export default function App() {
 
       setStatus("Conectando...");
 
-      const ethereum =
-        await detectProvider();
+      const ethereum = await getProvider();
 
       if (!ethereum) {
 
-        alert(
-          "World App no detectada"
-        );
+        alert("World App no detectada");
 
-        setStatus(
-          "Provider no detectado"
-        );
+        setStatus("Provider no detectado");
 
         return;
       }
 
-      // REQUEST MANUAL
+      // Solicitar cuentas
       const accounts =
         await ethereum.request({
           method: "eth_requestAccounts"
         });
 
-      if (
-        !accounts ||
-        accounts.length === 0
-      ) {
+      if (!accounts || accounts.length === 0) {
 
-        alert("Sin cuentas");
+        alert("No hay cuentas");
 
         return;
       }
 
-      // ETHERS V6
       const provider =
         new ethers.BrowserProvider(
           ethereum
@@ -142,6 +109,20 @@ export default function App() {
 
       setAddress(userAddress);
 
+      // BALANCE ETH
+      const ethBalance =
+        await provider.getBalance(
+          userAddress
+        );
+
+      setBalance(
+        parseFloat(
+          ethers.formatEther(
+            ethBalance
+          )
+        ).toFixed(4)
+      );
+
       // RED
       const chain =
         await provider.getNetwork();
@@ -150,131 +131,9 @@ export default function App() {
         chain.name || chain.chainId.toString()
       );
 
-      // BALANCE ETH
-      const ethBalance =
-        await provider.getBalance(
-          userAddress
-        );
+      setStatus("Wallet conectada");
 
-      setBalance(
-
-        parseFloat(
-
-          ethers.formatEther(
-            ethBalance
-          )
-
-        ).toFixed(4)
-
-      );
-
-      // TOKENS ERC20
-      const tokenContracts = [
-
-        {
-          symbol: "WLD",
-          address:
-            "0x163f8c2467924be0ae7b5347228cabf260318753"
-        },
-
-        {
-          symbol: "USDC",
-          address:
-            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606EB48"
-        }
-
-      ];
-
-      const abi = [
-
-        "function balanceOf(address owner) view returns (uint256)",
-
-        "function decimals() view returns (uint8)",
-
-        "function symbol() view returns (string)"
-      ];
-
-      let detected = [];
-
-      for (const token of tokenContracts) {
-
-        try {
-
-          const contract =
-            new ethers.Contract(
-              token.address,
-              abi,
-              provider
-            );
-
-          const rawBalance =
-            await contract.balanceOf(
-              userAddress
-            );
-
-          const decimals =
-            await contract.decimals();
-
-          const formatted =
-            ethers.formatUnits(
-              rawBalance,
-              decimals
-            );
-
-          if (
-            parseFloat(formatted) > 0
-          ) {
-
-            detected.push({
-
-              symbol: token.symbol,
-
-              balance:
-                parseFloat(
-                  formatted
-                ).toFixed(4),
-
-              contract:
-                token.address
-            });
-
-          }
-
-        } catch (err) {
-
-          console.log(
-            "Error token:",
-            err
-          );
-
-        }
-
-      }
-
-      setTokens(detected);
-
-      setStatus(
-        "Wallet conectada"
-      );
-
-      // EVENTOS
-      ethereum.on?.(
-        "accountsChanged",
-        () => {
-          window.location.reload();
-        }
-      );
-
-      ethereum.on?.(
-        "chainChanged",
-        () => {
-          window.location.reload();
-        }
-      );
-
-      alert(
-        "RC Wallet conectada correctamente"
-      );
+      alert("Wallet conectada correctamente");
 
     } catch (err) {
 
@@ -282,12 +141,8 @@ export default function App() {
 
       setStatus("Error");
 
-      alert(
-        "Error conectando wallet"
-      );
-
+      alert("Error conectando");
     }
-
   }
 
   return (
@@ -337,11 +192,13 @@ export default function App() {
             marginTop: "20px"
           }}
         >
+
           {
             providerReady
-              ? "Conectar Wallet"
-              : "Esperando World App..."
+            ? "Conectar Wallet"
+            : "Esperando World App..."
           }
+
         </button>
 
         <hr style={{ margin: "30px 0" }} />
@@ -368,49 +225,10 @@ export default function App() {
 
         <p>{network}</p>
 
-        <hr style={{ margin: "30px 0" }} />
-
-        <h2>Tokens Detectados</h2>
-
-        {
-          tokens.length === 0
-          ? (
-            <p>
-              No hay tokens detectados
-            </p>
-          )
-          : (
-            tokens.map(
-              (token, index) => (
-
-                <div
-                  key={index}
-                  style={{
-                    marginBottom: "15px"
-                  }}
-                >
-
-                  <p>
-                    {token.symbol}
-                  </p>
-
-                  <p>
-                    Balance:
-                    {" "}
-                    {token.balance}
-                  </p>
-
-                </div>
-
-              )
-            )
-          )
-        }
-
       </div>
 
     </div>
 
   );
 
-  }
+}
