@@ -1,94 +1,96 @@
-import React, { useState } from "react";
-import { ethers } from "ethers";
+import React, { useState, useEffect } from "react";
+import { MiniKit } from "@worldcoin/minikit-js";
 
 function App() {
 
-  const [status, setStatus] = useState("Esperando conexión");
-  const [wallet, setWallet] = useState("No conectada");
-  const [balance, setBalance] = useState("0");
+  const [status, setStatus] = useState("Iniciando...");
+  const [walletAddress, setWalletAddress] =
+    useState("No conectada");
+
+  useEffect(() => {
+
+    const init = async () => {
+
+      try {
+
+        if (!MiniKit.isInstalled()) {
+
+          setStatus(
+            "Abra RC Wallet desde World App"
+          );
+
+          return;
+        }
+
+        setStatus("World App detectada");
+
+      } catch (error) {
+
+        console.log(error);
+
+        setStatus("Error iniciando");
+      }
+    };
+
+    init();
+
+  }, []);
 
   const connectWallet = async () => {
 
     try {
 
-      setStatus("Buscando provider...");
+      setStatus("Solicitando autorización...");
 
-      console.log("window:", window);
+      const res =
+        await MiniKit.commandsAsync.walletAuth({
 
-      // Buscar cualquier provider posible
-      let ethProvider =
-        window.ethereum ||
-        window.worldcoin ||
-        window.web3?.currentProvider ||
-        null;
+          nonce: "rc-wallet-login",
 
-      // Mostrar debug
-      console.log("Provider detectado:", ethProvider);
+          requestId:
+            "rc-wallet-" + Date.now(),
 
-      if (!ethProvider) {
+          expirationTime:
+            new Date(
+              Date.now() + 1000 * 60 * 60
+            ),
 
-        // Buscar providers múltiples
-        if (window.ethereum?.providers?.length) {
-          ethProvider = window.ethereum.providers[0];
-        }
-      }
+          notBefore:
+            new Date(),
+        });
 
-      if (!ethProvider) {
+      console.log("Wallet Auth:", res);
 
-        setStatus("Provider no detectado");
+      if (!res) {
 
-        alert("No se detectó provider");
+        setStatus("Autorización cancelada");
 
         return;
       }
 
-      setStatus("Conectando wallet...");
+      // Intentar leer wallet address
+      const address =
+        res.address ||
+        res.walletAddress ||
+        res.wallet?.address ||
+        "Wallet conectada";
 
-      // Solicitar cuentas
-      const accounts = await ethProvider.request({
-        method: "eth_requestAccounts",
-      });
-
-      if (!accounts || accounts.length === 0) {
-
-        setStatus("Sin cuentas");
-
-        alert("No hay cuentas disponibles");
-
-        return;
-      }
-
-      const walletAddress = accounts[0];
-
-      setWallet(walletAddress);
-
-      // Crear provider ethers
-      const provider = new ethers.BrowserProvider(
-        ethProvider
-      );
-
-      // Leer balance ETH
-      const balanceWei =
-        await provider.getBalance(walletAddress);
-
-      const balanceEth =
-        ethers.formatEther(balanceWei);
-
-      setBalance(balanceEth);
+      setWalletAddress(address);
 
       setStatus("Wallet conectada");
 
-      alert("Wallet conectada correctamente");
+      alert(
+        "Wallet conectada correctamente"
+      );
 
     } catch (error) {
 
       console.log(error);
 
-      setStatus("Error");
+      setStatus("Error conectando");
 
       alert(
-        "Error conectando: " +
-        error.message
+        "Error conectando wallet"
       );
     }
   };
@@ -108,8 +110,8 @@ function App() {
       <div
         style={{
           background: "#04106d",
-          padding: "20px",
-          borderRadius: "20px",
+          padding: "25px",
+          borderRadius: "25px",
         }}
       >
 
@@ -123,7 +125,7 @@ function App() {
 
         <p
           style={{
-            fontSize: "28px",
+            fontSize: "30px",
           }}
         >
           Recuperación de fondos Worldcoin
@@ -132,10 +134,11 @@ function App() {
         <button
           onClick={connectWallet}
           style={{
-            padding: "15px",
+            padding: "16px",
+            width: "100%",
             borderRadius: "15px",
             border: "none",
-            fontSize: "20px",
+            fontSize: "22px",
             marginTop: "20px",
           }}
         >
@@ -152,19 +155,16 @@ function App() {
 
         <p>{status}</p>
 
-        <h2>Dirección</h2>
+        <h2>Dirección Wallet</h2>
 
         <p
           style={{
             wordBreak: "break-all",
+            fontSize: "14px",
           }}
         >
-          {wallet}
+          {walletAddress}
         </p>
-
-        <h2>ETH Balance</h2>
-
-        <p>{balance}</p>
 
       </div>
 
