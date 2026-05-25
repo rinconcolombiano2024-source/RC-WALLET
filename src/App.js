@@ -2,8 +2,8 @@ import React, { useState } from "react";
 
 function App() {
 
-  const [wallet, setWallet] = useState("");
   const [status, setStatus] = useState("No conectado");
+  const [wallet, setWallet] = useState("");
 
   const connectWallet = async () => {
 
@@ -11,31 +11,40 @@ function App() {
 
       setStatus("Conectando...");
 
-      // Detectar World App
-      if (window.ethereum) {
+      // Compatibilidad World App
+      if (window.WorldApp) {
+
+        const account = await window.WorldApp.getUser();
+
+        console.log(account);
+
+        setWallet(
+          account?.walletAddress || "Wallet detectada"
+        );
+
+        setStatus("Conectado con World App");
+
+      }
+
+      // Compatibilidad MetaMask / navegadores Web3
+      else if (window.ethereum) {
 
         const accounts = await window.ethereum.request({
           method: "eth_requestAccounts",
         });
 
-        if (accounts.length > 0) {
+        setWallet(accounts[0]);
 
-          setWallet(accounts[0]);
-          setStatus("Wallet conectada");
+        setStatus("Wallet conectada");
 
-        } else {
+      }
 
-          setStatus("No se encontró wallet");
+      else {
 
-        }
-
-      } else {
-
-        // Mensaje si no detecta provider
         setStatus("World App no disponible");
 
         alert(
-          "World App no detectada.\n\nAbra esta Mini App directamente desde World App."
+          "Esta Mini App debe abrirse desde World App"
         );
 
       }
