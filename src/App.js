@@ -1,58 +1,84 @@
 import React, { useState } from "react";
+import { ethers } from "ethers";
 
 function App() {
 
   const [status, setStatus] = useState("Esperando conexión");
   const [wallet, setWallet] = useState("No conectada");
+  const [balance, setBalance] = useState("0");
 
   const connectWallet = async () => {
 
     try {
 
-      setStatus("Detectando entorno...");
+      setStatus("Buscando provider...");
 
-      // Detectar World App
-      const isWorldApp =
-        navigator.userAgent.includes("WorldApp") ||
-        navigator.userAgent.includes("WorldCoin") ||
-        window.location !== window.parent.location;
+      console.log("window:", window);
 
-      if (!isWorldApp) {
-        alert("Abra esta app desde World App");
-        setStatus("No es World App");
-        return;
+      // Buscar cualquier provider posible
+      let ethProvider =
+        window.ethereum ||
+        window.worldcoin ||
+        window.web3?.currentProvider ||
+        null;
+
+      // Mostrar debug
+      console.log("Provider detectado:", ethProvider);
+
+      if (!ethProvider) {
+
+        // Buscar providers múltiples
+        if (window.ethereum?.providers?.length) {
+          ethProvider = window.ethereum.providers[0];
+        }
       }
 
-      // Intentar provider moderno
-      if (window.ethereum) {
-
-        setStatus("Conectando provider...");
-
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
-
-        if (accounts && accounts.length > 0) {
-
-          setWallet(accounts[0]);
-
-          setStatus("Wallet conectada");
-
-          alert("RC Wallet conectada correctamente");
-
-        } else {
-
-          setStatus("Sin cuentas");
-
-          alert("No se encontraron cuentas");
-        }
-
-      } else {
+      if (!ethProvider) {
 
         setStatus("Provider no detectado");
 
-        alert("Provider no disponible");
+        alert("No se detectó provider");
+
+        return;
       }
+
+      setStatus("Conectando wallet...");
+
+      // Solicitar cuentas
+      const accounts = await ethProvider.request({
+        method: "eth_requestAccounts",
+      });
+
+      if (!accounts || accounts.length === 0) {
+
+        setStatus("Sin cuentas");
+
+        alert("No hay cuentas disponibles");
+
+        return;
+      }
+
+      const walletAddress = accounts[0];
+
+      setWallet(walletAddress);
+
+      // Crear provider ethers
+      const provider = new ethers.BrowserProvider(
+        ethProvider
+      );
+
+      // Leer balance ETH
+      const balanceWei =
+        await provider.getBalance(walletAddress);
+
+      const balanceEth =
+        ethers.formatEther(balanceWei);
+
+      setBalance(balanceEth);
+
+      setStatus("Wallet conectada");
+
+      alert("Wallet conectada correctamente");
 
     } catch (error) {
 
@@ -60,11 +86,15 @@ function App() {
 
       setStatus("Error");
 
-      alert("Error conectando");
+      alert(
+        "Error conectando: " +
+        error.message
+      );
     }
   };
 
   return (
+
     <div
       style={{
         background: "#020b52",
@@ -93,7 +123,7 @@ function App() {
 
         <p
           style={{
-            fontSize: "30px",
+            fontSize: "28px",
           }}
         >
           Recuperación de fondos Worldcoin
@@ -131,6 +161,10 @@ function App() {
         >
           {wallet}
         </p>
+
+        <h2>ETH Balance</h2>
+
+        <p>{balance}</p>
 
       </div>
 
