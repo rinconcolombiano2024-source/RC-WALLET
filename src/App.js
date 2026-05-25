@@ -1,176 +1,125 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { ethers } from "ethers";
 
 function App() {
-
   const [status, setStatus] = useState("Esperando conexión");
   const [wallet, setWallet] = useState("No conectada");
+  const [balance, setBalance] = useState("0");
 
-  useEffect(() => {
-
-    detectarWorldApp();
-
-  }, []);
-
-  async function detectarWorldApp() {
-
-    const ua = navigator.userAgent;
-
-    console.log("USER AGENT:", ua);
-
-    if (
-      ua.toLowerCase().includes("world")
-    ) {
-
-      setStatus("World App detectada");
-
-    } else {
-
-      setStatus("No es World App");
-
-    }
-
-  }
-
-  async function conectarWallet() {
-
+  const connectWallet = async () => {
     try {
+
+      // Detectar provider
+      let providerObject = null;
+
+      if (window.ethereum) {
+        providerObject = window.ethereum;
+      }
+
+      // World App / MiniKit
+      if (window.worldcoin) {
+        providerObject = window.worldcoin;
+      }
+
+      if (!providerObject) {
+        alert("Provider no disponible");
+        setStatus("Provider no detectado");
+        return;
+      }
 
       setStatus("Conectando...");
 
-      // NUEVO MÉTODO
-      if (window.WorldApp) {
+      // Crear provider ethers
+      const provider = new ethers.BrowserProvider(providerObject);
 
-        const walletData =
-          await window.WorldApp.getUser();
+      // Solicitar cuentas
+      await provider.send("eth_requestAccounts", []);
 
-        console.log(walletData);
+      // Obtener signer
+      const signer = await provider.getSigner();
 
-        setWallet(
-          JSON.stringify(walletData)
-        );
+      // Obtener dirección
+      const address = await signer.getAddress();
 
-        setStatus("Wallet conectada");
+      // Obtener balance
+      const ethBalance = await provider.getBalance(address);
 
-      } else {
+      setWallet(address);
 
-        alert(
-          "SDK World App no disponible"
-        );
+      setBalance(
+        ethers.formatEther(ethBalance)
+      );
 
-        setStatus(
-          "SDK no disponible"
-        );
+      setStatus("Wallet conectada");
 
-      }
+      alert("RC Wallet conectada correctamente");
 
-    } catch (err) {
-
-      console.log(err);
-
-      alert("Error conectando");
+    } catch (error) {
+      console.log(error);
 
       setStatus("Error");
 
+      alert("Error conectando wallet");
     }
-
-  }
+  };
 
   return (
-
     <div
       style={{
-        background: "#020B4F",
+        background: "#020b52",
         minHeight: "100vh",
         padding: "20px",
         color: "white",
         fontFamily: "Arial",
       }}
     >
-
       <div
         style={{
-          background: "#04115F",
-          borderRadius: "30px",
-          padding: "30px",
-          maxWidth: "500px",
-          margin: "0 auto",
+          background: "#04106d",
+          padding: "20px",
+          borderRadius: "20px",
         }}
       >
-
-        <h1
-          style={{
-            fontSize: "70px",
-          }}
-        >
+        <h1 style={{ fontSize: "70px" }}>
           RC Wallet
         </h1>
 
-        <p
-          style={{
-            fontSize: "28px",
-          }}
-        >
+        <p style={{ fontSize: "30px" }}>
           Recuperación de fondos Worldcoin
         </p>
 
         <button
-          onClick={conectarWallet}
+          onClick={connectWallet}
           style={{
-            padding: "18px",
+            padding: "15px",
             borderRadius: "15px",
             border: "none",
-            fontSize: "22px",
-            cursor: "pointer",
+            fontSize: "20px",
             marginTop: "20px",
-            marginBottom: "30px",
           }}
         >
           Conectar Wallet
         </button>
 
-        <hr />
+        <hr style={{ marginTop: "30px" }} />
 
-        <h2
-          style={{
-            fontSize: "40px",
-            marginTop: "30px",
-          }}
-        >
-          Estado
-        </h2>
+        <h2>Estado</h2>
+        <p>{status}</p>
 
+        <h2>Dirección</h2>
         <p
           style={{
-            fontSize: "24px",
-          }}
-        >
-          {status}
-        </p>
-
-        <h2
-          style={{
-            fontSize: "40px",
-            marginTop: "30px",
-          }}
-        >
-          Datos Wallet
-        </h2>
-
-        <p
-          style={{
-            fontSize: "14px",
             wordBreak: "break-all",
           }}
         >
           {wallet}
         </p>
 
+        <h2>ETH Balance</h2>
+        <p>{balance}</p>
       </div>
-
     </div>
-
   );
-
 }
 
 export default App;
