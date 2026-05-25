@@ -1,7 +1,11 @@
 {
-  "build": {
-    "env": {
-      "NODE_VERSION": "18"
+  "framework": "create-react-app",
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "CI=false npm run build",
+  "outputDirectory": "build",
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x"
     }
   }
 }
