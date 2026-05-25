@@ -2,80 +2,71 @@ import React, { useState } from "react";
 
 function App() {
 
-  const [status, setStatus] = useState("No conectado");
-  const [wallet, setWallet] = useState("");
+  const [wallet, setWallet] = useState("No conectada");
+  const [status, setStatus] = useState("Esperando conexión");
 
-  const connectWallet = async () => {
+  async function connectWallet() {
 
     try {
 
       setStatus("Conectando...");
 
-      // Compatibilidad World App
-      if (window.WorldApp) {
+      // Detecta World App / MetaMask
+      const ethereum = window.ethereum;
 
-        const account = await window.WorldApp.getUser();
+      if (!ethereum) {
 
-        console.log(account);
+        alert("No se detectó World App");
 
-        setWallet(
-          account?.walletAddress || "Wallet detectada"
-        );
+        setStatus("World App no detectada");
 
-        setStatus("Conectado con World App");
-
+        return;
       }
 
-      // Compatibilidad MetaMask / navegadores Web3
-      else if (window.ethereum) {
+      // Solicitar cuentas
+      const accounts = await ethereum.request({
+        method: "eth_requestAccounts",
+      });
 
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
+      if (accounts.length > 0) {
 
         setWallet(accounts[0]);
 
         setStatus("Wallet conectada");
 
-      }
+      } else {
 
-      else {
-
-        setStatus("World App no disponible");
-
-        alert(
-          "Esta Mini App debe abrirse desde World App"
-        );
+        setStatus("Sin cuentas");
 
       }
 
-    } catch (error) {
+    } catch (err) {
 
-      console.log(error);
-
-      setStatus("Error de conexión");
+      console.log(err);
 
       alert("Error conectando wallet");
 
+      setStatus("Error");
+
     }
 
-  };
+  }
 
   return (
 
     <div
       style={{
-        backgroundColor: "#020B4F",
+        background: "#020B4F",
         minHeight: "100vh",
         padding: "20px",
-        fontFamily: "Arial",
         color: "white",
+        fontFamily: "Arial",
       }}
     >
 
       <div
         style={{
-          backgroundColor: "#04115F",
+          background: "#04115F",
           borderRadius: "30px",
           padding: "30px",
           maxWidth: "500px",
@@ -94,7 +85,7 @@ function App() {
 
         <p
           style={{
-            fontSize: "24px",
+            fontSize: "28px",
             marginBottom: "30px",
           }}
         >
@@ -104,10 +95,10 @@ function App() {
         <button
           onClick={connectWallet}
           style={{
-            padding: "18px 30px",
+            padding: "18px",
             borderRadius: "15px",
             border: "none",
-            fontSize: "22px",
+            fontSize: "24px",
             cursor: "pointer",
             marginBottom: "30px",
           }}
@@ -119,7 +110,7 @@ function App() {
 
         <h2
           style={{
-            fontSize: "45px",
+            fontSize: "50px",
             marginTop: "30px",
           }}
         >
@@ -128,7 +119,7 @@ function App() {
 
         <p
           style={{
-            fontSize: "22px",
+            fontSize: "28px",
           }}
         >
           {status}
@@ -136,7 +127,7 @@ function App() {
 
         <h2
           style={{
-            fontSize: "45px",
+            fontSize: "50px",
             marginTop: "30px",
           }}
         >
@@ -149,7 +140,7 @@ function App() {
             wordBreak: "break-all",
           }}
         >
-          {wallet || "No conectada"}
+          {wallet}
         </p>
 
       </div>
