@@ -1,23 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { BrowserProvider } from "ethers";
 
 function App() {
 
+  const [wallet, setWallet] = useState("No conectada");
+  const [balance, setBalance] = useState("0");
   const [status, setStatus] = useState("Esperando");
-  const [userAgent, setUserAgent] = useState("");
-  const [isWorldApp, setIsWorldApp] = useState(false);
 
   useEffect(() => {
 
+    detectarWorldApp();
+
+  }, []);
+
+  async function detectarWorldApp() {
+
     const ua = navigator.userAgent;
 
-    setUserAgent(ua);
-
     if (
-      ua.toLowerCase().includes("world") ||
-      ua.toLowerCase().includes("wv")
+      ua.toLowerCase().includes("world")
     ) {
-
-      setIsWorldApp(true);
 
       setStatus("World App detectada");
 
@@ -27,28 +29,46 @@ function App() {
 
     }
 
-  }, []);
+  }
 
-  async function conectar() {
+  async function conectarWallet() {
 
     try {
 
-      if (!isWorldApp) {
+      if (!window.ethereum) {
 
-        alert("Abra esta app desde World App");
+        alert("Provider no disponible");
 
         return;
       }
 
-      setStatus("Mini App abierta correctamente");
+      setStatus("Conectando wallet...");
 
-      alert("RC Wallet conectada correctamente");
+      const provider = new BrowserProvider(window.ethereum);
+
+      await provider.send("eth_requestAccounts", []);
+
+      const signer = await provider.getSigner();
+
+      const address = await signer.getAddress();
+
+      const ethBalance = await provider.getBalance(address);
+
+      setWallet(address);
+
+      setBalance(
+        Number(ethBalance) / 1000000000000000000
+      );
+
+      setStatus("Wallet conectada");
 
     } catch (err) {
 
       console.log(err);
 
-      setStatus("Error");
+      setStatus("Error conectando");
+
+      alert("Error conectando wallet");
 
     }
 
@@ -93,7 +113,7 @@ function App() {
         </p>
 
         <button
-          onClick={conectar}
+          onClick={conectarWallet}
           style={{
             padding: "18px",
             borderRadius: "15px",
@@ -104,7 +124,7 @@ function App() {
             marginBottom: "30px",
           }}
         >
-          Conectar
+          Conectar Wallet
         </button>
 
         <hr />
@@ -132,7 +152,25 @@ function App() {
             marginTop: "30px",
           }}
         >
-          World App
+          Dirección
+        </h2>
+
+        <p
+          style={{
+            fontSize: "16px",
+            wordBreak: "break-all",
+          }}
+        >
+          {wallet}
+        </p>
+
+        <h2
+          style={{
+            fontSize: "40px",
+            marginTop: "30px",
+          }}
+        >
+          ETH Balance
         </h2>
 
         <p
@@ -140,25 +178,7 @@ function App() {
             fontSize: "24px",
           }}
         >
-          {isWorldApp ? "Sí" : "No"}
-        </p>
-
-        <h2
-          style={{
-            fontSize: "30px",
-            marginTop: "30px",
-          }}
-        >
-          User Agent
-        </h2>
-
-        <p
-          style={{
-            fontSize: "12px",
-            wordBreak: "break-all",
-          }}
-        >
-          {userAgent}
+          {balance}
         </p>
 
       </div>
