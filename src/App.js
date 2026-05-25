@@ -124,18 +124,46 @@ export default function App() {
     useState("");
 
   useEffect(() => {
-    connectWallet();
+    autoReconnect();
   }, []);
+
+  async function autoReconnect() {
+    const savedWallet =
+      localStorage.getItem(
+        "rc_wallet_address"
+      );
+
+    if (savedWallet) {
+      connectWallet();
+    } else {
+      setStatus(
+        "Abra RC Wallet desde World App"
+      );
+    }
+  }
 
   async function connectWallet() {
     try {
       setStatus("Conectando wallet...");
 
-      await MiniKit.install();
+      await new Promise((resolve) =>
+        setTimeout(resolve, 2000)
+      );
+
+      const installed =
+        MiniKit.isInstalled();
+
+      if (!installed) {
+        setStatus(
+          "Abra RC Wallet desde World App"
+        );
+
+        return;
+      }
 
       if (!window.ethereum) {
         setStatus(
-          "Abra RC Wallet desde World App"
+          "Provider Ethereum no detectado"
         );
 
         return;
@@ -254,11 +282,6 @@ export default function App() {
             );
 
           if (!rpcProvider) {
-            console.log(
-              "No RPC disponible:",
-              net.name
-            );
-
             continue;
           }
 
