@@ -29,7 +29,7 @@ const NETWORKS = [
   },
 
   {
-    name: "BNB",
+    name: "BNB Chain",
     chainId: 56,
     symbol: "BNB",
     rpc: [
@@ -80,21 +80,29 @@ const TOKENS = [
 
       10: "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
 
+      56: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+
       8453:
         "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
-
-      56: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
     },
   },
 ];
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
+
+  "function decimals() view returns (uint8)",
+
+  "function symbol() view returns (string)",
+
+  "function name() view returns (string)",
 ];
 
 export default function App() {
   const [status, setStatus] =
-    useState("Inicializando RC Wallet...");
+    useState(
+      "Inicializando RC Wallet..."
+    );
 
   const [wallet, setWallet] =
     useState("");
@@ -111,6 +119,9 @@ export default function App() {
   const [tokens, setTokens] =
     useState([]);
 
+  const [selectedNetwork, setSelectedNetwork] =
+    useState("");
+
   useEffect(() => {
     initializeMiniKit();
   }, []);
@@ -123,12 +134,24 @@ export default function App() {
 
       MiniKit.install();
 
+      await new Promise((resolve) =>
+        setTimeout(resolve, 4000)
+      );
+
+      const installed =
+        MiniKit.isInstalled();
+
+      console.log(
+        "MiniKit:",
+        installed
+      );
+
       const ethereum =
         await waitForEthereum();
 
       if (!ethereum) {
         setStatus(
-          "World App provider no detectado"
+          "Provider World App no detectado"
         );
 
         return;
@@ -142,7 +165,7 @@ export default function App() {
         );
 
       if (savedWallet) {
-        connectWallet();
+        await connectWallet();
       } else {
         setStatus(
           "RC Wallet listo para conectar"
@@ -159,14 +182,21 @@ export default function App() {
   }
 
   async function waitForEthereum() {
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 30; i++) {
 
-      if (window.ethereum) {
+      if (
+        typeof window !== "undefined" &&
+        window.ethereum
+      ) {
+        console.log(
+          "Provider encontrado"
+        );
+
         return window.ethereum;
       }
 
       await new Promise((resolve) =>
-        setTimeout(resolve, 500)
+        setTimeout(resolve, 1000)
       );
     }
 
@@ -178,23 +208,28 @@ export default function App() {
 
     ethereum.on(
       "accountsChanged",
-      (accounts) => {
+      async (accounts) => {
         if (accounts?.length) {
-          setWallet(accounts[0]);
+          const address =
+            accounts[0];
+
+          setWallet(address);
 
           localStorage.setItem(
             "rc_wallet_address",
-            accounts[0]
+            address
           );
 
-          scanAllNetworks(accounts[0]);
+          await scanAllNetworks(
+            address
+          );
         }
       }
     );
 
     ethereum.on(
       "chainChanged",
-      () => {
+      async () => {
         window.location.reload();
       }
     );
@@ -246,11 +281,15 @@ export default function App() {
 
       setProvider(ethersProvider);
 
-      const network =
+      const net =
         await ethersProvider.getNetwork();
 
       setNetwork(
-        `${network.name} (${network.chainId})`
+        `${net.name} (${net.chainId})`
+      );
+
+      setSelectedNetwork(
+        Number(net.chainId)
       );
 
       const balance =
@@ -265,7 +304,7 @@ export default function App() {
       );
 
       setStatus(
-        "Wallet conectada"
+        "Wallet conectada correctamente"
       );
 
       await scanAllNetworks(address);
@@ -407,6 +446,7 @@ export default function App() {
 
                 } catch (err) {
                   console.log(
+                    "Token error:",
                     token.symbol
                   );
                 }
@@ -414,7 +454,10 @@ export default function App() {
             );
 
           } catch (err) {
-            console.log(net.name);
+            console.log(
+              "Network error:",
+              net.name
+            );
           }
         })
       );
@@ -427,7 +470,7 @@ export default function App() {
       );
 
       setStatus(
-        "Escaneo completado"
+        "Escaneo multi-chain completado"
       );
 
     } catch (err) {
@@ -464,7 +507,7 @@ export default function App() {
       });
 
       setStatus(
-        "Red cambiada"
+        "Red cambiada correctamente"
       );
 
     } catch (err) {
@@ -512,13 +555,18 @@ export default function App() {
         <h1
           style={{
             fontSize: "50px",
+            margin: 0,
           }}
         >
           RC Wallet
         </h1>
       </div>
 
-      <h2>
+      <h2
+        style={{
+          marginTop: "20px",
+        }}
+      >
         Recovery Multi-Chain Wallet
       </h2>
 
@@ -531,6 +579,7 @@ export default function App() {
           border: "none",
           marginTop: "20px",
           cursor: "pointer",
+          width: "100%",
         }}
       >
         Conectar Wallet
@@ -558,7 +607,7 @@ export default function App() {
 
       <h2>Red Actual</h2>
 
-      <p>{network}</p>
+      <p>{network || "-"}</p>
 
       <h2>Balance Nativo</h2>
 
@@ -575,18 +624,24 @@ export default function App() {
       </h2>
 
       <select
-        onChange={(e) =>
+        value={selectedNetwork}
+        onChange={(e) => {
+          setSelectedNetwork(
+            e.target.value
+          );
+
           switchNetwork(
             e.target.value
-          )
-        }
+          );
+        }}
         style={{
           width: "100%",
           padding: "15px",
           borderRadius: "10px",
+          marginTop: "10px",
         }}
       >
-        <option>
+        <option value="">
           Seleccione Red
         </option>
 
@@ -612,7 +667,7 @@ export default function App() {
 
       {tokens.length === 0 && (
         <p>
-          No se encontraron tokens
+          No se encontraron fondos
         </p>
       )}
 
@@ -678,4 +733,4 @@ export default function App() {
       </style>
     </div>
   );
-          }
+}
