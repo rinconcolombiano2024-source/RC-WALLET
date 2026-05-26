@@ -1,5 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
+
 import { MiniKit } from "@worldcoin/minikit-js";
+
 import { ethers } from "ethers";
 
 const NETWORKS = [
@@ -85,22 +90,17 @@ const TOKENS = [
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
-
-  "function transfer(address to, uint amount) returns (bool)",
-
-  "function decimals() view returns (uint8)",
-
-  "function symbol() view returns (string)",
-
-  "function name() view returns (string)",
 ];
 
 export default function App() {
   const [status, setStatus] =
-    useState("Iniciando...");
+    useState("Inicializando RC Wallet...");
 
   const [wallet, setWallet] =
     useState("");
+
+  const [provider, setProvider] =
+    useState(null);
 
   const [network, setNetwork] =
     useState("");
@@ -111,75 +111,120 @@ export default function App() {
   const [tokens, setTokens] =
     useState([]);
 
-  const [provider, setProvider] =
-    useState(null);
-
-  const [sendTo, setSendTo] =
-    useState("");
-
-  const [sendAmount, setSendAmount] =
-    useState("");
-
-  const [selectedNetwork, setSelectedNetwork] =
-    useState("");
-
   useEffect(() => {
-    autoReconnect();
+    initializeMiniKit();
   }, []);
 
-  async function autoReconnect() {
-    const savedWallet =
-      localStorage.getItem(
-        "rc_wallet_address"
+  async function initializeMiniKit() {
+    try {
+      setStatus(
+        "Inicializando MiniKit..."
       );
 
-    if (savedWallet) {
-      connectWallet();
-    } else {
+      MiniKit.install();
+
+      const ethereum =
+        await waitForEthereum();
+
+      if (!ethereum) {
+        setStatus(
+          "World App provider no detectado"
+        );
+
+        return;
+      }
+
+      setupListeners(ethereum);
+
+      const savedWallet =
+        localStorage.getItem(
+          "rc_wallet_address"
+        );
+
+      if (savedWallet) {
+        connectWallet();
+      } else {
+        setStatus(
+          "RC Wallet listo para conectar"
+        );
+      }
+
+    } catch (err) {
+      console.error(err);
+
       setStatus(
-        "Abra RC Wallet desde World App"
+        "Error inicializando MiniKit"
       );
     }
   }
 
-  async function connectWallet() {
-    try {
-      setStatus("Conectando wallet...");
+  async function waitForEthereum() {
+    for (let i = 0; i < 20; i++) {
+
+      if (window.ethereum) {
+        return window.ethereum;
+      }
 
       await new Promise((resolve) =>
-        setTimeout(resolve, 2000)
+        setTimeout(resolve, 500)
+      );
+    }
+
+    return null;
+  }
+
+  function setupListeners(ethereum) {
+    if (!ethereum?.on) return;
+
+    ethereum.on(
+      "accountsChanged",
+      (accounts) => {
+        if (accounts?.length) {
+          setWallet(accounts[0]);
+
+          localStorage.setItem(
+            "rc_wallet_address",
+            accounts[0]
+          );
+
+          scanAllNetworks(accounts[0]);
+        }
+      }
+    );
+
+    ethereum.on(
+      "chainChanged",
+      () => {
+        window.location.reload();
+      }
+    );
+  }
+
+  async function connectWallet() {
+    try {
+      setStatus(
+        "Conectando wallet..."
       );
 
-      const installed =
-        MiniKit.isInstalled();
+      const ethereum =
+        await waitForEthereum();
 
-      if (!installed) {
+      if (!ethereum) {
         setStatus(
-          "Abra RC Wallet desde World App"
+          "Provider Ethereum no encontrado"
         );
 
         return;
       }
-
-      if (!window.ethereum) {
-        setStatus(
-          "Provider Ethereum no detectado"
-        );
-
-        return;
-      }
-
-      const miniProvider =
-        window.ethereum;
 
       const accounts =
-        await miniProvider.request({
+        await ethereum.request({
           method: "eth_requestAccounts",
         });
 
       if (!accounts?.length) {
         setStatus(
-          "Wallet no conectada"
+          "No se encontraron cuentas"
         );
 
         return;
@@ -196,10 +241,17 @@ export default function App() {
 
       const ethersProvider =
         new ethers.BrowserProvider(
-          miniProvider
+          ethereum
         );
 
       setProvider(ethersProvider);
+
+      const network =
+        await ethersProvider.getNetwork();
+
+      setNetwork(
+        `${network.name} (${network.chainId})`
+      );
 
       const balance =
         await ethersProvider.getBalance(
@@ -212,19 +264,8 @@ export default function App() {
         ).toFixed(4)
       );
 
-      const net =
-        await ethersProvider.getNetwork();
-
-      setNetwork(
-        `${net.name} (${net.chainId})`
-      );
-
-      setSelectedNetwork(
-        Number(net.chainId)
-      );
-
       setStatus(
-        "Wallet conectada correctamente"
+        "Wallet conectada"
       );
 
       await scanAllNetworks(address);
@@ -274,108 +315,109 @@ export default function App() {
 
       let foundTokens = [];
 
-      for (const net of NETWORKS) {
-        try {
-          const rpcProvider =
-            await getWorkingProvider(
-              net.rpc
-            );
-
-          if (!rpcProvider) {
-            continue;
-          }
-
-          const nativeBalance =
-            await rpcProvider.getBalance(
-              address
-            );
-
-          const formattedNative =
-            Number(
-              ethers.formatEther(
-                nativeBalance
-              )
-            ).toFixed(4);
-
-          if (
-            Number(formattedNative) > 0
-          ) {
-            foundTokens.push({
-              network: net.name,
-
-              symbol: net.symbol,
-
-              balance:
-                formattedNative,
-
-              address:
-                "Native Coin",
-            });
-          }
-
-          for (const token of TOKENS) {
-            try {
-              const tokenAddress =
-                token.addresses[
-                  net.chainId
-                ];
-
-              if (!tokenAddress)
-                continue;
-
-              const contract =
-                new ethers.Contract(
-                  tokenAddress,
-                  ERC20_ABI,
-                  rpcProvider
-                );
-
-              const balance =
-                await contract.balanceOf(
-                  address
-                );
-
-              const formatted =
-                ethers.formatUnits(
-                  balance,
-                  token.decimals
-                );
-
-              if (
-                Number(formatted) > 0
-              ) {
-                foundTokens.push({
-                  network:
-                    net.name,
-
-                  symbol:
-                    token.symbol,
-
-                  balance:
-                    Number(
-                      formatted
-                    ).toFixed(4),
-
-                  address:
-                    tokenAddress,
-                });
-              }
-
-            } catch (err) {
-              console.log(
-                "Token error:",
-                token.symbol
+      await Promise.all(
+        NETWORKS.map(async (net) => {
+          try {
+            const rpcProvider =
+              await getWorkingProvider(
+                net.rpc
               );
-            }
-          }
 
-        } catch (err) {
-          console.log(
-            "Network error:",
-            net.name
-          );
-        }
-      }
+            if (!rpcProvider)
+              return;
+
+            const nativeBalance =
+              await rpcProvider.getBalance(
+                address
+              );
+
+            const formattedNative =
+              Number(
+                ethers.formatEther(
+                  nativeBalance
+                )
+              ).toFixed(4);
+
+            if (
+              Number(formattedNative) > 0
+            ) {
+              foundTokens.push({
+                network:
+                  net.name,
+
+                symbol:
+                  net.symbol,
+
+                balance:
+                  formattedNative,
+
+                address:
+                  "Native Coin",
+              });
+            }
+
+            await Promise.all(
+              TOKENS.map(async (token) => {
+                try {
+                  const tokenAddress =
+                    token.addresses[
+                      net.chainId
+                    ];
+
+                  if (!tokenAddress)
+                    return;
+
+                  const contract =
+                    new ethers.Contract(
+                      tokenAddress,
+                      ERC20_ABI,
+                      rpcProvider
+                    );
+
+                  const balance =
+                    await contract.balanceOf(
+                      address
+                    );
+
+                  const formatted =
+                    ethers.formatUnits(
+                      balance,
+                      token.decimals
+                    );
+
+                  if (
+                    Number(formatted) > 0
+                  ) {
+                    foundTokens.push({
+                      network:
+                        net.name,
+
+                      symbol:
+                        token.symbol,
+
+                      balance:
+                        Number(
+                          formatted
+                        ).toFixed(4),
+
+                      address:
+                        tokenAddress,
+                    });
+                  }
+
+                } catch (err) {
+                  console.log(
+                    token.symbol
+                  );
+                }
+              })
+            );
+
+          } catch (err) {
+            console.log(net.name);
+          }
+        })
+      );
 
       setTokens(foundTokens);
 
@@ -401,19 +443,22 @@ export default function App() {
     chainId
   ) {
     try {
-      if (!window.ethereum) return;
+      const ethereum =
+        await waitForEthereum();
 
-      const hexChainId =
-        "0x" +
-        Number(chainId).toString(16);
+      if (!ethereum) return;
 
-      await window.ethereum.request({
+      await ethereum.request({
         method:
           "wallet_switchEthereumChain",
 
         params: [
           {
-            chainId: hexChainId,
+            chainId:
+              "0x" +
+              Number(chainId).toString(
+                16
+              ),
           },
         ],
       });
@@ -425,83 +470,8 @@ export default function App() {
     } catch (err) {
       console.error(err);
 
-      alert(
+      setStatus(
         "No se pudo cambiar la red"
-      );
-    }
-  }
-
-  async function sendNative() {
-    try {
-      if (!provider) {
-        alert(
-          "Wallet no conectada"
-        );
-
-        return;
-      }
-
-      if (!sendTo) {
-        alert(
-          "Ingrese dirección"
-        );
-
-        return;
-      }
-
-      if (!sendAmount) {
-        alert(
-          "Ingrese cantidad"
-        );
-
-        return;
-      }
-
-      setStatus(
-        "Preparando transacción..."
-      );
-
-      const signer =
-        await provider.getSigner();
-
-      const feeData =
-        await provider.getFeeData();
-
-      console.log(
-        "Gas fee:",
-        feeData
-      );
-
-      const tx =
-        await signer.sendTransaction({
-          to: sendTo,
-
-          value:
-            ethers.parseEther(
-              sendAmount
-            ),
-        });
-
-      setStatus(
-        "Esperando confirmación..."
-      );
-
-      await tx.wait();
-
-      setStatus(
-        "Transferencia completada"
-      );
-
-      alert(
-        "Fondos enviados correctamente"
-      );
-
-    } catch (err) {
-      console.error(err);
-
-      alert(
-        err?.message ||
-          "Error enviando fondos"
       );
     }
   }
@@ -524,9 +494,7 @@ export default function App() {
       <div
         style={{
           display: "flex",
-
           alignItems: "center",
-
           gap: "15px",
         }}
       >
@@ -543,8 +511,7 @@ export default function App() {
 
         <h1
           style={{
-            fontSize: "55px",
-            marginBottom: "10px",
+            fontSize: "50px",
           }}
         >
           RC Wallet
@@ -552,22 +519,17 @@ export default function App() {
       </div>
 
       <h2>
-        Recuperación Multi-Chain
+        Recovery Multi-Chain Wallet
       </h2>
 
       <button
         onClick={connectWallet}
         style={{
-          padding: "20px",
-
-          fontSize: "25px",
-
-          borderRadius: "20px",
-
+          padding: "18px",
+          fontSize: "22px",
+          borderRadius: "18px",
           border: "none",
-
           marginTop: "20px",
-
           cursor: "pointer",
         }}
       >
@@ -591,15 +553,14 @@ export default function App() {
           wordBreak: "break-all",
         }}
       >
-        {wallet ||
-          "No conectada"}
+        {wallet || "No conectada"}
       </p>
 
-      <h2>Red</h2>
+      <h2>Red Actual</h2>
 
-      <p>{network || "-"}</p>
+      <p>{network}</p>
 
-      <h2>Balance</h2>
+      <h2>Balance Nativo</h2>
 
       <p>{nativeBalance}</p>
 
@@ -614,24 +575,21 @@ export default function App() {
       </h2>
 
       <select
-        value={selectedNetwork}
-        onChange={(e) => {
-          setSelectedNetwork(
-            e.target.value
-          );
-
+        onChange={(e) =>
           switchNetwork(
             e.target.value
-          );
-        }}
+          )
+        }
         style={{
-          padding: "15px",
-
-          borderRadius: "10px",
-
           width: "100%",
+          padding: "15px",
+          borderRadius: "10px",
         }}
       >
+        <option>
+          Seleccione Red
+        </option>
+
         {NETWORKS.map((net) => (
           <option
             key={net.chainId}
@@ -654,7 +612,7 @@ export default function App() {
 
       {tokens.length === 0 && (
         <p>
-          No se detectaron fondos
+          No se encontraron tokens
         </p>
       )}
 
@@ -705,75 +663,6 @@ export default function App() {
         )
       )}
 
-      <hr
-        style={{
-          margin: "30px 0",
-        }}
-      />
-
-      <h2>
-        Enviar Fondos
-      </h2>
-
-      <input
-        placeholder="Dirección destino"
-        value={sendTo}
-        onChange={(e) =>
-          setSendTo(
-            e.target.value
-          )
-        }
-        style={{
-          width: "100%",
-
-          padding: "15px",
-
-          marginBottom: "15px",
-
-          borderRadius: "10px",
-
-          border: "none",
-        }}
-      />
-
-      <input
-        placeholder="Cantidad"
-        value={sendAmount}
-        onChange={(e) =>
-          setSendAmount(
-            e.target.value
-          )
-        }
-        style={{
-          width: "100%",
-
-          padding: "15px",
-
-          marginBottom: "15px",
-
-          borderRadius: "10px",
-
-          border: "none",
-        }}
-      />
-
-      <button
-        onClick={sendNative}
-        style={{
-          padding: "20px",
-
-          fontSize: "20px",
-
-          borderRadius: "15px",
-
-          border: "none",
-
-          cursor: "pointer",
-        }}
-      >
-        Enviar Fondos
-      </button>
-
       <style>
         {`
           @keyframes spin {
@@ -789,4 +678,4 @@ export default function App() {
       </style>
     </div>
   );
-}
+          }
