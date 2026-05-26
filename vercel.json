@@ -1,5 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "framework": "create-react-app"
+  "framework": "create-react-app",
+
+  "installCommand": "rm -f package-lock.json && npm install --legacy-peer-deps",
+
+  "buildCommand": "npm run build"
 }
