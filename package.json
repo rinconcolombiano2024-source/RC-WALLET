@@ -9,18 +9,19 @@
 
   "dependencies": {
     "@worldcoin/minikit-js": "^1.11.0",
-
     "ethers": "^6.13.1",
-
     "react": "^18.2.0",
-
     "react-dom": "^18.2.0",
-
     "react-scripts": "5.0.1",
 
-    "ajv": "^8.17.1",
+    "ajv": "8.17.1",
+    "ajv-keywords": "5.1.0",
+    "schema-utils": "4.3.2"
+  },
 
-    "ajv-keywords": "^5.1.0"
+  "overrides": {
+    "ajv": "8.17.1",
+    "ajv-keywords": "5.1.0"
   },
 
   "scripts": {
