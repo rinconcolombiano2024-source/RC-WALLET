@@ -1,22 +1,31 @@
 {
   "name": "rc-wallet",
+
   "version": "2.0.0",
+
   "private": true,
 
+  "homepage": ".",
+
   "engines": {
-    "node": "22.x"
+    "node": "20.x"
   },
 
   "dependencies": {
     "@worldcoin/minikit-js": "^1.11.0",
+
     "ethers": "^6.13.1",
+
     "react": "^18.2.0",
+
     "react-dom": "^18.2.0",
+
     "react-scripts": "5.0.1"
   },
 
   "scripts": {
     "start": "GENERATE_SOURCEMAP=false react-scripts start",
+
     "build": "CI=false GENERATE_SOURCEMAP=false react-scripts build"
   },
 
@@ -29,13 +38,17 @@
   "browserslist": {
     "production": [
       ">0.2%",
+
       "not dead",
+
       "not op_mini all"
     ],
 
     "development": [
       "last 1 chrome version",
+
       "last 1 firefox version",
+
       "last 1 safari version"
     ]
   }
