@@ -61,6 +61,7 @@ const NETWORKS = [
 const TOKENS = [
   {
     symbol: "WLD",
+
     decimals: 18,
 
     addresses: {
@@ -73,6 +74,7 @@ const TOKENS = [
 
   {
     symbol: "USDC",
+
     decimals: 6,
 
     addresses: {
@@ -90,15 +92,10 @@ const TOKENS = [
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
-
-  "function decimals() view returns (uint8)",
-
-  "function symbol() view returns (string)",
-
-  "function name() view returns (string)",
 ];
 
 export default function App() {
+
   const [status, setStatus] =
     useState(
       "Inicializando RC Wallet..."
@@ -123,26 +120,44 @@ export default function App() {
     useState("");
 
   useEffect(() => {
-    initializeMiniKit();
+
+    let mounted = true;
+
+    if (mounted) {
+      initializeMiniKit();
+    }
+
+    return () => {
+      mounted = false;
+    };
+
   }, []);
 
   async function initializeMiniKit() {
+
     try {
+
       setStatus(
-        "Inicializando MiniKit..."
+        "Inicializando RC Wallet..."
       );
+
+      if (
+        typeof window === "undefined"
+      ) {
+        return;
+      }
 
       MiniKit.install();
 
       await new Promise((resolve) =>
-        setTimeout(resolve, 4000)
+        setTimeout(resolve, 2500)
       );
 
       const installed =
         MiniKit.isInstalled();
 
       console.log(
-        "MiniKit:",
+        "MiniKit instalado:",
         installed
       );
 
@@ -150,8 +165,9 @@ export default function App() {
         await waitForEthereum();
 
       if (!ethereum) {
+
         setStatus(
-          "Provider World App no detectado"
+          "Abra RC Wallet desde World App"
         );
 
         return;
@@ -165,14 +181,18 @@ export default function App() {
         );
 
       if (savedWallet) {
+
         await connectWallet();
+
       } else {
+
         setStatus(
-          "RC Wallet listo para conectar"
+          "RC Wallet listo"
         );
       }
 
     } catch (err) {
+
       console.error(err);
 
       setStatus(
@@ -182,21 +202,21 @@ export default function App() {
   }
 
   async function waitForEthereum() {
-    for (let i = 0; i < 30; i++) {
 
-      if (
-        typeof window !== "undefined" &&
-        window.ethereum
-      ) {
-        console.log(
-          "Provider encontrado"
-        );
+    if (
+      typeof window === "undefined"
+    ) {
+      return null;
+    }
 
+    for (let i = 0; i < 20; i++) {
+
+      if (window.ethereum) {
         return window.ethereum;
       }
 
       await new Promise((resolve) =>
-        setTimeout(resolve, 1000)
+        setTimeout(resolve, 500)
       );
     }
 
@@ -204,39 +224,58 @@ export default function App() {
   }
 
   function setupListeners(ethereum) {
+
     if (!ethereum?.on) return;
+
+    ethereum.removeAllListeners?.(
+      "accountsChanged"
+    );
+
+    ethereum.removeAllListeners?.(
+      "chainChanged"
+    );
 
     ethereum.on(
       "accountsChanged",
       async (accounts) => {
-        if (accounts?.length) {
-          const address =
-            accounts[0];
 
-          setWallet(address);
+        try {
 
-          localStorage.setItem(
-            "rc_wallet_address",
-            address
-          );
+          if (accounts?.length) {
 
-          await scanAllNetworks(
-            address
-          );
+            const address =
+              accounts[0];
+
+            setWallet(address);
+
+            localStorage.setItem(
+              "rc_wallet_address",
+              address
+            );
+
+            await scanAllNetworks(
+              address
+            );
+          }
+
+        } catch (err) {
+          console.error(err);
         }
       }
     );
 
     ethereum.on(
       "chainChanged",
-      async () => {
+      () => {
         window.location.reload();
       }
     );
   }
 
   async function connectWallet() {
+
     try {
+
       setStatus(
         "Conectando wallet..."
       );
@@ -245,8 +284,9 @@ export default function App() {
         await waitForEthereum();
 
       if (!ethereum) {
+
         setStatus(
-          "Provider Ethereum no encontrado"
+          "World App no detectado"
         );
 
         return;
@@ -254,18 +294,21 @@ export default function App() {
 
       const accounts =
         await ethereum.request({
-          method: "eth_requestAccounts",
+          method:
+            "eth_requestAccounts",
         });
 
       if (!accounts?.length) {
+
         setStatus(
-          "No se encontraron cuentas"
+          "Wallet no autorizada"
         );
 
         return;
       }
 
-      const address = accounts[0];
+      const address =
+        accounts[0];
 
       setWallet(address);
 
@@ -279,17 +322,21 @@ export default function App() {
           ethereum
         );
 
-      setProvider(ethersProvider);
+      setProvider(
+        ethersProvider
+      );
 
-      const net =
+      const currentNetwork =
         await ethersProvider.getNetwork();
 
       setNetwork(
-        `${net.name} (${net.chainId})`
+        `${currentNetwork.name} (${currentNetwork.chainId})`
       );
 
       setSelectedNetwork(
-        Number(net.chainId)
+        Number(
+          currentNetwork.chainId
+        )
       );
 
       const balance =
@@ -304,17 +351,20 @@ export default function App() {
       );
 
       setStatus(
-        "Wallet conectada correctamente"
+        "Wallet conectada"
       );
 
-      await scanAllNetworks(address);
+      await scanAllNetworks(
+        address
+      );
 
     } catch (err) {
+
       console.error(err);
 
       setStatus(
         err?.message ||
-          "Error conectando wallet"
+        "Error conectando wallet"
       );
     }
   }
@@ -322,8 +372,11 @@ export default function App() {
   async function getWorkingProvider(
     rpcList
   ) {
+
     for (const rpc of rpcList) {
+
       try {
+
         const provider =
           new ethers.JsonRpcProvider(
             rpc
@@ -334,6 +387,7 @@ export default function App() {
         return provider;
 
       } catch (err) {
+
         console.log(
           "RPC falló:",
           rpc
@@ -347,7 +401,9 @@ export default function App() {
   async function scanAllNetworks(
     address
   ) {
+
     try {
+
       setStatus(
         "Escaneando redes..."
       );
@@ -355,8 +411,11 @@ export default function App() {
       let foundTokens = [];
 
       await Promise.all(
+
         NETWORKS.map(async (net) => {
+
           try {
+
             const rpcProvider =
               await getWorkingProvider(
                 net.rpc
@@ -380,6 +439,7 @@ export default function App() {
             if (
               Number(formattedNative) > 0
             ) {
+
               foundTokens.push({
                 network:
                   net.name,
@@ -396,8 +456,11 @@ export default function App() {
             }
 
             await Promise.all(
+
               TOKENS.map(async (token) => {
+
                 try {
+
                   const tokenAddress =
                     token.addresses[
                       net.chainId
@@ -427,6 +490,7 @@ export default function App() {
                   if (
                     Number(formatted) > 0
                   ) {
+
                     foundTokens.push({
                       network:
                         net.name,
@@ -445,6 +509,7 @@ export default function App() {
                   }
 
                 } catch (err) {
+
                   console.log(
                     "Token error:",
                     token.symbol
@@ -454,6 +519,7 @@ export default function App() {
             );
 
           } catch (err) {
+
             console.log(
               "Network error:",
               net.name
@@ -474,6 +540,7 @@ export default function App() {
       );
 
     } catch (err) {
+
       console.error(err);
 
       setStatus(
@@ -485,13 +552,16 @@ export default function App() {
   async function switchNetwork(
     chainId
   ) {
+
     try {
+
       const ethereum =
         await waitForEthereum();
 
       if (!ethereum) return;
 
       await ethereum.request({
+
         method:
           "wallet_switchEthereumChain",
 
@@ -511,6 +581,7 @@ export default function App() {
       );
 
     } catch (err) {
+
       console.error(err);
 
       setStatus(
@@ -520,6 +591,7 @@ export default function App() {
   }
 
   return (
+
     <div
       style={{
         background:
@@ -534,6 +606,7 @@ export default function App() {
         fontFamily: "Arial",
       }}
     >
+
       <div
         style={{
           display: "flex",
@@ -551,6 +624,7 @@ export default function App() {
             "0 0 30px rgba(0,0,0,0.4)",
         }}
       >
+
         <img
           src="https://i.imgur.com/Xd8N7xB.png"
           alt="logo"
@@ -567,6 +641,7 @@ export default function App() {
         />
 
         <div>
+
           <h1
             style={{
               fontSize: "52px",
@@ -579,8 +654,6 @@ export default function App() {
                 "text",
               WebkitTextFillColor:
                 "transparent",
-              textShadow:
-                "0 0 15px rgba(255,255,255,0.2)",
             }}
           >
             RC Wallet
@@ -596,12 +669,11 @@ export default function App() {
               fontSize: "18px",
               textTransform:
                 "uppercase",
-              textShadow:
-                "0 0 12px rgba(255,215,0,0.8)",
             }}
           >
             Rincón Colombiano
           </h3>
+
         </div>
       </div>
 
@@ -628,8 +700,6 @@ export default function App() {
           background:
             "linear-gradient(90deg,#FFD700,#0057FF,#FF0000)",
           color: "white",
-          boxShadow:
-            "0 0 20px rgba(255,215,0,0.4)",
         }}
       >
         Conectar Wallet
@@ -680,6 +750,7 @@ export default function App() {
       <select
         value={selectedNetwork}
         onChange={(e) => {
+
           setSelectedNetwork(
             e.target.value
           );
@@ -696,17 +767,20 @@ export default function App() {
           fontWeight: "bold",
         }}
       >
+
         <option value="">
           Seleccione Red
         </option>
 
         {NETWORKS.map((net) => (
+
           <option
             key={net.chainId}
             value={net.chainId}
           >
             {net.name}
           </option>
+
         ))}
       </select>
 
@@ -730,6 +804,7 @@ export default function App() {
 
       {tokens.map(
         (token, index) => (
+
           <div
             key={index}
             style={{
@@ -742,10 +817,9 @@ export default function App() {
                 "15px",
               border:
                 "1px solid rgba(255,255,255,0.1)",
-              boxShadow:
-                "0 0 15px rgba(0,0,0,0.3)",
             }}
           >
+
             <p>
               <b>Token:</b>{" "}
               {token.symbol}
@@ -771,6 +845,7 @@ export default function App() {
             >
               {token.address}
             </p>
+
           </div>
         )
       )}
@@ -778,6 +853,7 @@ export default function App() {
       <style>
         {`
           @keyframes spin {
+
             from {
               transform: rotate(0deg);
             }
@@ -813,6 +889,7 @@ export default function App() {
           }
         `}
       </style>
+
     </div>
   );
-}
+              }
