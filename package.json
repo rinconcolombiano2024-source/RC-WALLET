@@ -1,11 +1,7 @@
 {
   "name": "rc-wallet",
-
   "version": "2.0.0",
-
   "private": true,
-
-  "homepage": ".",
 
   "engines": {
     "node": "20.x"
@@ -20,7 +16,11 @@
 
     "react-dom": "^18.2.0",
 
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+
+    "ajv": "^8.17.1",
+
+    "ajv-keywords": "^5.1.0"
   },
 
   "scripts": {
@@ -38,17 +38,13 @@
   "browserslist": {
     "production": [
       ">0.2%",
-
       "not dead",
-
       "not op_mini all"
     ],
 
     "development": [
       "last 1 chrome version",
-
       "last 1 firefox version",
-
       "last 1 safari version"
     ]
   }
