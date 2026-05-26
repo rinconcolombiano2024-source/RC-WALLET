@@ -538,33 +538,77 @@ export default function App() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "15px",
+          gap: "18px",
+          marginBottom: "10px",
+          background:
+            "rgba(255,255,255,0.05)",
+          padding: "15px",
+          borderRadius: "25px",
+          backdropFilter: "blur(10px)",
+          border:
+            "1px solid rgba(255,255,255,0.1)",
+          boxShadow:
+            "0 0 30px rgba(0,0,0,0.4)",
         }}
       >
         <img
           src="https://i.imgur.com/Xd8N7xB.png"
           alt="logo"
-          width="70"
+          width="85"
           style={{
             borderRadius: "50%",
             animation:
               "spin 12s linear infinite",
+            border:
+              "4px solid #FFD700",
+            boxShadow:
+              "0 0 25px rgba(255,215,0,0.7)",
           }}
         />
 
-        <h1
-          style={{
-            fontSize: "50px",
-            margin: 0,
-          }}
-        >
-          RC Wallet
-        </h1>
+        <div>
+          <h1
+            style={{
+              fontSize: "52px",
+              margin: 0,
+              fontWeight: "900",
+              lineHeight: "1",
+              background:
+                "linear-gradient(90deg, #FFD700 0%, #0057FF 50%, #FF0000 100%)",
+              WebkitBackgroundClip:
+                "text",
+              WebkitTextFillColor:
+                "transparent",
+              textShadow:
+                "0 0 15px rgba(255,255,255,0.2)",
+            }}
+          >
+            RC Wallet
+          </h1>
+
+          <h3
+            style={{
+              margin: 0,
+              marginTop: "8px",
+              fontWeight: "bold",
+              color: "#FFD700",
+              letterSpacing: "3px",
+              fontSize: "18px",
+              textTransform:
+                "uppercase",
+              textShadow:
+                "0 0 12px rgba(255,215,0,0.8)",
+            }}
+          >
+            Rincón Colombiano
+          </h3>
+        </div>
       </div>
 
       <h2
         style={{
           marginTop: "20px",
+          color: "#FFD700",
         }}
       >
         Recovery Multi-Chain Wallet
@@ -580,6 +624,12 @@ export default function App() {
           marginTop: "20px",
           cursor: "pointer",
           width: "100%",
+          fontWeight: "bold",
+          background:
+            "linear-gradient(90deg,#FFD700,#0057FF,#FF0000)",
+          color: "white",
+          boxShadow:
+            "0 0 20px rgba(255,215,0,0.4)",
         }}
       >
         Conectar Wallet
@@ -588,6 +638,8 @@ export default function App() {
       <hr
         style={{
           margin: "30px 0",
+          border:
+            "1px solid rgba(255,255,255,0.1)",
         }}
       />
 
@@ -616,6 +668,8 @@ export default function App() {
       <hr
         style={{
           margin: "30px 0",
+          border:
+            "1px solid rgba(255,255,255,0.1)",
         }}
       />
 
@@ -639,6 +693,7 @@ export default function App() {
           padding: "15px",
           borderRadius: "10px",
           marginTop: "10px",
+          fontWeight: "bold",
         }}
       >
         <option value="">
@@ -658,6 +713,8 @@ export default function App() {
       <hr
         style={{
           margin: "30px 0",
+          border:
+            "1px solid rgba(255,255,255,0.1)",
         }}
       />
 
@@ -677,15 +734,16 @@ export default function App() {
             key={index}
             style={{
               background:
-                "#1111aa",
-
+                "rgba(255,255,255,0.08)",
               padding: "15px",
-
               borderRadius:
-                "15px",
-
+                "18px",
               marginBottom:
                 "15px",
+              border:
+                "1px solid rgba(255,255,255,0.1)",
+              boxShadow:
+                "0 0 15px rgba(0,0,0,0.3)",
             }}
           >
             <p>
@@ -707,7 +765,6 @@ export default function App() {
               style={{
                 wordBreak:
                   "break-all",
-
                 fontSize:
                   "12px",
               }}
@@ -728,6 +785,31 @@ export default function App() {
             to {
               transform: rotate(360deg);
             }
+          }
+
+          body {
+            margin: 0;
+            padding: 0;
+            background: #02024d;
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          button {
+            transition: all 0.3s ease;
+          }
+
+          button:hover {
+            transform: scale(1.02);
+            opacity: 0.95;
+          }
+
+          select {
+            background: white;
+            color: black;
+            font-weight: bold;
           }
         `}
       </style>
