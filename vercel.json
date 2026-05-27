@@ -1,9 +1,9 @@
 {
-"framework": "create-react-app",
+  "framework": "create-react-app",
 
-"installCommand": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps",
+  "installCommand": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps",
 
-"buildCommand": "npm run build",
+  "buildCommand": "npm run build",
 
-"outputDirectory": "build"
+  "outputDirectory": "build"
 }
