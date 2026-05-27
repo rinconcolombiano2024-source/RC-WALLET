@@ -6,6 +6,7 @@ import React, {
 } from "react";
 
 import { MiniKit } from "@worldcoin/minikit-js";
+
 import { ethers } from "ethers";
 
 const NETWORKS = [
@@ -87,7 +88,8 @@ const ERC20_ABI = [
 
 export default function App() {
 
-  const mountedRef = useRef(true);
+  const mountedRef =
+    useRef(true);
 
   const [status, setStatus] =
     useState(
@@ -109,9 +111,6 @@ export default function App() {
   const [tokens, setTokens] =
     useState([]);
 
-  const [selectedNetwork, setSelectedNetwork] =
-    useState("");
-
   useEffect(() => {
 
     initialize();
@@ -128,7 +127,8 @@ export default function App() {
       try {
 
         if (
-          typeof window === "undefined"
+          typeof window ===
+          "undefined"
         ) {
           return;
         }
@@ -179,7 +179,9 @@ export default function App() {
 
     for (let i = 0; i < 20; i++) {
 
-      if (window?.ethereum) {
+      if (
+        window?.ethereum
+      ) {
         return window.ethereum;
       }
 
@@ -199,7 +201,8 @@ export default function App() {
     ethereum
   ) {
 
-    if (!ethereum?.on) return;
+    if (!ethereum?.on)
+      return;
 
     ethereum.removeAllListeners?.(
       "accountsChanged"
@@ -213,7 +216,9 @@ export default function App() {
       "accountsChanged",
       async (accounts) => {
 
-        if (accounts?.length) {
+        if (
+          accounts?.length
+        ) {
 
           const address =
             accounts[0];
@@ -264,7 +269,9 @@ export default function App() {
               "eth_requestAccounts",
           });
 
-        if (!accounts?.length) {
+        if (
+          !accounts?.length
+        ) {
 
           setStatus(
             "Wallet no autorizada"
@@ -290,12 +297,6 @@ export default function App() {
           `${currentNetwork.name} (${currentNetwork.chainId})`
         );
 
-        setSelectedNetwork(
-          Number(
-            currentNetwork.chainId
-          )
-        );
-
         const balance =
           await provider.getBalance(
             address
@@ -303,7 +304,9 @@ export default function App() {
 
         setNativeBalance(
           Number(
-            ethers.formatEther(balance)
+            ethers.formatEther(
+              balance
+            )
           ).toFixed(4)
         );
 
@@ -459,7 +462,9 @@ export default function App() {
                 );
 
               if (
-                Number(formatted) > 0
+                Number(
+                  formatted
+                ) > 0
               ) {
 
                 foundTokens.push({
@@ -572,6 +577,13 @@ export default function App() {
 
           <div
             key={index}
+            style={{
+              border:
+                "1px solid rgba(255,255,255,0.2)",
+              padding: "10px",
+              marginBottom: "10px",
+              borderRadius: "10px",
+            }}
           >
 
             <p>
@@ -592,4 +604,4 @@ export default function App() {
 
     </div>
   );
-    }
+      }
