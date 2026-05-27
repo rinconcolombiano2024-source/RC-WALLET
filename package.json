@@ -4,12 +4,10 @@
   "private": true,
 
   "engines": {
-    "node": "20.x",
-    "npm": ">=10"
+    "node": "18.x"
   },
 
   "dependencies": {
-    "@craco/craco": "^7.1.0",
     "@worldcoin/minikit-js": "^1.11.0",
     "ethers": "^6.13.1",
     "react": "^18.2.0",
@@ -19,13 +17,9 @@
   },
 
   "scripts": {
-    "start": "craco start",
-
-    "build": "GENERATE_SOURCEMAP=false DISABLE_ESLINT_PLUGIN=true craco build",
-
-    "test": "craco test",
-
-    "eject": "react-scripts eject"
+    "start": "react-scripts start",
+    "build": "GENERATE_SOURCEMAP=false DISABLE_ESLINT_PLUGIN=true react-scripts build",
+    "test": "react-scripts test"
   },
 
   "browserslist": {
@@ -34,7 +28,6 @@
       "not dead",
       "not op_mini all"
     ],
-
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",
