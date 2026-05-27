@@ -1,6 +1,7 @@
 import React, {
-  useEffect,
-  useState,
+useEffect,
+useState,
+useCallback,
 } from "react";
 
 import { MiniKit } from "@worldcoin/minikit-js";
@@ -8,436 +9,440 @@ import { MiniKit } from "@worldcoin/minikit-js";
 import { ethers } from "ethers";
 
 const NETWORKS = [
-  {
-    name: "Ethereum",
-    chainId: 1,
-    symbol: "ETH",
-    rpc: [
-      "https://ethereum-rpc.publicnode.com",
-      "https://rpc.ankr.com/eth",
-    ],
-  },
+{
+name: "Ethereum",
+chainId: 1,
+symbol: "ETH",
+rpc: [
+"https://ethereum-rpc.publicnode.com",
+"https://rpc.ankr.com/eth",
+],
+},
 
-  {
-    name: "Optimism",
-    chainId: 10,
-    symbol: "ETH",
-    rpc: [
-      "https://mainnet.optimism.io",
-      "https://rpc.ankr.com/optimism",
-    ],
-  },
+{
+name: "Optimism",
+chainId: 10,
+symbol: "ETH",
+rpc: [
+"https://mainnet.optimism.io",
+"https://rpc.ankr.com/optimism",
+],
+},
 
-  {
-    name: "BNB Chain",
-    chainId: 56,
-    symbol: "BNB",
-    rpc: [
-      "https://bsc-dataseed.binance.org",
-      "https://rpc.ankr.com/bsc",
-    ],
-  },
+{
+name: "BNB Chain",
+chainId: 56,
+symbol: "BNB",
+rpc: [
+"https://bsc-dataseed.binance.org",
+"https://rpc.ankr.com/bsc",
+],
+},
 
-  {
-    name: "Base",
-    chainId: 8453,
-    symbol: "ETH",
-    rpc: [
-      "https://mainnet.base.org",
-      "https://base-rpc.publicnode.com",
-    ],
-  },
+{
+name: "Base",
+chainId: 8453,
+symbol: "ETH",
+rpc: [
+"https://mainnet.base.org",
+"https://base-rpc.publicnode.com",
+],
+},
 
-  {
-    name: "World Chain",
-    chainId: 480,
-    symbol: "ETH",
-    rpc: [
-      "https://worldchain-mainnet.g.alchemy.com/public",
-    ],
-  },
-];
-
-const TOKENS = [
-  {
-    symbol: "WLD",
-
-    decimals: 18,
-
-    addresses: {
-      1: "0x163f8C2467924be0ae7B5347228CABF260318753",
-
-      8453:
-        "0x163f8C2467924be0ae7B5347228CABF260318753",
-    },
-  },
-
-  {
-    symbol: "USDC",
-
-    decimals: 6,
-
-    addresses: {
-      1: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-
-      10: "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
-
-      56: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
-
-      8453:
-        "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
-    },
-  },
+{
+name: "World Chain",
+chainId: 480,
+symbol: "ETH",
+rpc: [
+"https://worldchain-mainnet.g.alchemy.com/public",
+"https://worldchain.drpc.org",
+],
+},
 ];
 
 const ERC20_ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
+"function balanceOf(address owner) view returns (uint256)",
+];
+
+const TOKENS = [
+{
+symbol: "WLD",
+decimals: 18,
+addresses: {
+480:
+"0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
+},
+},
+
+{
+symbol: "USDC",
+decimals: 6,
+addresses: {
+1:
+"0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+
+  10:
+    "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
+
+  56:
+    "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+
+  8453:
+    "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
+},
+
+},
 ];
 
 export default function App() {
 
-  const [status, setStatus] =
-    useState(
-      "Inicializando RC Wallet..."
-    );
+const [status, setStatus] =
+useState(
+"Inicializando RC Wallet..."
+);
 
-  const [wallet, setWallet] =
-    useState("");
+const [wallet, setWallet] =
+useState("");
 
-  const [provider, setProvider] =
-    useState(null);
+const [network, setNetwork] =
+useState("");
 
-  const [network, setNetwork] =
-    useState("");
+const [nativeBalance, setNativeBalance] =
+useState("0");
 
-  const [nativeBalance, setNativeBalance] =
-    useState("0");
+const [tokens, setTokens] =
+useState([]);
 
-  const [tokens, setTokens] =
-    useState([]);
+const [selectedNetwork, setSelectedNetwork] =
+useState("");
 
-  const [selectedNetwork, setSelectedNetwork] =
-    useState("");
+useEffect(() => {
 
-  useEffect(() => {
+let mounted = true;
 
-    let mounted = true;
+if (mounted) {
+  initialize();
+}
 
-    if (mounted) {
-      initializeMiniKit();
-    }
+return () => {
+  mounted = false;
+};
 
-    return () => {
-      mounted = false;
-    };
+}, []);
 
-  }, []);
+async function initialize() {
 
-  async function initializeMiniKit() {
+try {
 
-    try {
-
-      setStatus(
-        "Inicializando RC Wallet..."
-      );
-
-      if (
-        typeof window === "undefined"
-      ) {
-        return;
-      }
-
-      MiniKit.install();
-
-      await new Promise((resolve) =>
-        setTimeout(resolve, 2500)
-      );
-
-      const installed =
-        MiniKit.isInstalled();
-
-      console.log(
-        "MiniKit instalado:",
-        installed
-      );
-
-      const ethereum =
-        await waitForEthereum();
-
-      if (!ethereum) {
-
-        setStatus(
-          "Abra RC Wallet desde World App"
-        );
-
-        return;
-      }
-
-      setupListeners(ethereum);
-
-      const savedWallet =
-        localStorage.getItem(
-          "rc_wallet_address"
-        );
-
-      if (savedWallet) {
-
-        await connectWallet();
-
-      } else {
-
-        setStatus(
-          "RC Wallet listo"
-        );
-      }
-
-    } catch (err) {
-
-      console.error(err);
-
-      setStatus(
-        "Error inicializando MiniKit"
-      );
-    }
+  if (typeof window === "undefined") {
+    return;
   }
 
-  async function waitForEthereum() {
+  try {
 
-    if (
-      typeof window === "undefined"
-    ) {
-      return null;
-    }
+    MiniKit.install();
 
-    for (let i = 0; i < 20; i++) {
+  } catch (err) {
 
-      if (window.ethereum) {
-        return window.ethereum;
-      }
-
-      await new Promise((resolve) =>
-        setTimeout(resolve, 500)
-      );
-    }
-
-    return null;
-  }
-
-  function setupListeners(ethereum) {
-
-    if (!ethereum?.on) return;
-
-    ethereum.removeAllListeners?.(
-      "accountsChanged"
-    );
-
-    ethereum.removeAllListeners?.(
-      "chainChanged"
-    );
-
-    ethereum.on(
-      "accountsChanged",
-      async (accounts) => {
-
-        try {
-
-          if (accounts?.length) {
-
-            const address =
-              accounts[0];
-
-            setWallet(address);
-
-            localStorage.setItem(
-              "rc_wallet_address",
-              address
-            );
-
-            await scanAllNetworks(
-              address
-            );
-          }
-
-        } catch (err) {
-          console.error(err);
-        }
-      }
-    );
-
-    ethereum.on(
-      "chainChanged",
-      () => {
-        window.location.reload();
-      }
+    console.log(
+      "MiniKit warning"
     );
   }
 
-  async function connectWallet() {
+  const ethereum =
+    await waitForEthereum();
 
-    try {
+  if (!ethereum) {
 
-      setStatus(
-        "Conectando wallet..."
-      );
+    setStatus(
+      "Abra RC Wallet desde World App"
+    );
 
-      const ethereum =
-        await waitForEthereum();
+    return;
+  }
 
-      if (!ethereum) {
+  setupListeners(
+    ethereum
+  );
 
-        setStatus(
-          "World App no detectado"
-        );
+  setStatus(
+    "RC Wallet listo"
+  );
 
-        return;
-      }
+} catch (err) {
 
-      const accounts =
-        await ethereum.request({
-          method:
-            "eth_requestAccounts",
-        });
+  console.error(err);
 
-      if (!accounts?.length) {
+  setStatus(
+    "Error inicializando wallet"
+  );
+}
 
-        setStatus(
-          "Wallet no autorizada"
-        );
+}
 
-        return;
-      }
+async function waitForEthereum() {
+
+for (let i = 0; i < 20; i++) {
+
+  if (window.ethereum) {
+    return window.ethereum;
+  }
+
+  await new Promise((resolve) =>
+    setTimeout(resolve, 500)
+  );
+}
+
+return null;
+
+}
+
+function setupListeners(
+ethereum
+) {
+
+if (!ethereum?.on) return;
+
+ethereum.removeAllListeners?.(
+  "accountsChanged"
+);
+
+ethereum.removeAllListeners?.(
+  "chainChanged"
+);
+
+ethereum.on(
+  "accountsChanged",
+  async (accounts) => {
+
+    if (accounts?.length) {
 
       const address =
         accounts[0];
 
       setWallet(address);
 
-      localStorage.setItem(
-        "rc_wallet_address",
-        address
-      );
-
-      const ethersProvider =
-        new ethers.BrowserProvider(
-          ethereum
-        );
-
-      setProvider(
-        ethersProvider
-      );
-
-      const currentNetwork =
-        await ethersProvider.getNetwork();
-
-      setNetwork(
-        `${currentNetwork.name} (${currentNetwork.chainId})`
-      );
-
-      setSelectedNetwork(
-        Number(
-          currentNetwork.chainId
-        )
-      );
-
-      const balance =
-        await ethersProvider.getBalance(
-          address
-        );
-
-      setNativeBalance(
-        Number(
-          ethers.formatEther(balance)
-        ).toFixed(4)
-      );
-
-      setStatus(
-        "Wallet conectada"
-      );
-
       await scanAllNetworks(
         address
       );
-
-    } catch (err) {
-
-      console.error(err);
-
-      setStatus(
-        err?.message ||
-        "Error conectando wallet"
-      );
     }
   }
+);
 
-  async function getWorkingProvider(
-    rpcList
-  ) {
+ethereum.on(
+  "chainChanged",
+  () => {
+    window.location.reload();
+  }
+);
 
-    for (const rpc of rpcList) {
+}
+
+const connectWallet =
+useCallback(async () => {
+
+  try {
+
+    setStatus(
+      "Conectando wallet..."
+    );
+
+    const ethereum =
+      await waitForEthereum();
+
+    if (!ethereum) {
+
+      setStatus(
+        "World App no detectado"
+      );
+
+      return;
+    }
+
+    const accounts =
+      await ethereum.request({
+        method:
+          "eth_requestAccounts",
+      });
+
+    if (!accounts?.length) {
+
+      setStatus(
+        "Wallet no autorizada"
+      );
+
+      return;
+    }
+
+    const address =
+      accounts[0];
+
+    setWallet(address);
+
+    const provider =
+      new ethers.BrowserProvider(
+        ethereum
+      );
+
+    const currentNetwork =
+      await provider.getNetwork();
+
+    setNetwork(
+      `${currentNetwork.name} (${currentNetwork.chainId})`
+    );
+
+    setSelectedNetwork(
+      Number(
+        currentNetwork.chainId
+      )
+    );
+
+    const balance =
+      await provider.getBalance(
+        address
+      );
+
+    setNativeBalance(
+      Number(
+        ethers.formatEther(balance)
+      ).toFixed(4)
+    );
+
+    setStatus(
+      "Wallet conectada"
+    );
+
+    await scanAllNetworks(
+      address
+    );
+
+  } catch (err) {
+
+    console.error(err);
+
+    setStatus(
+      err?.message ||
+      "Error conectando wallet"
+    );
+  }
+
+}, []);
+
+async function getWorkingProvider(
+rpcList
+) {
+
+for (const rpc of rpcList) {
+
+  try {
+
+    const provider =
+      new ethers.JsonRpcProvider(
+        rpc
+      );
+
+    await provider.getBlockNumber();
+
+    return provider;
+
+  } catch (err) {
+
+    console.log(
+      "RPC falló:",
+      rpc
+    );
+  }
+}
+
+return null;
+
+}
+
+async function scanAllNetworks(
+address
+) {
+
+try {
+
+  setStatus(
+    "Escaneando redes..."
+  );
+
+  let foundTokens = [];
+
+  await Promise.all(
+
+    NETWORKS.map(async (net) => {
 
       try {
 
-        const provider =
-          new ethers.JsonRpcProvider(
-            rpc
+        const rpcProvider =
+          await getWorkingProvider(
+            net.rpc
           );
 
-        await provider.getBlockNumber();
+        if (!rpcProvider) return;
 
-        return provider;
+        const nativeBalance =
+          await rpcProvider.getBalance(
+            address
+          );
 
-      } catch (err) {
+        const formattedNative =
+          Number(
+            ethers.formatEther(
+              nativeBalance
+            )
+          ).toFixed(4);
 
-        console.log(
-          "RPC falló:",
-          rpc
-        );
-      }
-    }
+        if (
+          Number(formattedNative) > 0
+        ) {
 
-    return null;
-  }
+          foundTokens.push({
+            network:
+              net.name,
 
-  async function scanAllNetworks(
-    address
-  ) {
+            symbol:
+              net.symbol,
 
-    try {
+            balance:
+              formattedNative,
+          });
+        }
 
-      setStatus(
-        "Escaneando redes..."
-      );
-
-      let foundTokens = [];
-
-      await Promise.all(
-
-        NETWORKS.map(async (net) => {
+        for (const token of TOKENS) {
 
           try {
 
-            const rpcProvider =
-              await getWorkingProvider(
-                net.rpc
+            const tokenAddress =
+              token.addresses[
+                net.chainId
+              ];
+
+            if (!tokenAddress)
+              continue;
+
+            const contract =
+              new ethers.Contract(
+                tokenAddress,
+                ERC20_ABI,
+                rpcProvider
               );
 
-            if (!rpcProvider)
-              return;
-
-            const nativeBalance =
-              await rpcProvider.getBalance(
+            const balance =
+              await contract.balanceOf(
                 address
               );
 
-            const formattedNative =
-              Number(
-                ethers.formatEther(
-                  nativeBalance
-                )
-              ).toFixed(4);
+            const formatted =
+              ethers.formatUnits(
+                balance,
+                token.decimals
+              );
 
             if (
-              Number(formattedNative) > 0
+              Number(formatted) > 0
             ) {
 
               foundTokens.push({
@@ -445,451 +450,258 @@ export default function App() {
                   net.name,
 
                 symbol:
-                  net.symbol,
+                  token.symbol,
 
                 balance:
-                  formattedNative,
-
-                address:
-                  "Native Coin",
+                  Number(
+                    formatted
+                  ).toFixed(4),
               });
             }
-
-            await Promise.all(
-
-              TOKENS.map(async (token) => {
-
-                try {
-
-                  const tokenAddress =
-                    token.addresses[
-                      net.chainId
-                    ];
-
-                  if (!tokenAddress)
-                    return;
-
-                  const contract =
-                    new ethers.Contract(
-                      tokenAddress,
-                      ERC20_ABI,
-                      rpcProvider
-                    );
-
-                  const balance =
-                    await contract.balanceOf(
-                      address
-                    );
-
-                  const formatted =
-                    ethers.formatUnits(
-                      balance,
-                      token.decimals
-                    );
-
-                  if (
-                    Number(formatted) > 0
-                  ) {
-
-                    foundTokens.push({
-                      network:
-                        net.name,
-
-                      symbol:
-                        token.symbol,
-
-                      balance:
-                        Number(
-                          formatted
-                        ).toFixed(4),
-
-                      address:
-                        tokenAddress,
-                    });
-                  }
-
-                } catch (err) {
-
-                  console.log(
-                    "Token error:",
-                    token.symbol
-                  );
-                }
-              })
-            );
 
           } catch (err) {
 
             console.log(
-              "Network error:",
-              net.name
+              "Token error:",
+              token.symbol
             );
           }
-        })
+        }
+
+      } catch (err) {
+
+        console.log(
+          "Network error:",
+          net.name
+        );
+      }
+    })
+  );
+
+  setTokens(foundTokens);
+
+  setStatus(
+    "Escaneo completado"
+  );
+
+} catch (err) {
+
+  console.error(err);
+
+  setStatus(
+    "Error escaneando redes"
+  );
+}
+
+}
+
+async function switchNetwork(
+chainId
+) {
+
+try {
+
+  const ethereum =
+    await waitForEthereum();
+
+  if (!ethereum) return;
+
+  try {
+
+    await ethereum.request({
+
+      method:
+        "wallet_switchEthereumChain",
+
+      params: [
+        {
+          chainId:
+            "0x" +
+            Number(chainId).toString(
+              16
+            ),
+        },
+      ],
+    });
+
+  } catch (switchError) {
+
+    const network =
+      NETWORKS.find(
+        (n) =>
+          n.chainId ===
+          Number(chainId)
       );
 
-      setTokens(foundTokens);
+    if (!network) return;
 
-      localStorage.setItem(
-        "rc_wallet_tokens",
-        JSON.stringify(foundTokens)
-      );
+    await ethereum.request({
 
-      setStatus(
-        "Escaneo multi-chain completado"
-      );
+      method:
+        "wallet_addEthereumChain",
 
-    } catch (err) {
+      params: [
+        {
+          chainId:
+            "0x" +
+            Number(chainId).toString(
+              16),
 
-      console.error(err);
+          chainName:
+            network.name,
 
-      setStatus(
-        "Error escaneando redes"
-      );
-    }
-  }
+          nativeCurrency: {
+            name:
+              network.symbol,
 
-  async function switchNetwork(
-    chainId
-  ) {
+            symbol:
+              network.symbol,
 
-    try {
-
-      const ethereum =
-        await waitForEthereum();
-
-      if (!ethereum) return;
-
-      await ethereum.request({
-
-        method:
-          "wallet_switchEthereumChain",
-
-        params: [
-          {
-            chainId:
-              "0x" +
-              Number(chainId).toString(
-                16
-              ),
+            decimals: 18,
           },
-        ],
-      });
 
-      setStatus(
-        "Red cambiada correctamente"
-      );
-
-    } catch (err) {
-
-      console.error(err);
-
-      setStatus(
-        "No se pudo cambiar la red"
-      );
-    }
+          rpcUrls:
+            network.rpc,
+        },
+      ],
+    });
   }
 
-  return (
+  setStatus(
+    "Red cambiada correctamente"
+  );
 
-    <div
-      style={{
-        background:
-          "linear-gradient(to bottom, #05058C, #02024d)",
+} catch (err) {
 
-        minHeight: "100vh",
+  console.error(err);
 
-        color: "white",
+  setStatus(
+    "No se pudo cambiar la red"
+  );
+}
 
-        padding: "20px",
+}
 
-        fontFamily: "Arial",
-      }}
-    >
+return (
+
+<div
+  style={{
+    background:
+      "linear-gradient(to bottom, #05058C, #02024d)",
+    minHeight: "100vh",
+    color: "white",
+    padding: "20px",
+    fontFamily: "Arial",
+  }}
+>
+
+  <h1>
+    RC Wallet
+  </h1>
+
+  <button
+    onClick={connectWallet}
+    style={{
+      padding: "15px",
+      borderRadius: "10px",
+      border: "none",
+      cursor: "pointer",
+      fontWeight: "bold",
+    }}
+  >
+    Conectar Wallet
+  </button>
+
+  <h2>Estado</h2>
+  <p>{status}</p>
+
+  <h2>Wallet</h2>
+  <p>{wallet || "No conectada"}</p>
+
+  <h2>Red</h2>
+  <p>{network || "-"}</p>
+
+  <h2>Balance</h2>
+  <p>{nativeBalance}</p>
+
+  <h2>
+    Cambiar Red
+  </h2>
+
+  <select
+    value={selectedNetwork}
+    onChange={(e) => {
+
+      const value =
+        Number(
+          e.target.value
+        );
+
+      setSelectedNetwork(
+        value
+      );
+
+      switchNetwork(value);
+    }}
+  >
+
+    <option value="">
+      Seleccione Red
+    </option>
+
+    {NETWORKS.map((net) => (
+
+      <option
+        key={net.chainId}
+        value={net.chainId}
+      >
+        {net.name}
+      </option>
+
+    ))}
+  </select>
+
+  <h2>
+    Tokens Detectados
+  </h2>
+
+  {tokens.length === 0 && (
+    <p>
+      No se encontraron fondos
+    </p>
+  )}
+
+  {tokens.map(
+    (token, index) => (
 
       <div
+        key={index}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "18px",
+          padding: "10px",
+          border:
+            "1px solid rgba(255,255,255,0.2)",
           marginBottom: "10px",
-          background:
-            "rgba(255,255,255,0.05)",
-          padding: "15px",
-          borderRadius: "25px",
-          backdropFilter: "blur(10px)",
-          border:
-            "1px solid rgba(255,255,255,0.1)",
-          boxShadow:
-            "0 0 30px rgba(0,0,0,0.4)",
-        }}
-      >
-
-        <img
-          src="https://i.imgur.com/Xd8N7xB.png"
-          alt="logo"
-          width="85"
-          style={{
-            borderRadius: "50%",
-            animation:
-              "spin 12s linear infinite",
-            border:
-              "4px solid #FFD700",
-            boxShadow:
-              "0 0 25px rgba(255,215,0,0.7)",
-          }}
-        />
-
-        <div>
-
-          <h1
-            style={{
-              fontSize: "52px",
-              margin: 0,
-              fontWeight: "900",
-              lineHeight: "1",
-              background:
-                "linear-gradient(90deg, #FFD700 0%, #0057FF 50%, #FF0000 100%)",
-              WebkitBackgroundClip:
-                "text",
-              WebkitTextFillColor:
-                "transparent",
-            }}
-          >
-            RC Wallet
-          </h1>
-
-          <h3
-            style={{
-              margin: 0,
-              marginTop: "8px",
-              fontWeight: "bold",
-              color: "#FFD700",
-              letterSpacing: "3px",
-              fontSize: "18px",
-              textTransform:
-                "uppercase",
-            }}
-          >
-            Rincón Colombiano
-          </h3>
-
-        </div>
-      </div>
-
-      <h2
-        style={{
-          marginTop: "20px",
-          color: "#FFD700",
-        }}
-      >
-        Recovery Multi-Chain Wallet
-      </h2>
-
-      <button
-        onClick={connectWallet}
-        style={{
-          padding: "18px",
-          fontSize: "22px",
-          borderRadius: "18px",
-          border: "none",
-          marginTop: "20px",
-          cursor: "pointer",
-          width: "100%",
-          fontWeight: "bold",
-          background:
-            "linear-gradient(90deg,#FFD700,#0057FF,#FF0000)",
-          color: "white",
-        }}
-      >
-        Conectar Wallet
-      </button>
-
-      <hr
-        style={{
-          margin: "30px 0",
-          border:
-            "1px solid rgba(255,255,255,0.1)",
-        }}
-      />
-
-      <h2>Estado</h2>
-
-      <p>{status}</p>
-
-      <h2>Wallet</h2>
-
-      <p
-        style={{
-          wordBreak: "break-all",
-        }}
-      >
-        {wallet || "No conectada"}
-      </p>
-
-      <h2>Red Actual</h2>
-
-      <p>{network || "-"}</p>
-
-      <h2>Balance Nativo</h2>
-
-      <p>{nativeBalance}</p>
-
-      <hr
-        style={{
-          margin: "30px 0",
-          border:
-            "1px solid rgba(255,255,255,0.1)",
-        }}
-      />
-
-      <h2>
-        Cambiar Red
-      </h2>
-
-      <select
-        value={selectedNetwork}
-        onChange={(e) => {
-
-          setSelectedNetwork(
-            e.target.value
-          );
-
-          switchNetwork(
-            e.target.value
-          );
-        }}
-        style={{
-          width: "100%",
-          padding: "15px",
           borderRadius: "10px",
-          marginTop: "10px",
-          fontWeight: "bold",
         }}
       >
 
-        <option value="">
-          Seleccione Red
-        </option>
-
-        {NETWORKS.map((net) => (
-
-          <option
-            key={net.chainId}
-            value={net.chainId}
-          >
-            {net.name}
-          </option>
-
-        ))}
-      </select>
-
-      <hr
-        style={{
-          margin: "30px 0",
-          border:
-            "1px solid rgba(255,255,255,0.1)",
-        }}
-      />
-
-      <h2>
-        Tokens Detectados
-      </h2>
-
-      {tokens.length === 0 && (
         <p>
-          No se encontraron fondos
+          {token.symbol}
         </p>
-      )}
 
-      {tokens.map(
-        (token, index) => (
+        <p>
+          {token.balance}
+        </p>
 
-          <div
-            key={index}
-            style={{
-              background:
-                "rgba(255,255,255,0.08)",
-              padding: "15px",
-              borderRadius:
-                "18px",
-              marginBottom:
-                "15px",
-              border:
-                "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
+        <p>
+          {token.network}
+        </p>
 
-            <p>
-              <b>Token:</b>{" "}
-              {token.symbol}
-            </p>
+      </div>
+    )
+  )}
 
-            <p>
-              <b>Balance:</b>{" "}
-              {token.balance}
-            </p>
+</div>
 
-            <p>
-              <b>Red:</b>{" "}
-              {token.network}
-            </p>
-
-            <p
-              style={{
-                wordBreak:
-                  "break-all",
-                fontSize:
-                  "12px",
-              }}
-            >
-              {token.address}
-            </p>
-
-          </div>
-        )
-      )}
-
-      <style>
-        {`
-          @keyframes spin {
-
-            from {
-              transform: rotate(0deg);
-            }
-
-            to {
-              transform: rotate(360deg);
-            }
-          }
-
-          body {
-            margin: 0;
-            padding: 0;
-            background: #02024d;
-          }
-
-          * {
-            box-sizing: border-box;
-          }
-
-          button {
-            transition: all 0.3s ease;
-          }
-
-          button:hover {
-            transform: scale(1.02);
-            opacity: 0.95;
-          }
-
-          select {
-            background: white;
-            color: black;
-            font-weight: bold;
-          }
-        `}
-      </style>
-
-    </div>
-  );
-              }
+);
+}
