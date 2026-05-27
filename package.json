@@ -1,55 +1,25 @@
 {
-"name": "rc-wallet",
-"version": "5.0.0",
-"private": true,
+  "name": "rc-wallet",
+  "version": "5.0.0",
+  "private": true,
 
-"engines": {
-"node": "22.x"
-},
+  "engines": {
+    "node": "22.x"
+  },
 
-"dependencies": {
-"@worldcoin/minikit-js": "^2.0.3",
-"ethers": "^6.13.1",
+  "dependencies": {
+    "@worldcoin/minikit-js": "^2.0.3",
+    "ethers": "^6.13.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^4.2.4"
+  },
 
-"react": "^18.2.0",
-"react-dom": "^18.2.0",
-
-"react-scripts": "5.0.1",
-
-"web-vitals": "^4.2.4"
-
-},
-
-"scripts": {
-"start": "react-scripts start",
-
-"build": "GENERATE_SOURCEMAP=false react-scripts build",
-
-"test": "react-scripts test",
-
-"eject": "react-scripts eject"
-
-},
-
-"eslintConfig": {
-"extends": [
-"react-app",
-"react-app/jest"
-]
-},
-
-"browserslist": {
-"production": [
-">0.2%",
-"not dead",
-"not op_mini all"
-],
-
-"development": [
-  "last 1 chrome version",
-  "last 1 firefox version",
-  "last 1 safari version"
-]
-
-}
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "GENERATE_SOURCEMAP=false react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  }
 }
