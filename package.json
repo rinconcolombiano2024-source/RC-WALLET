@@ -1,6 +1,6 @@
 {
   "name": "rc-wallet",
-  "version": "7.0.0",
+  "version": "8.0.0",
   "private": true,
 
   "engines": {
@@ -8,7 +8,9 @@
   },
 
   "dependencies": {
+    "@craco/craco": "^7.1.0",
     "@worldcoin/minikit-js": "^2.0.3",
+
     "ethers": "^6.15.0",
 
     "react": "18.2.0",
@@ -20,11 +22,11 @@
   },
 
   "scripts": {
-    "start": "react-scripts start",
+    "start": "craco start",
 
-    "build": "DISABLE_ESLINT_PLUGIN=true GENERATE_SOURCEMAP=false CI=false TSC_COMPILE_ON_ERROR=true react-scripts build",
+    "build": "GENERATE_SOURCEMAP=false CI=false craco build",
 
-    "test": "react-scripts test",
+    "test": "craco test",
 
     "eject": "react-scripts eject"
   },
