@@ -1,7 +1,7 @@
 {
   "framework": "create-react-app",
 
-  "installCommand": "rm -rf node_modules package-lock.json && npm cache clean --force && npm install --legacy-peer-deps",
+  "installCommand": "npm install --legacy-peer-deps",
 
   "buildCommand": "npm run build",
 
