@@ -578,4 +578,18 @@ export default function App() {
               {token.symbol}
             </p>
 
-            <
+            <p>
+              {token.balance}
+            </p>
+
+            <p>
+              {token.network}
+            </p>
+
+          </div>
+        )
+      )}
+
+    </div>
+  );
+    }
