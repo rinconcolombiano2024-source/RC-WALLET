@@ -1123,6 +1123,3 @@ export default function App() {
   );
 }
 
-```
-^
-^
