@@ -10,7 +10,6 @@ import { MiniKit } from "@worldcoin/minikit-js";
 import { ethers } from "ethers";
 
 const NETWORKS = [
-
   {
     name: "Ethereum",
     chainId: 1,
@@ -73,13 +72,11 @@ const NETWORKS = [
 ];
 
 const TOKENS = [
-
   {
     symbol: "WLD",
     decimals: 18,
 
     addresses: {
-
       1:
         "0x163f8C2467924be0ae7B5347228CABF260318753",
 
@@ -96,7 +93,6 @@ const TOKENS = [
     decimals: 6,
 
     addresses: {
-
       1:
         "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
 
@@ -116,7 +112,6 @@ const TOKENS = [
     decimals: 6,
 
     addresses: {
-
       1:
         "0xdAC17F958D2ee523a2206206994597C13D831ec7",
 
@@ -146,9 +141,6 @@ export default function App() {
     useState(
       "Inicializando RC Wallet..."
     );
-
-  const [loading, setLoading] =
-    useState(false);
 
   const [wallet, setWallet] =
     useState("");
@@ -228,7 +220,66 @@ export default function App() {
         );
 
         setStatus(
-          "RC Wallet listo"
+          "Sincronizando wallet..."
+        );
+
+        const accounts =
+          await ethereum.request({
+            method:
+              "eth_accounts",
+          });
+
+        if (
+          !accounts ||
+          !accounts.length
+        ) {
+
+          setStatus(
+            "No se detectó wallet"
+          );
+
+          return;
+        }
+
+        const address =
+          accounts[0];
+
+        setWallet(address);
+
+        const provider =
+          new ethers.BrowserProvider(
+            ethereum
+          );
+
+        const currentNetwork =
+          await provider.getNetwork();
+
+        setNetwork(
+          currentNetwork.name +
+          " (" +
+          currentNetwork.chainId +
+          ")"
+        );
+
+        const balance =
+          await provider.getBalance(
+            address
+          );
+
+        setNativeBalance(
+          Number(
+            ethers.formatEther(
+              balance
+            )
+          ).toFixed(4)
+        );
+
+        await scanAllNetworks(
+          address
+        );
+
+        setStatus(
+          "Wallet sincronizada"
         );
 
       } catch (err) {
@@ -254,15 +305,15 @@ export default function App() {
         ) {
 
           if (
-            window.ethereum
-          ) {
-            return window.ethereum;
-          }
-
-          if (
             window?.MiniKit?.ethereum
           ) {
             return window.MiniKit.ethereum;
+          }
+
+          if (
+            window.ethereum
+          ) {
+            return window.ethereum;
           }
         }
 
@@ -412,103 +463,6 @@ export default function App() {
       }
     );
   }
-
-  const connectWallet =
-    useCallback(async () => {
-
-      try {
-
-        setLoading(true);
-
-        setStatus(
-          "Conectando wallet..."
-        );
-
-        const ethereum =
-          await waitForEthereum();
-
-        if (!ethereum) {
-
-          setStatus(
-            "World App no detectado"
-          );
-
-          return;
-        }
-
-        const accounts =
-          await ethereum.request({
-            method:
-              "eth_requestAccounts",
-          });
-
-        if (
-          !accounts?.length
-        ) {
-
-          setStatus(
-            "Wallet no autorizada"
-          );
-
-          return;
-        }
-
-        const address =
-          accounts[0];
-
-        setWallet(address);
-
-        const provider =
-          new ethers.BrowserProvider(
-            ethereum
-          );
-
-        const currentNetwork =
-          await provider.getNetwork();
-
-        setNetwork(
-  currentNetwork.name +
-  " (" +
-  currentNetwork.chainId +
-  ")"
-);
-
-        const balance =
-          await provider.getBalance(
-            address
-          );
-
-        setNativeBalance(
-          Number(
-            ethers.formatEther(
-              balance
-            )
-          ).toFixed(4)
-        );
-
-        await scanAllNetworks(
-          address
-        );
-
-        setStatus(
-          "Wallet conectada"
-        );
-
-      } catch (err) {
-
-        console.error(err);
-
-        setStatus(
-          err?.message ||
-          "Error conectando wallet"
-        );
-
-      } finally {
-
-        setLoading(false);
-      }
-
-    }, []);
 
   async function getWorkingProvider(
     rpcList
@@ -830,25 +784,12 @@ export default function App() {
             selectedToken.chainId
           ];
 
-        if (!tokenAddress) {
-
-          setStatus(
-            "Token no encontrado"
-          );
-
-          return;
-        }
-
         const contract =
           new ethers.Contract(
             tokenAddress,
             ERC20_ABI,
             signer
           );
-
-        setStatus(
-          "Confirme envío en World App..."
-        );
 
         const tx =
           await contract.transfer(
@@ -926,22 +867,6 @@ export default function App() {
       <h1>
         RC Wallet
       </h1>
-
-      <button
-        onClick={connectWallet}
-        disabled={loading}
-        style={{
-          padding: "12px",
-          width: "100%",
-          marginBottom: "20px",
-        }}
-      >
-
-        {loading
-          ? "Conectando..."
-          : "Conectar Wallet"}
-
-      </button>
 
       <h2>Estado</h2>
       <p>{status}</p>
@@ -1121,4 +1046,4 @@ export default function App() {
 
     </div>
   );
-}
+          }
