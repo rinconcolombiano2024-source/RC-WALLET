@@ -177,19 +177,40 @@ export default function App() {
 
   async function waitForEthereum() {
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 40; i++) {
 
-      if (
-        window?.ethereum
-      ) {
-        return window.ethereum;
+      try {
+
+        if (
+          typeof window !==
+          "undefined"
+        ) {
+
+          if (
+            window.ethereum
+          ) {
+            return window.ethereum;
+          }
+
+          if (
+            window?.MiniKit?.ethereum
+          ) {
+            return window.MiniKit.ethereum;
+          }
+        }
+
+      } catch (err) {
+
+        console.log(
+          "Provider waiting..."
+        );
       }
 
       await new Promise(
         (resolve) =>
           setTimeout(
             resolve,
-            500
+            1000
           )
       );
     }
@@ -604,4 +625,4 @@ export default function App() {
 
     </div>
   );
-      }
+}
