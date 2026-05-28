@@ -9,6 +9,8 @@ import { MiniKit } from "@worldcoin/minikit-js";
 
 import { ethers } from "ethers";
 
+import { Analytics } from "@vercel/analytics/react";
+
 const NETWORKS = [
   {
     name: "Ethereum",
@@ -601,6 +603,8 @@ export default function App() {
           </div>
         )
       )}
+
+      <Analytics />
 
     </div>
   );
