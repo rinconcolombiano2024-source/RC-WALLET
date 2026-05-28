@@ -1,3 +1,4 @@
+```jsx
 import React, {
   useEffect,
   useState,
@@ -10,10 +11,13 @@ import { MiniKit } from "@worldcoin/minikit-js";
 import { ethers } from "ethers";
 
 const NETWORKS = [
+
   {
     name: "Ethereum",
     chainId: 1,
+    hex: "0x1",
     symbol: "ETH",
+
     rpc: [
       "https://ethereum-rpc.publicnode.com",
       "https://rpc.ankr.com/eth",
@@ -23,7 +27,9 @@ const NETWORKS = [
   {
     name: "Optimism",
     chainId: 10,
+    hex: "0xa",
     symbol: "ETH",
+
     rpc: [
       "https://mainnet.optimism.io",
       "https://rpc.ankr.com/optimism",
@@ -33,7 +39,9 @@ const NETWORKS = [
   {
     name: "BNB Chain",
     chainId: 56,
+    hex: "0x38",
     symbol: "BNB",
+
     rpc: [
       "https://bsc-dataseed.binance.org",
       "https://rpc.ankr.com/bsc",
@@ -43,7 +51,9 @@ const NETWORKS = [
   {
     name: "Base",
     chainId: 8453,
+    hex: "0x2105",
     symbol: "ETH",
+
     rpc: [
       "https://mainnet.base.org",
       "https://base-rpc.publicnode.com",
@@ -53,7 +63,9 @@ const NETWORKS = [
   {
     name: "World Chain",
     chainId: 480,
+    hex: "0x1e0",
     symbol: "ETH",
+
     rpc: [
       "https://worldchain-mainnet.g.alchemy.com/public",
       "https://worldchain.drpc.org",
@@ -62,11 +74,30 @@ const NETWORKS = [
 ];
 
 const TOKENS = [
+
+  {
+    symbol: "WLD",
+    decimals: 18,
+
+    addresses: {
+
+      1:
+        "0x163f8C2467924be0ae7B5347228CABF260318753",
+
+      10:
+        "0x163f8C2467924be0ae7B5347228CABF260318753",
+
+      480:
+        "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
+    },
+  },
+
   {
     symbol: "USDC",
     decimals: 6,
 
     addresses: {
+
       1:
         "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
 
@@ -80,10 +111,31 @@ const TOKENS = [
         "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
     },
   },
+
+  {
+    symbol: "USDT",
+    decimals: 6,
+
+    addresses: {
+
+      1:
+        "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+
+      10:
+        "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+
+      56:
+        "0x55d398326f99059fF775485246999027B3197955",
+
+      8453:
+        "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+    },
+  },
 ];
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
+  "function transfer(address to, uint amount) returns (bool)",
 ];
 
 export default function App() {
@@ -111,6 +163,18 @@ export default function App() {
   const [tokens, setTokens] =
     useState([]);
 
+  const [selectedToken, setSelectedToken] =
+    useState(null);
+
+  const [recipient, setRecipient] =
+    useState("");
+
+  const [sendAmount, setSendAmount] =
+    useState("");
+
+  const [sending, setSending] =
+    useState(false);
+
   useEffect(() => {
 
     initialize();
@@ -135,7 +199,11 @@ export default function App() {
 
         try {
 
-          MiniKit.install();
+          if (
+            MiniKit.isInstalled()
+          ) {
+            MiniKit.install();
+          }
 
         } catch (err) {
 
@@ -216,6 +284,91 @@ export default function App() {
     }
 
     return null;
+  }
+
+  async function switchNetwork(
+    chainId
+  ) {
+
+    try {
+
+      const ethereum =
+        await waitForEthereum();
+
+      if (!ethereum)
+        return false;
+
+      const network =
+        NETWORKS.find(
+          (n) =>
+            n.chainId ===
+            chainId
+        );
+
+      if (!network)
+        return false;
+
+      try {
+
+        await ethereum.request({
+          method:
+            "wallet_switchEthereumChain",
+
+          params: [
+            {
+              chainId:
+                network.hex,
+            },
+          ],
+        });
+
+        return true;
+
+      } catch (switchError) {
+
+        if (
+          switchError.code ===
+          4902
+        ) {
+
+          await ethereum.request({
+            method:
+              "wallet_addEthereumChain",
+
+            params: [
+              {
+                chainId:
+                  network.hex,
+
+                chainName:
+                  network.name,
+
+                nativeCurrency: {
+                  name:
+                    network.symbol,
+
+                  symbol:
+                    network.symbol,
+
+                  decimals: 18,
+                },
+
+                rpcUrls:
+                  network.rpc,
+              },
+            ],
+          });
+
+          return true;
+        }
+
+        return false;
+      }
+
+    } catch (err) {
+
+      return false;
+    }
   }
 
   function setupListeners(
@@ -449,6 +602,12 @@ export default function App() {
 
               balance:
                 formattedNative,
+
+              chainId:
+                net.chainId,
+
+              isNative:
+                true,
             });
           }
 
@@ -499,6 +658,12 @@ export default function App() {
                     Number(
                       formatted
                     ).toFixed(4),
+
+                  chainId:
+                    net.chainId,
+
+                  isNative:
+                    false,
                 });
               }
 
@@ -543,16 +708,216 @@ export default function App() {
     }
   }
 
+  async function sendToken() {
+
+    try {
+
+      if (!selectedToken) {
+
+        setStatus(
+          "Seleccione un token"
+        );
+
+        return;
+      }
+
+      if (
+        !recipient ||
+        !ethers.isAddress(
+          recipient
+        )
+      ) {
+
+        setStatus(
+          "Dirección inválida"
+        );
+
+        return;
+      }
+
+      if (
+        !sendAmount ||
+        Number(sendAmount) <= 0
+      ) {
+
+        setStatus(
+          "Cantidad inválida"
+        );
+
+        return;
+      }
+
+      const ethereum =
+        await waitForEthereum();
+
+      if (!ethereum) {
+
+        setStatus(
+          "World App no detectado"
+        );
+
+        return;
+      }
+
+      setSending(true);
+
+      const switched =
+        await switchNetwork(
+          selectedToken.chainId
+        );
+
+      if (!switched) {
+
+        setStatus(
+          "No se pudo cambiar la red"
+        );
+
+        return;
+      }
+
+      const provider =
+        new ethers.BrowserProvider(
+          ethereum
+        );
+
+      const signer =
+        await provider.getSigner();
+
+      if (
+        selectedToken.isNative
+      ) {
+
+        setStatus(
+          "Confirme envío en World App..."
+        );
+
+        const tx =
+          await signer.sendTransaction({
+
+            to:
+              recipient,
+
+            value:
+              ethers.parseEther(
+                sendAmount
+              ),
+          });
+
+        await tx.wait();
+
+      } else {
+
+        const tokenData =
+          TOKENS.find(
+            (t) =>
+              t.symbol ===
+              selectedToken.symbol
+          );
+
+        if (!tokenData) {
+
+          setStatus(
+            "Token no soportado"
+          );
+
+          return;
+        }
+
+        const tokenAddress =
+          tokenData.addresses[
+            selectedToken.chainId
+          ];
+
+        if (!tokenAddress) {
+
+          setStatus(
+            "Token no encontrado"
+          );
+
+          return;
+        }
+
+        const contract =
+          new ethers.Contract(
+            tokenAddress,
+            ERC20_ABI,
+            signer
+          );
+
+        setStatus(
+          "Confirme envío en World App..."
+        );
+
+        const tx =
+          await contract.transfer(
+            recipient,
+
+            ethers.parseUnits(
+              sendAmount,
+              tokenData.decimals
+            )
+          );
+
+        await tx.wait();
+      }
+
+      setStatus(
+        "Transferencia completada"
+      );
+
+      await scanAllNetworks(
+        wallet
+      );
+
+      setSendAmount("");
+
+      setRecipient("");
+
+    } catch (err) {
+
+      console.error(err);
+
+      if (
+        err?.code ===
+        "ACTION_REJECTED"
+      ) {
+
+        setStatus(
+          "Transacción cancelada"
+        );
+
+      } else {
+
+        setStatus(
+          err?.message ||
+          "Error enviando token"
+        );
+      }
+
+    } finally {
+
+      setSending(false);
+    }
+  }
+
   return (
 
     <div
       style={{
         background:
           "linear-gradient(to bottom, #05058C, #02024d)",
-        minHeight: "100vh",
-        color: "white",
-        padding: "20px",
-        fontFamily: "Arial",
+
+        minHeight:
+          "100vh",
+
+        color:
+          "white",
+
+        padding:
+          "20px",
+
+        fontFamily:
+          "Arial",
       }}
     >
 
@@ -563,6 +928,11 @@ export default function App() {
       <button
         onClick={connectWallet}
         disabled={loading}
+        style={{
+          padding: "12px",
+          width: "100%",
+          marginBottom: "20px",
+        }}
       >
 
         {loading
@@ -577,14 +947,14 @@ export default function App() {
       <h2>Wallet</h2>
       <p>{wallet || "No conectada"}</p>
 
-      <h2>Red</h2>
+      <h2>Red Actual</h2>
       <p>{network || "-"}</p>
 
-      <h2>Balance</h2>
+      <h2>Balance Nativo</h2>
       <p>{nativeBalance}</p>
 
       <h2>
-        Tokens Detectados
+        Fondos Detectados
       </h2>
 
       {tokens.length === 0 && (
@@ -601,28 +971,153 @@ export default function App() {
             style={{
               border:
                 "1px solid rgba(255,255,255,0.2)",
-              padding: "10px",
-              marginBottom: "10px",
-              borderRadius: "10px",
+
+              padding:
+                "15px",
+
+              marginBottom:
+                "15px",
+
+              borderRadius:
+                "10px",
             }}
           >
 
             <p>
+              Token:
+              {" "}
               {token.symbol}
             </p>
 
             <p>
+              Balance:
+              {" "}
               {token.balance}
             </p>
 
             <p>
+              Red:
+              {" "}
               {token.network}
             </p>
+
+            <button
+              onClick={() => {
+
+                setSelectedToken(
+                  token
+                );
+
+                setSendAmount(
+                  token.balance
+                );
+              }}
+              style={{
+                width: "100%",
+                padding: "10px",
+                marginTop: "10px",
+              }}
+            >
+
+              Seleccionar
+
+            </button>
 
           </div>
         )
       )}
 
+      {selectedToken && (
+
+        <div
+          style={{
+            border:
+              "1px solid rgba(255,255,255,0.2)",
+
+            padding:
+              "15px",
+
+            borderRadius:
+              "10px",
+
+            marginTop:
+              "20px",
+          }}
+        >
+
+          <h2>
+            Enviar Fondos
+          </h2>
+
+          <p>
+            Token:
+            {" "}
+            {selectedToken.symbol}
+          </p>
+
+          <p>
+            Red:
+            {" "}
+            {selectedToken.network}
+          </p>
+
+          <input
+            type="text"
+            placeholder="Dirección destino"
+
+            value={recipient}
+
+            onChange={(e) =>
+              setRecipient(
+                e.target.value
+              )
+            }
+
+            style={{
+              width: "100%",
+              padding: "10px",
+              marginBottom: "10px",
+            }}
+          />
+
+          <input
+            type="number"
+
+            value={sendAmount}
+
+            onChange={(e) =>
+              setSendAmount(
+                e.target.value
+              )
+            }
+
+            style={{
+              width: "100%",
+              padding: "10px",
+              marginBottom: "10px",
+            }}
+          />
+
+          <button
+            onClick={sendToken}
+            disabled={sending}
+
+            style={{
+              width: "100%",
+              padding: "12px",
+            }}
+          >
+
+            {sending
+              ? "Enviando..."
+              : "Enviar Fondos"}
+
+          </button>
+
+        </div>
+      )}
+
     </div>
   );
 }
+```
