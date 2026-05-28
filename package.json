@@ -1,11 +1,12 @@
 {
   "name": "rc-wallet",
   "private": true,
-  "version": "5.1.0",
+  "version": "5.0.0",
   "type": "module",
 
   "engines": {
-    "node": "20.x"
+    "node": "20.x",
+    "npm": ">=10"
   },
 
   "scripts": {
@@ -16,14 +17,15 @@
 
   "dependencies": {
     "@worldcoin/minikit-js": "^1.11.0",
-    "ethers": "^6.13.5",
+    "ethers": "^6.13.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "viem": "^2.31.4"
+    "viem": "^2.21.19",
+    "web-vitals": "^4.2.4"
   },
 
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.5.0",
+    "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.21"
   }
 }
