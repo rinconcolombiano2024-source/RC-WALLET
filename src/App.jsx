@@ -468,8 +468,11 @@ export default function App() {
           await provider.getNetwork();
 
         setNetwork(
-          `${currentNetwork.name} (${currentNetwork.chainId})`
-        );
+  currentNetwork.name +
+  " (" +
+  currentNetwork.chainId +
+  ")"
+);
 
         const balance =
           await provider.getBalance(
