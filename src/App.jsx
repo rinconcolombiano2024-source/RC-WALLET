@@ -293,13 +293,6 @@ export default function App() {
           ) {
             return window.ethereum;
           }
-
-          if (
-            window?.MiniKit
-              ?.ethereum
-          ) {
-            return window.MiniKit.ethereum;
-          }
         }
       } catch (err) {
         console.log(
