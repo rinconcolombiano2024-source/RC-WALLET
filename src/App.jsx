@@ -5,7 +5,7 @@ import React, {
   useRef,
 } from "react";
 
-import { MiniKit } from "@worldcoin/minikit-js";
+
 import { ethers } from "ethers";
 
 const NETWORKS = [
@@ -166,18 +166,6 @@ export default function App() {
           "undefined"
         ) {
           return;
-        }
-
-        try {
-          if (
-            !MiniKit.isInstalled()
-          ) {
-            MiniKit.install();
-          }
-        } catch (err) {
-          console.log(
-            "MiniKit warning"
-          );
         }
 
         const ethereum =
