@@ -456,7 +456,7 @@ await scanAllNetworks(address);
 
         if (tokenInfo.isNative) {
           const result =
-            await MiniKit.commandsAsync.sendTransaction({
+            await MiniKit.commands.sendTransaction({
               transaction: [
                 {
                   address: recipient,
@@ -468,7 +468,8 @@ await scanAllNetworks(address);
             });
 
           console.log(result);
-        } else {
+        } 
+        else {
           const amount =
             ethers.parseUnits(
               sendAmount,
