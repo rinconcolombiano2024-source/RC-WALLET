@@ -326,17 +326,17 @@ export default function App() {
       if (MiniKit.isInstalled()) {
         setStatus("Conectando World App...");
 
-        const response =
-          await MiniKit.commandsAsync.walletAddress();
+        const worldAddress =
+  MiniKit?.user?.walletAddress;
 
-        if (!response?.address) {
-          setStatus(
-            "No fue posible acceder a la wallet"
-          );
-          return;
-        }
+if (!worldAddress) {
+  setStatus(
+    "No fue posible obtener la wallet"
+  );
+  return;
+}
 
-        address = response.address;
+address = worldAddress;
 
         setNetwork("World App");
       } else {
