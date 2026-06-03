@@ -274,7 +274,7 @@ export default function App() {
     );
     
     const res =
-  await MiniKit.commands.walletAuth({
+  await MiniKit.commandsAsync.walletAuth({
     nonce:
       Math.random()
         .toString(36)
