@@ -326,14 +326,10 @@ export default function App() {
       if (MiniKit.isInstalled()) {
         setStatus("Conectando World App...");
 
-        const response =
-  await MiniKit.commandsAsync.walletAddress();
+        const worldAddress =
+  MiniKit.user?.walletAddress;
 
-console.log(response);
-
-const worldAddress =
-  response?.finalPayload?.address ||
-  response?.address;
+console.log(worldAddress);
 
 if (!worldAddress) {
   setStatus(
