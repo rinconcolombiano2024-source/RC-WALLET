@@ -263,47 +263,83 @@ export default function App() {
   );
 
   async function handleWorldLogin() {
-    try {
-      if (!MiniKit.isInstalled()) {
-        setStatus("World App no detectada");
-        return;
-      }
-
-      setStatus(
-        "Iniciando sesión con World ID..."
-      );
-
-      const response =
-        await MiniKit.commandsAsync.verify({
-          action: "rc-wallet-login",
-          verification_level: "device",
-        });
-
-      console.log(response);
-
-      if (
-        response?.finalPayload?.status ===
-        "success"
-      ) {
-        setWorldVerified(true);
-
-        setStatus(
-          "Sesión iniciada correctamente"
-        );
-      } else {
-        setStatus(
-          "Inicio de sesión cancelado"
-        );
-      }
-    } catch (err) {
-      console.error(err);
-
-      setStatus(
-        err?.message ||
-          "Error iniciando sesión"
-      );
+  try {
+    if (!MiniKit.isInstalled()) {
+      setStatus("World App no detectada");
+      return;
     }
+
+    setStatus(
+      "Conectando wallet..."
+    );
+
+    const res =
+      await MiniKit.commandsAsync.walletAuth({
+        nonce: crypto.randomUUID(),
+
+        requestId:
+          crypto.randomUUID(),
+
+        expirationTime:
+          new Date(
+            Date.now() +
+              1000 * 60 * 5
+          ).toISOString(),
+
+        notBefore:
+          new Date().toISOString(),
+
+        statement:
+          "Conectar RC Wallet",
+      });
+
+    console.log(res);
+
+    if (
+      res?.finalPayload?.status !==
+      "success"
+    ) {
+      setStatus(
+        "Conexión cancelada"
+      );
+
+      return;
+    }
+
+    const address =
+      res.finalPayload.address;
+
+    if (!address) {
+      setStatus(
+        "No se obtuvo wallet"
+      );
+
+      return;
+    }
+
+    setWallet(address);
+
+    setWorldVerified(true);
+
+    setNetwork("World App");
+
+    setStatus(
+      "Wallet conectada"
+    );
+
+    await scanAllNetworks(
+      address
+    );
+
+  } catch (err) {
+    console.error(err);
+
+    setStatus(
+      err?.message ||
+        "Error conectando wallet"
+    );
   }
+}
 
   async function waitForEthereum() {
     for (let i = 0; i < 20; i++) {
