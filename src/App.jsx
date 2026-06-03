@@ -275,6 +275,7 @@ export default function App() {
     
     const res =
   await MiniKit.commandsAsync.walletAuth({
+    nonce:
       Math.random()
         .toString(36)
         .substring(2),
@@ -297,20 +298,20 @@ export default function App() {
       "Conectar RC Wallet",
   });
 
-    console.log(res);
+console.log(res);
 
-    if (
-      res?.finalPayload?.status !==
-      "success"
-    ) {
-      setStatus(
-        "Conexión cancelada"
-      );
+if (
+  res?.finalPayload?.status !==
+  "success"
+) {
+  setStatus(
+    "Conexión cancelada"
+  );
 
-      return;
-    }
+  return;
+}
 
-    const address =
+const address =
   res.finalPayload.address;
     if (!address) {
       setStatus(
