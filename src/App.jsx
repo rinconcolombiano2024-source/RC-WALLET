@@ -304,7 +304,8 @@ const payload =
   res?.finalPayload || res;
 
 const address =
-  payload?.address;
+  payload?.address ||
+  payload?.walletAddress;
 
 if (!address) {
   console.log(payload);
