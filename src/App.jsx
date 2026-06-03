@@ -313,7 +313,6 @@ notBefore:
 
     const address =
   res.finalPayload.walletAddress;
-
     if (!address) {
       setStatus(
         "No se obtuvo wallet"
