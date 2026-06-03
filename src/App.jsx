@@ -366,9 +366,6 @@ export default function App() {
 
   return;
 }
-
-        setNetwork("World App");
-      } else {
         const ethereum =
           await waitForEthereum();
 
