@@ -8,6 +8,7 @@ import React, {
 import { ethers } from "ethers";
 import { MiniKit } from "@worldcoin/minikit-js";
 
+MiniKit.install();
 const NETWORKS = [
   {
     name: "Ethereum",
