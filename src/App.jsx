@@ -274,24 +274,24 @@ export default function App() {
     );
 
     const res =
-      await MiniKit.commandsAsync.walletAuth({
-        nonce: crypto.randomUUID(),
+  await MiniKit.commandsAsync.walletAuth({
+    nonce: crypto.randomUUID(),
 
-        requestId:
-          crypto.randomUUID(),
+    requestId:
+      crypto.randomUUID(),
 
-        expirationTime:
-          new Date(
-            Date.now() +
-              1000 * 60 * 5
-          ).toISOString(),
+    expirationTime:
+      new Date(
+        Date.now() +
+          1000 * 60 * 5
+      ),
 
-        notBefore:
-          new Date().toISOString(),
+    notBefore:
+      new Date(),
 
-        statement:
-          "Conectar RC Wallet",
-      });
+    statement:
+      "Conectar RC Wallet",
+  });
 
     console.log(res);
 
