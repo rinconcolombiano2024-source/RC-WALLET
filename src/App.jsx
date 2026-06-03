@@ -272,9 +272,8 @@ export default function App() {
     setStatus(
       "Conectando wallet..."
     );
-
+    
     const res =
-  awconst res =
   await MiniKit.commands.walletAuth({
     nonce:
       Math.random()
