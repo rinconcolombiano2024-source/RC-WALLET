@@ -360,21 +360,12 @@ export default function App() {
       let address = "";
 
       if (MiniKit.isInstalled()) {
-        setStatus("Conectando World App...");
-
-        const worldAddress =
-  MiniKit.user?.walletAddress;
-
-console.log(worldAddress);
-
-if (!worldAddress) {
   setStatus(
-    "No fue posible obtener la wallet"
+    "Presiona iniciar sesión"
   );
+
   return;
 }
-
-address = worldAddress;
 
         setNetwork("World App");
       } else {
