@@ -298,42 +298,35 @@ export default function App() {
       "Conectar RC Wallet",
   });
 
-console.log(res);
+console.log("WORLD RES:", res);
 
-if (
-  res?.finalPayload?.status !==
-  "success"
-) {
+const payload =
+  res?.finalPayload || res;
+
+const address =
+  payload?.address;
+
+if (!address) {
+  console.log(payload);
+
   setStatus(
-    "Conexión cancelada"
+    "No se pudo obtener la wallet"
   );
 
   return;
 }
 
-const address =
-  res.finalPayload.address;
-    if (!address) {
-      setStatus(
-        "No se obtuvo wallet"
-      );
+setWallet(address);
 
-      return;
-    }
+setWorldVerified(true);
 
-    setWallet(address);
+setNetwork("World App");
 
-    setWorldVerified(true);
+setStatus(
+  "Wallet conectada"
+);
 
-    setNetwork("World App");
-
-    setStatus(
-      "Wallet conectada"
-    );
-
-    await scanAllNetworks(
-      address
-    );
+await scanAllNetworks(address);
 
   } catch (err) {
     console.error(err);
