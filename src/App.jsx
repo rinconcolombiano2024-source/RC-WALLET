@@ -4,7 +4,9 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+
 import { ethers } from "ethers";
+import { MiniKit } from "@worldcoin/minikit-js";
 
 const NETWORKS = [
   {
@@ -13,48 +15,52 @@ const NETWORKS = [
     hex: "0x1",
     symbol: "ETH",
     rpc: [
-      "https://publicnode.com",
-      "https://ankr.com",
+      "https://ethereum-rpc.publicnode.com",
+      "https://rpc.ankr.com/eth",
     ],
   },
+
   {
     name: "Optimism",
     chainId: 10,
     hex: "0xa",
     symbol: "ETH",
     rpc: [
-      "https://optimism.io",
-      "https://ankr.com",
+      "https://optimism-rpc.publicnode.com",
+      "https://rpc.ankr.com/optimism",
     ],
   },
+
   {
     name: "BNB Chain",
     chainId: 56,
     hex: "0x38",
     symbol: "BNB",
     rpc: [
-      "https://binance.org",
-      "https://ankr.com",
+      "https://bsc-rpc.publicnode.com",
+      "https://rpc.ankr.com/bsc",
     ],
   },
+
   {
     name: "Base",
     chainId: 8453,
     hex: "0x2105",
     symbol: "ETH",
     rpc: [
-      "https://base.org",
-      "https://publicnode.com",
+      "https://base-rpc.publicnode.com",
+      "https://mainnet.base.org",
     ],
   },
+
   {
     name: "World Chain",
     chainId: 480,
     hex: "0x1e0",
     symbol: "ETH",
     rpc: [
-      "https://alchemy.com",
-      "https://drpc.org",
+      "https://worldchain-mainnet.g.alchemy.com/public",
+      "https://worldchain.drpc.org",
     ],
   },
 ];
@@ -69,6 +75,7 @@ const TOKENS = [
       480: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
     },
   },
+
   {
     symbol: "USDC",
     decimals: 6,
@@ -79,6 +86,7 @@ const TOKENS = [
       8453: "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA",
     },
   },
+
   {
     symbol: "USDT",
     decimals: 6,
@@ -99,251 +107,614 @@ const ERC20_ABI = [
 export default function App() {
   const mountedRef = useRef(true);
 
-  // Estados de Conexión e Información
-  const [status, setStatus] = useState("Inicializando RC Wallet...");
+  const [status, setStatus] = useState(
+    "Inicializando RC Wallet..."
+  );
+
   const [wallet, setWallet] = useState("");
   const [network, setNetwork] = useState("");
-  const [nativeBalance, setNativeBalance] = useState("0");
-  const [tokensDetected, setTokensDetected] = useState([]);
+  const [nativeBalance, setNativeBalance] =
+    useState("0");
 
-  // Estados del Formulario de Envío Manual
-  const [selectedToken, setSelectedToken] = useState("");
+  const [tokensDetected, setTokensDetected] =
+    useState([]);
+
+  const [selectedToken, setSelectedToken] =
+    useState("");
+
   const [recipient, setRecipient] = useState("");
   const [sendAmount, setSendAmount] = useState("");
+
   const [sending, setSending] = useState(false);
 
-  // 1. Encontrar un nodo RPC funcional de forma segura con Timeout
+  const [worldVerified, setWorldVerified] =
+    useState(false);
+
   async function getWorkingProvider(rpcList) {
     for (const rpc of rpcList) {
       try {
-        const provider = new ethers.JsonRpcProvider(rpc);
+        const provider =
+          new ethers.JsonRpcProvider(rpc);
+
         await Promise.race([
           provider.getBlockNumber(),
+
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("RPC Timeout")), 3000)
+            setTimeout(
+              () =>
+                reject(
+                  new Error("RPC Timeout")
+                ),
+              4000
+            )
           ),
         ]);
+
         return provider;
       } catch (err) {
-        console.log(`Fallo en nodo RPC: ${rpc}`);
+        console.log("RPC falló:", rpc);
       }
     }
+
     return null;
   }
 
-  // 2. Función completa para escanear balances (Anti Rate-Limit)
-  const scanAllNetworks = useCallback(async (address) => {
-    setStatus("Buscando fondos en múltiples redes...");
-    let tempDetectedTokens = [];
+  const scanAllNetworks = useCallback(
+    async (address) => {
+      setStatus("Escaneando redes...");
 
-    for (const net of NETWORKS) {
-      if (!mountedRef.current) return;
+      let foundTokens = [];
 
-      const provider = await getWorkingProvider(net.rpc);
-      if (!provider) continue;
-
-      try {
-        // Consultar balance nativo de la moneda de la red (ETH / BNB)
-        const bal = await provider.getBalance(address);
-        if (bal > 0n) {
-          tempDetectedTokens.push({
-            network: net.name,
-            symbol: net.symbol,
-            balance: Number(ethers.formatEther(bal)).toFixed(4),
-            isNative: true,
-            chainId: net.chainId,
-            address: "NATIVO",
-            decimals: 18,
-          });
-        }
-
-        // Consultar los tokens ERC20 configurados para esta red
-        for (const token of TOKENS) {
-          const tokenAddress = token.addresses[net.chainId];
-          if (!tokenAddress) continue;
-
-          const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-          const tokenBal = await contract.balanceOf(address);
-
-          if (tokenBal > 0n) {
-            tempDetectedTokens.push({
-              network: net.name,
-              symbol: token.symbol,
-              balance: Number(ethers.formatUnits(tokenBal, token.decimals)).toFixed(4),
-              isNative: false,
-              address: tokenAddress,
-              chainId: net.chainId,
-              decimals: token.decimals,
-            });
-          }
-        }
-      } catch (err) {
-        console.error(`Error escaneando red ${net.name}:`, err);
-      }
-
-      // Pausa controlada de 150ms para evitar respuestas HTTP 429 (Too Many Requests)
-      await new Promise((resolve) => setTimeout(resolve, 150));
-    }
-
-    if (mountedRef.current) {
-      setTokensDetected(tempDetectedTokens);
-      // Auto-seleccionar el primer activo detectado en el formulario si existe
-      if (tempDetectedTokens.length > 0) {
-        setSelectedToken(JSON.stringify(tempDetectedTokens[0]));
-      }
-    }
-  }, []);
-
-  // 3. Inicialización adaptada al entorno (World App MiniKit o Navegador Web3 tradicional)
-  const initialize = useCallback(async () => {
-    try {
-      if (typeof window === "undefined") return;
-
-      console.log("Análisis de inyección:", {
-        ethereum: !!window.ethereum,
-        miniKit: !!window.MiniKit,
-      });
-
-      let address = "";
-      let provider = null;
-      let chainId = 1;
-
-      // ENTORNO A: Ejecución interna dentro de la World App (MiniKit oficial)
-      if (window.MiniKit) {
-        setStatus("Conectando con World App MiniKit...");
-        
-        if (typeof window.MiniKit.isInstalled === "function" && !window.MiniKit.isInstalled()) {
-          setStatus("MiniKit no está listo en el dispositivo móvil");
-          return;
-        }
-
-        const response = await window.MiniKit.commands.walletAddress();
-        if (response?.address) {
-          address = response.address;
-        } else {
-          setStatus("Acceso a cuenta rechazado en World App");
-          return;
-        }
-      } 
-      // ENTORNO B: Ejecución en Navegadores convencionales (MetaMask, OKX, etc.)
-      else {
-        const ethereum = await waitForEthereum();
-        if (!ethereum) {
-          setStatus("Error: Abre la app dentro de World App o usa un navegador Web3");
-          return;
-        }
-
-        setupListeners(ethereum);
-        let accounts = [];
+      for (const net of NETWORKS) {
+        if (!mountedRef.current) return;
 
         try {
-          accounts = await ethereum.request({ method: "eth_accounts" });
-        } catch (err) {
-          console.log("Error al consultar cuentas activas");
-        }
+          const provider =
+            await getWorkingProvider(net.rpc);
 
-        if (!accounts || accounts.length === 0) {
-          try {
-            accounts = await ethereum.request({ method: "eth_requestAccounts" });
-          } catch (err) {
-            setStatus("Conexión rechazada por el usuario");
-            return;
+          if (!provider) continue;
+
+          const nativeBal =
+            await provider.getBalance(address);
+
+          if (nativeBal > 0n) {
+            foundTokens.push({
+              network: net.name,
+              symbol: net.symbol,
+              balance: Number(
+                ethers.formatEther(nativeBal)
+              ).toFixed(6),
+              isNative: true,
+              chainId: net.chainId,
+              decimals: 18,
+              address: "NATIVE",
+            });
           }
+
+          for (const token of TOKENS) {
+            const tokenAddress =
+              token.addresses[net.chainId];
+
+            if (!tokenAddress) continue;
+
+            try {
+              const contract =
+                new ethers.Contract(
+                  tokenAddress,
+                  ERC20_ABI,
+                  provider
+                );
+
+              const tokenBal =
+                await contract.balanceOf(
+                  address
+                );
+
+              if (tokenBal > 0n) {
+                foundTokens.push({
+                  network: net.name,
+                  symbol: token.symbol,
+                  balance: Number(
+                    ethers.formatUnits(
+                      tokenBal,
+                      token.decimals
+                    )
+                  ).toFixed(4),
+                  isNative: false,
+                  chainId: net.chainId,
+                  decimals: token.decimals,
+                  address: tokenAddress,
+                });
+              }
+            } catch (err) {
+              console.log(
+                "Token error:",
+                token.symbol,
+                net.name
+              );
+            }
+          }
+        } catch (err) {
+          console.log(
+            "Error escaneando:",
+            net.name
+          );
         }
 
-        if (!accounts || accounts.length === 0) {
-          setStatus("Billetera Web3 no detectada");
+        await new Promise((resolve) =>
+          setTimeout(resolve, 200)
+        );
+      }
+
+      if (!mountedRef.current) return;
+
+      setTokensDetected(foundTokens);
+
+      if (foundTokens.length > 0) {
+        setSelectedToken(
+          JSON.stringify(foundTokens[0])
+        );
+      }
+
+      setStatus("Escaneo completado");
+    },
+    []
+  );
+
+  async function handleWorldLogin() {
+    try {
+      if (!MiniKit.isInstalled()) {
+        setStatus("World App no detectada");
+        return;
+      }
+
+      setStatus(
+        "Iniciando sesión con World ID..."
+      );
+
+      const response =
+        await MiniKit.commandsAsync.verify({
+          action: "rc-wallet-login",
+          verification_level: "device",
+        });
+
+      console.log(response);
+
+      if (
+        response?.finalPayload?.status ===
+        "success"
+      ) {
+        setWorldVerified(true);
+
+        setStatus(
+          "Sesión iniciada correctamente"
+        );
+      } else {
+        setStatus(
+          "Inicio de sesión cancelado"
+        );
+      }
+    } catch (err) {
+      console.error(err);
+
+      setStatus(
+        err?.message ||
+          "Error iniciando sesión"
+      );
+    }
+  }
+
+  async function waitForEthereum() {
+    for (let i = 0; i < 20; i++) {
+      if (window?.ethereum) {
+        return window.ethereum;
+      }
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, 500)
+      );
+    }
+
+    return null;
+  }
+
+  const initialize = useCallback(async () => {
+    try {
+      let address = "";
+
+      if (MiniKit.isInstalled()) {
+        setStatus("Conectando World App...");
+
+        const response =
+          await MiniKit.commandsAsync.walletAddress();
+
+        if (!response?.address) {
+          setStatus(
+            "No fue posible acceder a la wallet"
+          );
+          return;
+        }
+
+        address = response.address;
+
+        setNetwork("World App");
+      } else {
+        const ethereum =
+          await waitForEthereum();
+
+        if (!ethereum) {
+          setStatus(
+            "Abre RC Wallet desde World App o MetaMask"
+          );
+          return;
+        }
+
+        const accounts =
+          await ethereum.request({
+            method: "eth_requestAccounts",
+          });
+
+        if (!accounts?.length) {
+          setStatus(
+            "No se detectó ninguna cuenta"
+          );
           return;
         }
 
         address = accounts[0];
-        provider = new ethers.BrowserProvider(ethereum);
-        const currentNetwork = await provider.getNetwork();
-        chainId = Number(currentNetwork.chainId);
-      }
 
-      if (!mountedRef.current) return;
+        const provider =
+          new ethers.BrowserProvider(
+            ethereum
+          );
+
+        const currentNetwork =
+          await provider.getNetwork();
+
+        setNetwork(
+          `${currentNetwork.name} (${Number(
+            currentNetwork.chainId
+          )})`
+        );
+
+        const nativeBal =
+          await provider.getBalance(address);
+
+        setNativeBalance(
+          Number(
+            ethers.formatEther(nativeBal)
+          ).toFixed(6)
+        );
+      }
 
       setWallet(address);
-      const activeNet = NETWORKS.find((n) => n.chainId === chainId) || NETWORKS[0];
-      setNetwork(`${activeNet.name} (${activeNet.chainId})`);
-
-      if (provider) {
-        const balance = await provider.getBalance(address);
-        setNativeBalance(Number(ethers.formatEther(balance)).toFixed(4));
-      }
 
       await scanAllNetworks(address);
-      setStatus("Wallet conectada con éxito");
 
+      setStatus("Wallet conectada");
     } catch (err) {
       console.error(err);
-      if (mountedRef.current) {
-        setStatus(err?.message || "Error general de sincronización");
-      }
+
+      setStatus(
+        err?.message ||
+          "Error inicializando"
+      );
     }
   }, [scanAllNetworks]);
 
-  async function waitForEthereum() {
-    for (let i = 0; i < 15; i++) {
-      if (typeof window !== "undefined" && window?.ethereum) {
-        return window.ethereum;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    return null;
-  }
-
-  function setupListeners(ethereum) {
-    if (!ethereum?.on) return;
-    ethereum.on("accountsChanged", async (accounts) => {
-      if (accounts?.length && mountedRef.current) {
-        setWallet(accounts[0]);
-        await scanAllNetworks(accounts[0]);
-      }
-    });
-    ethereum.on("chainChanged", () => {
-      window.location.reload();
-    });
-  }
-
-  // 4. Lógica de transferencia adaptada
   const handleSend = async () => {
-    if (!recipient || !sendAmount || !selectedToken) {
-      setStatus("Error: Rellena todos los campos del envío.");
-      return;
-    }
-
-    setSending(true);
-    setStatus("Procesando transferencia...");
-
     try {
-      const tokenInfo = JSON.parse(selectedToken);
+      if (
+        !recipient ||
+        !sendAmount ||
+        !selectedToken
+      ) {
+        setStatus("Completa todos los campos");
+        return;
+      }
 
-      // CASO A: Envío desde World App usando comandos del SDK
-      if (window.MiniKit) {
-        setStatus("Esperando confirmación nativa en World App...");
-        
-        let txCommandPayload = [];
+      setSending(true);
+
+      const tokenInfo =
+        JSON.parse(selectedToken);
+
+      if (MiniKit.isInstalled()) {
+        setStatus(
+          "Esperando confirmación..."
+        );
 
         if (tokenInfo.isNative) {
-          // Transferencia de moneda nativa de la red
-          txCommandPayload = [
-            {
-              to: recipient,
-              value: ethers.parseEther(sendAmount).toString(),
-            }
-          ];
+          const result =
+            await MiniKit.commandsAsync.sendTransaction({
+              transaction: [
+                {
+                  address: recipient,
+                  value: ethers
+                    .parseEther(sendAmount)
+                    .toString(),
+                },
+              ],
+            });
+
+          console.log(result);
         } else {
-          // Transferencia de token ERC20 (WLD, USDC, USDT)
-          const parsedAmount = ethers.parseUnits(sendAmount, tokenInfo.decimals).toString();
-          txCommandPayload = [
+          const amount =
+            ethers.parseUnits(
+              sendAmount,
+              tokenInfo.decimals
+            );
+
+          const iface =
+            new ethers.Interface(
+              ERC20_ABI
+            );
+
+          const data =
+            iface.encodeFunctionData(
+              "transfer",
+              [recipient, amount]
+            );
+
+          const result =
+            await MiniKit.commandsAsync.sendTransaction({
+              transaction: [
+                {
+                  address:
+                    tokenInfo.address,
+                  data,
+                  value: "0",
+                },
+              ],
+            });
+
+          console.log(result);
+        }
+      } else {
+        const ethereum =
+          window.ethereum;
+
+        if (!ethereum) {
+          setStatus(
+            "Wallet no encontrada"
+          );
+          return;
+        }
+
+        await ethereum.request({
+          method:
+            "wallet_switchEthereumChain",
+          params: [
             {
-              address: tokenInfo.address,
-              abi: ERC20_ABI,
-              functionName: "transfer",
-            }
-            }
+              chainId:
+                "0x" +
+                tokenInfo.chainId.toString(
+                  16
+                ),
+            },
+          ],
+        });
+
+        const provider =
+          new ethers.BrowserProvider(
+            ethereum
+          );
+
+        const signer =
+          await provider.getSigner();
+
+        if (tokenInfo.isNative) {
+          const tx =
+            await signer.sendTransaction({
+              to: recipient,
+              value:
+                ethers.parseEther(
+                  sendAmount
+                ),
+            });
+
+          await tx.wait();
+        } else {
+          const contract =
+            new ethers.Contract(
+              tokenInfo.address,
+              ERC20_ABI,
+              signer
+            );
+
+          const tx =
+            await contract.transfer(
+              recipient,
+              ethers.parseUnits(
+                sendAmount,
+                tokenInfo.decimals
+              )
+            );
+
+          await tx.wait();
+        }
       }
+
+      setStatus(
+        "Transferencia completada"
+      );
+
+      await scanAllNetworks(wallet);
+    } catch (err) {
+      console.error(err);
+
+      setStatus(
+        err?.message ||
+          "Error enviando"
+      );
+    } finally {
+      setSending(false);
     }
-    
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    initialize();
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [initialize]);
+
+  return (
+    <div
+      style={{
+        padding: 20,
+        fontFamily: "Arial",
+        background: "#000",
+        color: "#fff",
+        minHeight: "100vh",
+      }}
+    >
+      <h1>RC Wallet</h1>
+
+      <p>{status}</p>
+
+      <button
+        onClick={handleWorldLogin}
+      >
+        Iniciar sesión con World ID
+      </button>
+
+      <hr />
+
+      <p>
+        <b>Wallet:</b> {wallet}
+      </p>
+
+      <p>
+        <b>Red:</b> {network}
+      </p>
+
+      <p>
+        <b>Balance:</b>{" "}
+        {nativeBalance}
+      </p>
+
+      <p>
+        <b>World ID:</b>{" "}
+        {worldVerified
+          ? "Verificado"
+          : "No verificado"}
+      </p>
+
+      <hr />
+
+      <h2>Fondos Detectados</h2>
+
+      {tokensDetected.length === 0 && (
+        <p>
+          No se detectaron fondos
+        </p>
+      )}
+
+      {tokensDetected.map(
+        (token, index) => (
+          <div
+            key={index}
+            style={{
+              border:
+                "1px solid #444",
+              marginBottom: 10,
+              padding: 10,
+              borderRadius: 10,
+            }}
+          >
+            <p>
+              {token.network} -{" "}
+              {token.symbol}
+            </p>
+
+            <p>
+              Balance:{" "}
+              {token.balance}
+            </p>
+          </div>
+        )
+      )}
+
+      <hr />
+
+      <h2>Enviar Fondos</h2>
+
+      <select
+        value={selectedToken}
+        onChange={(e) =>
+          setSelectedToken(
+            e.target.value
+          )
+        }
+      >
+        {tokensDetected.map(
+          (token, index) => (
+            <option
+              key={index}
+              value={JSON.stringify(
+                token
+              )}
+            >
+              {token.network} -{" "}
+              {token.symbol}
+            </option>
+          )
+        )}
+      </select>
+
+      <br />
+      <br />
+
+      <input
+        placeholder="Dirección destino"
+        value={recipient}
+        onChange={(e) =>
+          setRecipient(
+            e.target.value
+          )
+        }
+        style={{
+          width: "100%",
+          padding: 10,
+        }}
+      />
+
+      <br />
+      <br />
+
+      <input
+        placeholder="Cantidad"
+        value={sendAmount}
+        onChange={(e) =>
+          setSendAmount(
+            e.target.value
+          )
+        }
+        style={{
+          width: "100%",
+          padding: 10,
+        }}
+      />
+
+      <br />
+      <br />
+
+      <button
+        disabled={sending}
+        onClick={handleSend}
+        style={{
+          padding: 12,
+          width: "100%",
+          fontWeight: "bold",
+        }}
+      >
+        {sending
+          ? "Enviando..."
+          : "Enviar"}
+      </button>
+    </div>
+  );
+}
