@@ -274,8 +274,7 @@ export default function App() {
     );
     
     const res =
-  await MiniKit.commands.walletAuth({
-    nonce:
+  await MiniKit.commandsAsync.walletAuth({
       Math.random()
         .toString(36)
         .substring(2),
@@ -312,7 +311,7 @@ export default function App() {
     }
 
     const address =
-  res.finalPayload.walletAddress;
+  res.finalPayload.address;
     if (!address) {
       setStatus(
         "No se obtuvo wallet"
