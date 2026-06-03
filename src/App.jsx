@@ -587,7 +587,32 @@ address = worldAddress;
       <p>
         <b>Wallet:</b> {wallet}
       </p>
+<button
+  onClick={() => {
+    navigator.clipboard.writeText(wallet);
 
+    setStatus(
+      "Dirección copiada"
+    );
+  }}
+>
+  Copiar dirección
+</button>
+
+<br />
+<br />
+
+{wallet && (
+  <img
+    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${wallet}`}
+    alt="QR Wallet"
+    style={{
+      borderRadius: 12,
+      width: 220,
+      height: 220,
+    }}
+  />
+)}
       <p>
         <b>Red:</b> {network}
       </p>
