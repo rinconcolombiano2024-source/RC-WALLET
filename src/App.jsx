@@ -275,19 +275,24 @@ export default function App() {
 
     const res =
   await MiniKit.commandsAsync.walletAuth({
-    nonce: crypto.randomUUID(),
+    nonce:
+  Math.random()
+    .toString(36)
+    .substring(2),
 
-    requestId:
-      crypto.randomUUID(),
+requestId:
+  Math.random()
+    .toString(36)
+    .substring(2),
 
-    expirationTime:
-      new Date(
-        Date.now() +
-          1000 * 60 * 5
-      ),
+expirationTime:
+  new Date(
+    Date.now() +
+      1000 * 60 * 5
+  ).toISOString(),
 
-    notBefore:
-      new Date(),
+notBefore:
+  new Date().toISOString(),
 
     statement:
       "Conectar RC Wallet",
@@ -356,78 +361,84 @@ export default function App() {
   }
 
   const initialize = useCallback(async () => {
-    try {
-      let address = "";
+  try {
+    let address = "";
 
-      if (MiniKit.isInstalled()) {
-  setStatus(
-    "Presiona iniciar sesión"
-  );
+    if (MiniKit.isInstalled()) {
+      setStatus(
+        "Presiona iniciar sesión"
+      );
 
-  return;
-}
-        const ethereum =
-          await waitForEthereum();
+      return;
+    } else {
+      const ethereum =
+        await waitForEthereum();
 
-        if (!ethereum) {
-          setStatus(
-            "Abre RC Wallet desde World App o MetaMask"
-          );
-          return;
-        }
-
-        const accounts =
-          await ethereum.request({
-            method: "eth_requestAccounts",
-          });
-
-        if (!accounts?.length) {
-          setStatus(
-            "No se detectó ninguna cuenta"
-          );
-          return;
-        }
-
-        address = accounts[0];
-
-        const provider =
-          new ethers.BrowserProvider(
-            ethereum
-          );
-
-        const currentNetwork =
-          await provider.getNetwork();
-
-        setNetwork(
-          `${currentNetwork.name} (${Number(
-            currentNetwork.chainId
-          )})`
+      if (!ethereum) {
+        setStatus(
+          "Abre RC Wallet desde World App o MetaMask"
         );
 
-        const nativeBal =
-          await provider.getBalance(address);
-
-        setNativeBalance(
-          Number(
-            ethers.formatEther(nativeBal)
-          ).toFixed(6)
-        );
+        return;
       }
 
-      setWallet(address);
+      const accounts =
+        await ethereum.request({
+          method: "eth_requestAccounts",
+        });
 
-      await scanAllNetworks(address);
+      if (!accounts?.length) {
+        setStatus(
+          "No se detectó ninguna cuenta"
+        );
 
-      setStatus("Wallet conectada");
-    } catch (err) {
-      console.error(err);
+        return;
+      }
 
-      setStatus(
-        err?.message ||
-          "Error inicializando"
+      address = accounts[0];
+
+      const provider =
+        new ethers.BrowserProvider(
+          ethereum
+        );
+
+      const currentNetwork =
+        await provider.getNetwork();
+
+      setNetwork(
+        `${currentNetwork.name} (${Number(
+          currentNetwork.chainId
+        )})`
+      );
+
+      const nativeBal =
+        await provider.getBalance(
+          address
+        );
+
+      setNativeBalance(
+        Number(
+          ethers.formatEther(
+            nativeBal
+          )
+        ).toFixed(6)
       );
     }
-  }, [scanAllNetworks]);
+
+    setWallet(address);
+
+    await scanAllNetworks(address);
+
+    setStatus("Wallet conectada");
+  } catch (err) {
+    console.error(err);
+
+    setStatus(
+      err?.message ||
+        "Error inicializando"
+    );
+  }
+}, [scanAllNetworks]);
 
   const handleSend = async () => {
     try {
