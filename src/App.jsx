@@ -274,25 +274,26 @@ export default function App() {
     );
 
     const res =
+  awconst res =
   await MiniKit.commands.walletAuth({
     nonce:
-  Math.random()
-    .toString(36)
-    .substring(2),
+      Math.random()
+        .toString(36)
+        .substring(2),
 
-requestId:
-  Math.random()
-    .toString(36)
-    .substring(2),
+    requestId:
+      Math.random()
+        .toString(36)
+        .substring(2),
 
-expirationTime:
-  new Date(
-    Date.now() +
-      1000 * 60 * 5
-  ).toISOString(),
+    expirationTime:
+      new Date(
+        Date.now() +
+          1000 * 60 * 5
+      ),
 
-notBefore:
-  new Date().toISOString(),
+    notBefore:
+      new Date(),
 
     statement:
       "Conectar RC Wallet",
