@@ -312,7 +312,7 @@ notBefore:
     }
 
     const address =
-      res.finalPayload.address;
+  res.finalPayload.walletAddress;
 
     if (!address) {
       setStatus(
