@@ -459,7 +459,7 @@ await scanAllNetworks(address);
   await MiniKit.commandsAsync.sendTransaction({
     transaction: [
       {
-        address: recipient,
+        to: recipient,
         value:
           "0x" +
           ethers
@@ -504,7 +504,7 @@ await scanAllNetworks(address);
   await MiniKit.commandsAsync.sendTransaction({
     transaction: [
       {
-        address: tokenInfo.address,
+        to: tokenInfo.address,
         data,
         value: "0x0",
       },
