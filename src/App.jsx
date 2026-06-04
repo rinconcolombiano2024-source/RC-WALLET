@@ -465,21 +465,16 @@ await scanAllNetworks(address);
         if (tokenInfo.isNative) {
 
   const result =
-    await MiniKit.commandsAsync.sendTransaction({
-      transaction: [
-        {
-          to: recipient,
-          value:
-            "0x" +
-            ethers
-              .parseEther(sendAmount)
-              .toString(16),
-        },
-      ],
-    });
+  await MiniKit.commandsAsync.sendTransaction({
+    transaction: [
+      {
+        address: recipient,
+        amount: sendAmount,
+      },
+    ],
+  });
 
-  alert(JSON.stringify(result));
-
+alert(JSON.stringify(result));
   if (
     result?.finalPayload?.status === "success"
   ) {
@@ -507,16 +502,11 @@ await scanAllNetworks(address);
       [recipient, amount]
     );
 
-  const result =
-    await MiniKit.commandsAsync.sendTransaction({
-      transaction: [
-        {
-          to: tokenInfo.address,
-          data,
-          value: "0x00",
-        },
-      ],
-    });
+  alert(
+  "World App aún no soporta ERC20 personalizados"
+);
+
+return;
 
   alert(JSON.stringify(result));
 
