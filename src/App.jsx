@@ -473,37 +473,57 @@ await scanAllNetworks(address);
           console.log(result);
         } 
         else {
-          const amount =
-            ethers.parseUnits(
-              sendAmount,
-              tokenInfo.decimals
-            );
+  const amount =
+    ethers.parseUnits(
+      sendAmount,
+      tokenInfo.decimals
+    );
 
-          const iface =
-            new ethers.Interface(
-              ERC20_ABI
-            );
+  const iface =
+    new ethers.Interface(
+      ERC20_ABI
+    );
 
-          const data =
-            iface.encodeFunctionData(
-              "transfer",
-              [recipient, amount]
-            );
+  const data =
+    iface.encodeFunctionData(
+      "transfer",
+      [recipient, amount]
+    );
 
-          const result =
-            await MiniKit.commandsAsync.sendTransaction({
-              transaction: [
-                {
-                  address:
-                    tokenInfo.address,
-                  data,
-                  value: "0x0",
-                },
-              ],
-            });
+  const result =
+    await MiniKit.commandsAsync.sendTransaction({
+      transaction: [
+        {
+          address:
+            tokenInfo.address,
+          data,
+          value: "0x0",
+        },
+      ],
+    });
 
-          console.log(result);
-        }
+  console.log(
+    "TOKEN RESULT:",
+    result
+  );
+
+  if (
+    result?.finalPayload?.status ===
+    "success"
+  ) {
+    setStatus(
+      "Transferencia completada"
+    );
+  } else {
+    setStatus(
+      "Transacción cancelada"
+    );
+
+    setSending(false);
+
+    return;
+  }
+}
       } else {
         const ethereum =
           window.ethereum;
