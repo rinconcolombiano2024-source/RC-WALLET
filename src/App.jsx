@@ -648,7 +648,33 @@ await scanAllNetworks(address);
     >
       <h1>RC Wallet</h1>
 
-      <p>{status}</p>
+      {status && (
+  <div
+    style={{
+      position: "fixed",
+      top: 20,
+      left: "50%",
+      transform: "translateX(-50%)",
+      background:
+        status.includes("completada")
+          ? "#16a34a"
+          : status.includes("cancelada")
+          ? "#dc2626"
+          : "#111",
+      color: "#fff",
+      padding: "12px 18px",
+      borderRadius: 12,
+      zIndex: 9999,
+      fontWeight: "bold",
+      boxShadow:
+        "0 4px 12px rgba(0,0,0,0.4)",
+      maxWidth: "90%",
+      textAlign: "center",
+    }}
+  >
+    {status}
+  </div>
+)}
 
       <button
         onClick={handleWorldLogin}
