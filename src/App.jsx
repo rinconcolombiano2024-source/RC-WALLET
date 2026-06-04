@@ -463,7 +463,7 @@ await scanAllNetworks(address);
         );
 
         if (tokenInfo.isNative) {
-const result =
+          const result =
   await MiniKit.commandsAsync.sendTransaction({
     transaction: [
       {
@@ -506,8 +506,7 @@ if (
       "transfer",
       [recipient, amount]
     );
-
-  const result =
+          const result =
   await MiniKit.commandsAsync.sendTransaction({
     transaction: [
       {
@@ -529,10 +528,6 @@ if (
 } else {
   setStatus("Transacción cancelada");
 }
-
-  setStatus(
-  "Confirma la transferencia en World App"
-);
 }
       } else {
         const ethereum =
