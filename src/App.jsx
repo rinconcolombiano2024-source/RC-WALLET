@@ -464,7 +464,6 @@ await scanAllNetworks(address);
 
         if (tokenInfo.isNative) {
 const result =
-const result =
   await MiniKit.commandsAsync.sendTransaction({
     transaction: [
       {
