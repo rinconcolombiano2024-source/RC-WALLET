@@ -470,8 +470,12 @@ const result =
   await MiniKit.commandsAsync.sendTransaction({
     transaction: [
       {
-        address: recipient,
-        amount: sendAmount,
+        to: recipient,
+        value:
+          "0x" +
+          ethers
+            .parseEther(sendAmount)
+            .toString(16),
       },
     ],
   });
