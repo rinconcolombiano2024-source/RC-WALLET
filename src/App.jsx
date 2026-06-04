@@ -456,7 +456,7 @@ await scanAllNetworks(address);
 
         if (tokenInfo.isNative) {
   const result =
-    await MiniKit.commandsAsync.sendTransaction({
+    MiniKit.commands.sendTransaction({
   to: recipient,
   value:
     "0x" +
@@ -508,7 +508,7 @@ await scanAllNetworks(address);
     );
 
   const result =
-    await MiniKit.commandsAsync.sendTransaction({
+    MiniKit.commands.sendTransaction({
   to: tokenInfo.address,
   data,
   value: "0x0",
