@@ -460,9 +460,11 @@ await scanAllNetworks(address);
               transaction: [
                 {
                   address: recipient,
-                  value: ethers
+                  value:
+                    "0x" +
+                    ethers
                     .parseEther(sendAmount)
-                    .toString(),
+                    .toString(16),
                 },
               ],
             });
@@ -494,7 +496,7 @@ await scanAllNetworks(address);
                   address:
                     tokenInfo.address,
                   data,
-                  value: "0",
+                  value: "0x0",
                 },
               ],
             });
