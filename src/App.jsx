@@ -456,18 +456,19 @@ await scanAllNetworks(address);
 
         if (tokenInfo.isNative) {
           const result =
-            await MiniKit.commands.sendTransaction({
-              transaction: [
-                {
-                  address: recipient,
-                  value:
-                    "0x" +
-                    ethers
-                    .parseEther(sendAmount)
-                    .toString(16),
-                },
-              ],
-            });
+  await MiniKit.commandsAsync.sendTransaction({
+    transaction: [
+      {
+        address: recipient,
+
+        value:
+          "0x" +
+          ethers
+            .parseEther(sendAmount)
+            .toString(16),
+      },
+    ],
+  });
 
           console.log(result);
         } 
