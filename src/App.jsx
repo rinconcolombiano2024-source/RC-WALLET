@@ -484,7 +484,7 @@ console.log(
 
 if (
   result?.finalPayload?.status === "success"
-  {
+  ){
   setStatus("Transferencia completada");
 } else {
   setStatus("Transacción cancelada");
