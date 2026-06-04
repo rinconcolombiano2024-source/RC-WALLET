@@ -463,32 +463,33 @@ await scanAllNetworks(address);
         );
 
         if (tokenInfo.isNative) {
-          const result =
-  await MiniKit.commandsAsync.sendTransaction({
-    transaction: [
-      {
-        to: recipient,
-        value:
-          "0x" +
-          ethers
-            .parseEther(sendAmount)
-            .toString(16),
-      },
-    ],
-  });
 
-console.log(
-  "NATIVE RESULT:",
-  result
-);
+  const result =
+    await MiniKit.commandsAsync.sendTransaction({
+      transaction: [
+        {
+          to: recipient,
+          value:
+            "0x" +
+            ethers
+              .parseEther(sendAmount)
+              .toString(16),
+        },
+      ],
+    });
 
-if (
-  result?.finalPayload?.status === "success"
-  ){
-  setStatus("Transferencia completada");
-} else {
-  setStatus("Transacción cancelada");
-}
+  console.log(
+    "NATIVE RESULT:",
+    result
+  );
+
+  if (
+    result?.finalPayload?.status === "success"
+  ) {
+    setStatus("Transferencia completada");
+  } else {
+    setStatus("Transacción cancelada");
+  }
 
 } else {
 
