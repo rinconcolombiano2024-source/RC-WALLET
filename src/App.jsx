@@ -464,6 +464,7 @@ await scanAllNetworks(address);
 
         if (tokenInfo.isNative) {
 const result =
+const result =
   await MiniKit.commandsAsync.sendTransaction({
     transaction: [
       {
@@ -477,15 +478,17 @@ const result =
     ],
   });
 
-  console.log(
-    "NATIVE RESULT:",
-    result
-  );
-          alert(JSON.stringify(result));
-
-  setStatus(
-  "Confirma la transacción en World App"
+console.log(
+  "NATIVE RESULT:",
+  result
 );
+
+if (
+  result?.finalPayload?.status === "success"
+) {
+  setStatus("Transferencia completada");
+} else {
+  setStatus("Transacción cancelada");
 }
         else {
   const amount =
