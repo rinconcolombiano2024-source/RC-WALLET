@@ -484,12 +484,16 @@ console.log(
 
 if (
   result?.finalPayload?.status === "success"
+if (
+  result?.finalPayload?.status === "success"
 ) {
   setStatus("Transferencia completada");
 } else {
   setStatus("Transacción cancelada");
 }
-        else {
+
+} else {
+
   const amount =
     ethers.parseUnits(
       sendAmount,
@@ -506,28 +510,30 @@ if (
       "transfer",
       [recipient, amount]
     );
-          const result =
-  await MiniKit.commandsAsync.sendTransaction({
-    transaction: [
-      {
-        to: tokenInfo.address,
-        data,
-        value: "0x00",
-      },
-    ],
-  });
+
+  const result =
+    await MiniKit.commandsAsync.sendTransaction({
+      transaction: [
+        {
+          to: tokenInfo.address,
+          data,
+          value: "0x00",
+        },
+      ],
+    });
 
   console.log(
     "TOKEN RESULT:",
     result
   );
-          if (
-  result?.finalPayload?.status === "success"
-) {
-  setStatus("Transferencia completada");
-} else {
-  setStatus("Transacción cancelada");
-}
+
+  if (
+    result?.finalPayload?.status === "success"
+  ) {
+    setStatus("Transferencia completada");
+  } else {
+    setStatus("Transacción cancelada");
+  }
 }
       } else {
         const ethereum =
