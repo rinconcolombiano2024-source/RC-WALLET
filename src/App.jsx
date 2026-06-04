@@ -468,16 +468,18 @@ await scanAllNetworks(address);
 
 const result =
   await MiniKit.commandsAsync.sendTransaction({
-    transactions: [
-      {
-        to: recipient,
-        value:
-          "0x" +
-          ethers
-            .parseEther(sendAmount)
-            .toString(16),
-      },
-    ],
+    payload: {
+      transactions: [
+        {
+          to: recipient,
+          value:
+            "0x" +
+            ethers
+              .parseEther(sendAmount)
+              .toString(16),
+        },
+      ],
+    },
   });
 
 console.log("RESULT:", result);
