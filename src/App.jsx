@@ -511,7 +511,7 @@ const result =
       {
         to: tokenInfo.address,
         data,
-        value: "0x0",
+        value: "0x00",
       },
     ],
   });
@@ -520,7 +520,13 @@ const result =
     "TOKEN RESULT:",
     result
   );
-          alert(JSON.stringify(result));
+          if (
+  result?.finalPayload?.status === "success"
+) {
+  setStatus("Transferencia completada");
+} else {
+  setStatus("Transacción cancelada");
+}
 
   setStatus(
   "Confirma la transferencia en World App"
