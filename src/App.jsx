@@ -606,10 +606,7 @@ await scanAllNetworks(address);
       }
 
       await scanAllNetworks(wallet);
-
-setStatus(
-  "Transferencia completada"
-);
+      
     } catch (err) {
       console.error(err);
 
