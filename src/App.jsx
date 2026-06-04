@@ -476,9 +476,11 @@ await scanAllNetworks(address);
   );
 
   if (
-    result?.finalPayload?.status !==
-    "success"
-  ) {
+  result?.finalPayload?.status !==
+    "success" &&
+  result?.status !== "success"
+) 
+  {
     setStatus(
       "Transacción cancelada"
     );
@@ -524,9 +526,11 @@ await scanAllNetworks(address);
   );
 
   if (
-    result?.finalPayload?.status ===
-    "success"
-  ) {
+  result?.finalPayload?.status ===
+    "success" ||
+  result?.status === "success"
+)
+  {
     setStatus(
       "Transferencia completada"
     );
