@@ -489,6 +489,9 @@ await scanAllNetworks(address);
 
     return;
   }
+          setStatus(
+  "Transferencia completada"
+);
 }
         else {
   const amount =
