@@ -455,23 +455,39 @@ await scanAllNetworks(address);
         );
 
         if (tokenInfo.isNative) {
-          const result =
-  await MiniKit.commandsAsync.sendTransaction({
-    transaction: [
-      {
-        address: recipient,
+  const result =
+    await MiniKit.commandsAsync.sendTransaction({
+      transaction: [
+        {
+          address: recipient,
 
-        value:
-          "0x" +
-          ethers
-            .parseEther(sendAmount)
-            .toString(16),
-      },
-    ],
-  });
+          value:
+            "0x" +
+            ethers
+              .parseEther(sendAmount)
+              .toString(16),
+        },
+      ],
+    });
 
-          console.log(result);
-        } 
+  console.log(
+    "NATIVE RESULT:",
+    result
+  );
+
+  if (
+    result?.finalPayload?.status !==
+    "success"
+  ) {
+    setStatus(
+      "Transacción cancelada"
+    );
+
+    setSending(false);
+
+    return;
+  }
+}
         else {
   const amount =
     ethers.parseUnits(
@@ -589,11 +605,11 @@ await scanAllNetworks(address);
         }
       }
 
-      setStatus(
-        "Transferencia completada"
-      );
-
       await scanAllNetworks(wallet);
+
+setStatus(
+  "Transferencia completada"
+);
     } catch (err) {
       console.error(err);
 
