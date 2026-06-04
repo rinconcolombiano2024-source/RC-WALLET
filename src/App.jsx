@@ -474,6 +474,7 @@ await scanAllNetworks(address);
     "NATIVE RESULT:",
     result
   );
+          alert(JSON.stringify(result));
 
   if (
   result?.finalPayload?.status !==
@@ -527,6 +528,7 @@ await scanAllNetworks(address);
     "TOKEN RESULT:",
     result
   );
+          alert(JSON.stringify(result));
 
   if (
   result?.finalPayload?.status ===
