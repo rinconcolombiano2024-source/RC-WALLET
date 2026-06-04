@@ -468,7 +468,7 @@ await scanAllNetworks(address);
 
 const result =
   await MiniKit.commandsAsync.sendTransaction({
-    transaction: [
+    transactions: [
       {
         to: recipient,
         value:
