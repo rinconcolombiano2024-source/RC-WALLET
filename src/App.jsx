@@ -471,20 +471,9 @@ await scanAllNetworks(address);
   );
           alert(JSON.stringify(result));
 
-  if (
-  result?.finalPayload?.status !==
-    "success" &&
-  result?.status !== "success"
-) 
-  {
-    setStatus(
-      "Transacción cancelada"
-    );
-
-    setSending(false);
-
-    return;
-  }
+  setStatus(
+  "Confirma la transacción en World App"
+);
           setStatus(
   "Transferencia completada"
 );
@@ -520,24 +509,9 @@ await scanAllNetworks(address);
   );
           alert(JSON.stringify(result));
 
-  if (
-  result?.finalPayload?.status ===
-    "success" ||
-  result?.status === "success"
-)
-  {
-    setStatus(
-      "Transferencia completada"
-    );
-  } else {
-    setStatus(
-      "Transacción cancelada"
-    );
-
-    setSending(false);
-
-    return;
-  }
+  setStatus(
+  "Confirma la transferencia en World App"
+);
 }
       } else {
         const ethereum =
