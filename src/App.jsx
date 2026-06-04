@@ -465,14 +465,16 @@ await scanAllNetworks(address);
         if (tokenInfo.isNative) {
 const result =
   await MiniKit.commandsAsync.sendTransaction({
-    transaction: {
-      to: recipient,
-      value:
-        "0x" +
-        ethers
-          .parseEther(sendAmount)
-          .toString(16),
-    },
+    transaction: [
+      {
+        to: recipient,
+        value:
+          "0x" +
+          ethers
+            .parseEther(sendAmount)
+            .toString(16),
+      },
+    ],
   });
 
   console.log(
@@ -505,11 +507,13 @@ const result =
 
   const result =
   await MiniKit.commandsAsync.sendTransaction({
-    transaction: {
-      to: tokenInfo.address,
-      data,
-      value: "0x0",
-    },
+    transaction: [
+      {
+        to: tokenInfo.address,
+        data,
+        value: "0x0",
+      },
+    ],
   });
 
   console.log(
