@@ -478,10 +478,7 @@ await scanAllNetworks(address);
       ],
     });
 
-  console.log(
-    "NATIVE RESULT:",
-    result
-  );
+  alert(JSON.stringify(result));
 
   if (
     result?.finalPayload?.status === "success"
@@ -521,10 +518,7 @@ await scanAllNetworks(address);
       ],
     });
 
-  console.log(
-    "TOKEN RESULT:",
-    result
-  );
+  alert(JSON.stringify(result));
 
   if (
     result?.finalPayload?.status === "success"
