@@ -176,9 +176,17 @@ export default function App() {
           if (!provider) continue;
 
           const nativeBal =
-            await provider.getBalance(address);
+  await provider.getBalance(address);
 
-          if (nativeBal > 0n) {
+console.log(
+  net.name,
+  ethers.formatEther(nativeBal)
+);
+
+if (
+  nativeBal &&
+  nativeBal.toString() !== "0"
+) {
             foundTokens.push({
               network: net.name,
               symbol: net.symbol,
