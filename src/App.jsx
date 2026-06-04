@@ -464,7 +464,9 @@ await scanAllNetworks(address);
 
         if (tokenInfo.isNative) {
 
-  const result =
+  console.log("ANTES SEND");
+
+const result =
   await MiniKit.commandsAsync.sendTransaction({
     transaction: [
       {
@@ -474,7 +476,10 @@ await scanAllNetworks(address);
     ],
   });
 
+console.log("RESULT:", result);
+
 alert(JSON.stringify(result));
+
   if (
     result?.finalPayload?.status === "success"
   ) {
