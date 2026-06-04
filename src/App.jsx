@@ -482,9 +482,6 @@ const result =
   setStatus(
   "Confirma la transacción en World App"
 );
-          setStatus(
-  "Transferencia completada"
-);
 }
         else {
   const amount =
