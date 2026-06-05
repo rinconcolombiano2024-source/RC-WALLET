@@ -644,35 +644,257 @@ return;
             new ethers.Contract(
               tokenInfo.address,
               ERC20_ABI,
-              signer
-            );
+const handleSend = async () => {
+  try {
+    if (
+      !recipient ||
+      !sendAmount ||
+      !selectedToken
+    ) {
+      setStatus(
+        "Completa todos los campos"
+      );
+      return;
+    }
 
-          const tx =
-            await contract.transfer(
-              recipient,
-              ethers.parseUnits(
-                sendAmount,
-                tokenInfo.decimals
-              )
-            );
+    setSending(true);
 
-          await tx.wait();
-        }
-      }
+    const tokenInfo =
+      JSON.parse(selectedToken);
 
-      await scanAllNetworks(wallet);
-      
-    } catch (err) {
-      console.error(err);
+    // =========================
+    // WORLD APP / MINIKIT
+    // =========================
+
+    if (MiniKit.isInstalled()) {
 
       setStatus(
-        err?.message ||
-          "Error enviando"
+        "Esperando confirmación..."
       );
-    } finally {
-      setSending(false);
+
+      // =========================
+      // MONEDA NATIVA
+      // =========================
+
+      if (tokenInfo.isNative) {
+
+        console.log(
+          "ENVIANDO NATIVA"
+        );
+
+        const result =
+          await MiniKit.commandsAsync.sendTransaction({
+            transactions: [
+              {
+                to: recipient,
+
+                value:
+                  "0x" +
+                  ethers
+                    .parseEther(
+                      sendAmount
+                    )
+                    .toString(16),
+              },
+            ],
+          });
+
+        console.log(
+          "RESULT:",
+          result
+        );
+
+        alert(
+          JSON.stringify(result)
+        );
+
+        if (
+          result?.finalPayload
+            ?.status === "success"
+        ) {
+          setStatus(
+            "Transferencia completada"
+          );
+        } else {
+          setStatus(
+            "Transacción cancelada"
+          );
+        }
+
+      }
+
+      // =========================
+      // ERC20
+      // =========================
+
+      else {
+
+        console.log(
+          "ENVIANDO ERC20"
+        );
+
+        const result =
+          await MiniKit.commandsAsync.sendTransaction({
+            chainId:
+              tokenInfo.chainId,
+
+            transactions: [
+              {
+                address:
+                  tokenInfo.address,
+
+                abi: ERC20_ABI,
+
+                functionName:
+                  "transfer",
+
+                args: [
+                  recipient,
+
+                  ethers
+                    .parseUnits(
+                      sendAmount,
+                      tokenInfo.decimals
+                    )
+                    .toString(),
+                ],
+              },
+            ],
+          });
+
+        console.log(
+          "RESULT:",
+          result
+        );
+
+        alert(
+          JSON.stringify(result)
+        );
+
+        if (
+          result?.finalPayload
+            ?.status === "success"
+        ) {
+          setStatus(
+            "Transferencia completada"
+          );
+        } else {
+          setStatus(
+            "Transacción cancelada"
+          );
+        }
+      }
     }
-  };
+
+    // =========================
+    // METAMASK / WINDOW.ETHEREUM
+    // =========================
+
+    else {
+
+      const ethereum =
+        window.ethereum;
+
+      if (!ethereum) {
+
+        setStatus(
+          "Wallet no encontrada"
+        );
+
+        return;
+      }
+
+      await ethereum.request({
+        method:
+          "wallet_switchEthereumChain",
+
+        params: [
+          {
+            chainId:
+              "0x" +
+              tokenInfo.chainId.toString(
+                16
+              ),
+          },
+        ],
+      });
+
+      const provider =
+        new ethers.BrowserProvider(
+          ethereum
+        );
+
+      const signer =
+        await provider.getSigner();
+
+      // =========================
+      // NATIVA
+      // =========================
+
+      if (tokenInfo.isNative) {
+
+        const tx =
+          await signer.sendTransaction({
+            to: recipient,
+
+            value:
+              ethers.parseEther(
+                sendAmount
+              ),
+          });
+
+        await tx.wait();
+
+      }
+
+      // =========================
+      // ERC20
+      // =========================
+
+      else {
+
+        const contract =
+          new ethers.Contract(
+            tokenInfo.address,
+            ERC20_ABI,
+            signer
+          );
+
+        const tx =
+          await contract.transfer(
+            recipient,
+
+            ethers.parseUnits(
+              sendAmount,
+              tokenInfo.decimals
+            )
+          );
+
+        await tx.wait();
+      }
+
+      setStatus(
+        "Transferencia completada"
+      );
+    }
+
+    await scanAllNetworks(wallet);
+
+  } catch (err) {
+
+    console.error(err);
+
+    setStatus(
+      err?.message ||
+      "Error enviando"
+    );
+
+  } finally {
+
+    setSending(false);
+
+  }
+};
 
   useEffect(() => {
     mountedRef.current = true;
