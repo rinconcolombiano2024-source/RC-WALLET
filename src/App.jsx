@@ -491,27 +491,44 @@ alert(JSON.stringify(result));
   }
 
 } else {
+          
+  const result =
+  await MiniKit.commandsAsync.sendTransaction({
+    chainId: tokenInfo.chainId,
 
-  const amount =
-    ethers.parseUnits(
-      sendAmount,
-      tokenInfo.decimals
-    );
+    transactions: [
+      {
+        address: tokenInfo.address,
 
-  const iface =
-    new ethers.Interface(
-      ERC20_ABI
-    );
+        abi: ERC20_ABI,
 
-  const data =
-    iface.encodeFunctionData(
-      "transfer",
-      [recipient, amount]
-    );
+        functionName: "transfer",
 
-  alert(
-  "World App aún no soporta ERC20 personalizados"
-);
+        args: [
+          recipient,
+
+          ethers
+            .parseUnits(
+              sendAmount,
+              tokenInfo.decimals
+            )
+            .toString(),
+        ],
+      },
+    ],
+  });
+
+console.log(result);
+
+alert(JSON.stringify(result));
+
+if (
+  result?.finalPayload?.status === "success"
+) {
+  setStatus("Transferencia completada");
+} else {
+  setStatus("Transacción cancelada");
+}
 
 return;
 
