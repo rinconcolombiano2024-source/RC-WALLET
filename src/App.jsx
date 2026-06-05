@@ -468,14 +468,16 @@ await scanAllNetworks(address);
 
 const result =
   await MiniKit.commandsAsync.sendTransaction({
-    transaction: {
-      to: recipient,
-      value:
-        "0x" +
-        ethers
-          .parseEther(sendAmount)
-          .toString(16),
-    },
+    transactions: [
+      {
+        to: recipient,
+        value:
+          "0x" +
+          ethers
+            .parseEther(sendAmount)
+            .toString(16),
+      },
+    ],
   });
 
 console.log("RESULT:", result);
@@ -490,37 +492,47 @@ alert(JSON.stringify(result));
     setStatus("Transacción cancelada");
   }
 
-} else {
-          
+}   } 
+      else {
+
   const result =
-  await MiniKit.commandsAsync.sendTransaction({
-    chainId: tokenInfo.chainId,
+    await MiniKit.commandsAsync.sendTransaction({
+      chainId: tokenInfo.chainId,
 
-    transactions: [
-      {
-        address: tokenInfo.address,
+      transactions: [
+        {
+          address: tokenInfo.address,
 
-        abi: ERC20_ABI,
+          abi: ERC20_ABI,
 
-        functionName: "transfer",
+          functionName: "transfer",
 
-        args: [
-          recipient,
+          args: [
+            recipient,
 
-          ethers
-            .parseUnits(
-              sendAmount,
-              tokenInfo.decimals
-            )
-            .toString(),
-        ],
-      },
-    ],
-  });
+            ethers
+              .parseUnits(
+                sendAmount,
+                tokenInfo.decimals
+              )
+              .toString(),
+          ],
+        },
+      ],
+    });
 
-console.log(result);
+  console.log(result);
 
-alert(JSON.stringify(result));
+  alert(JSON.stringify(result));
+
+  if (
+    result?.finalPayload?.status === "success"
+  ) {
+    setStatus("Transferencia completada");
+  } else {
+    setStatus("Transacción cancelada");
+  }
+}
 
 if (
   result?.finalPayload?.status === "success"
