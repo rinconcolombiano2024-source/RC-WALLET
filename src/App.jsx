@@ -458,42 +458,83 @@ await scanAllNetworks(address);
         JSON.parse(selectedToken);
 
       if (MiniKit.isInstalled()) {
-        setStatus(
-          "Esperando confirmación..."
-        );
 
-        if (tokenInfo.isNative) {
+  setStatus(
+    "Esperando confirmación..."
+  );
 
-  console.log("ANTES SEND");
+  if (tokenInfo.isNative) {
 
-const result =
-  await MiniKit.commandsAsync.sendTransaction({
-    transactions: [
-      {
-        to: recipient,
-        value:
-          "0x" +
-          ethers
-            .parseEther(sendAmount)
-            .toString(16),
-      },
-    ],
-  });
+    console.log("ANTES SEND");
 
-console.log("RESULT:", result);
+    const result =
+      await MiniKit.commandsAsync.sendTransaction({
+        transactions: [
+          {
+            to: recipient,
+            value:
+              "0x" +
+              ethers
+                .parseEther(sendAmount)
+                .toString(16),
+          },
+        ],
+      });
 
-alert(JSON.stringify(result));
+    console.log("RESULT:", result);
 
-  if (
-    result?.finalPayload?.status === "success"
-  ) {
-    setStatus("Transferencia completada");
+    alert(JSON.stringify(result));
+
+    if (
+      result?.finalPayload?.status === "success"
+    ) {
+      setStatus("Transferencia completada");
+    } else {
+      setStatus("Transacción cancelada");
+    }
+
   } else {
-    setStatus("Transacción cancelada");
+
+    const result =
+      await MiniKit.commandsAsync.sendTransaction({
+        chainId: tokenInfo.chainId,
+
+        transactions: [
+          {
+            address: tokenInfo.address,
+
+            abi: ERC20_ABI,
+
+            functionName: "transfer",
+
+            args: [
+              recipient,
+
+              ethers
+                .parseUnits(
+                  sendAmount,
+                  tokenInfo.decimals
+                )
+                .toString(),
+            ],
+          },
+        ],
+      });
+
+    console.log(result);
+
+    alert(JSON.stringify(result));
+
+    if (
+      result?.finalPayload?.status === "success"
+    ) {
+      setStatus("Transferencia completada");
+    } else {
+      setStatus("Transacción cancelada");
+    }
   }
 
-}   } 
-      else {
+} else {
 
   const result =
     await MiniKit.commandsAsync.sendTransaction({
