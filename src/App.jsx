@@ -776,33 +776,7 @@ if (
     }
     
   // =========================
-  // ERC20
-  // =========================
 
-  else {
-
-    const cleanAmount =
-      sendAmount.replace(",", ".");
-
-    const contract =
-      new ethers.Contract(
-        tokenInfo.address,
-        ERC20_ABI,
-        signer
-      );
-
-    console.log(
-      "ENVIANDO ERC20 METAMASK"
-    );
-
-    const tx =
-      await contract.transfer(
-        recipient,
-
-        ethers.parseUnits(
-          cleanAmount,
-          tokenInfo.decimals
-        )
 // =========================
 // ERC20
 // =========================
