@@ -650,15 +650,19 @@ await scanAllNetworks(address);
       setStatus(
         "Esperando confirmación..."
       );
+      
+// =========================
+// MONEDA NATIVA
+// =========================
 
-      // =========================
-      // MONEDA NATIVA
-      // =========================
 if (tokenInfo.isNative) {
 
   console.log(
     "ENVIANDO NATIVA"
   );
+
+  const cleanAmount =
+    sendAmount.replace(",", ".");
 
   const result =
     await MiniKit.commandsAsync.sendTransaction({
@@ -674,7 +678,7 @@ if (tokenInfo.isNative) {
             "0x" +
             ethers
               .parseEther(
-                sendAmount
+                cleanAmount
               )
               .toString(16),
         },
@@ -692,11 +696,11 @@ if (tokenInfo.isNative) {
   );
 
   if (
-  result?.finalPayload?.status === "success" ||
-  result?.status === "success" ||
-  result?.transaction_id ||
-  result?.finalPayload?.transaction_id
-) {
+    result?.finalPayload?.status === "success" ||
+    result?.status === "success" ||
+    result?.transaction_id ||
+    result?.finalPayload?.transaction_id
+  ) {
 
     setStatus(
       "Transferencia completada"
@@ -716,7 +720,8 @@ if (tokenInfo.isNative) {
 
   return;
 }
-else{   
+
+else { 
   // =========================
       // ERC20
       // =========================
