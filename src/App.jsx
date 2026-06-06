@@ -1,5 +1,3 @@
-import QRCode from "react-qr-code";
-import { MiniKit } from "@worldcoin/minikit-js";
 import React, {
   useEffect,
   useState,
@@ -10,7 +8,7 @@ import React, {
 import { ethers } from "ethers";
 
 import { MiniKit } from "@worldcoin/minikit-js";
-
+import QRCode from "react-qr-code";
 MiniKit.install();
 
 // =========================
@@ -949,17 +947,28 @@ export default function App() {
     }}
   >
 
+    {wallet && (
+
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      marginBottom: 20,
+    }}
+  >
+
     <div
-  style={{
-    background: "#fff",
-    padding: 16,
-    borderRadius: 20,
-  }}
->
-  <QRCode
-    value={wallet}
-    size={240}
-  />
+      style={{
+        background: "#fff",
+        padding: 16,
+        borderRadius: 20,
+      }}
+    >
+      <QRCode
+        value={wallet}
+        size={240}
+      />
+    </div>
 
   </div>
 )}
