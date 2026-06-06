@@ -222,7 +222,19 @@ console.log(
 if (
   nativeBal &&
   nativeBal > 0n
+) if (
+  net.chainId === 480
 ) {
+
+  setNativeBalance(
+    Number(
+      ethers.formatEther(
+        nativeBal
+      )
+    ).toFixed(6)
+  );
+}
+{
 
   foundTokens.push({
     network: net.name,
@@ -331,7 +343,20 @@ if (tokenBal > 0n) {
       }
 
       if (!mountedRef.current) return;
+const uniqueTokens =
+  foundTokens.filter(
+    (token, index, self) =>
+      index ===
+      self.findIndex(
+        (t) =>
+          t.chainId === token.chainId &&
+          t.symbol === token.symbol &&
+          t.address === token.address
+      )
+  );
 
+foundTokens = uniqueTokens;
+      
       setTokensDetected(foundTokens);
 
       if (foundTokens.length > 0) {
@@ -399,6 +424,15 @@ if (
   });
 
 console.log("WORLD RES:", res);
+    if (res?.error_code) {
+
+  setStatus(
+    res?.error_message ||
+    "Login cancelado"
+  );
+
+  return;
+    }
     console.log(
   "FINAL PAYLOAD:",
   res?.finalPayload
@@ -658,12 +692,11 @@ if (tokenInfo.isNative) {
   );
 
   if (
-    result?.finalPayload
-      ?.status === "success" ||
-
-    result?.status ===
-      "success"
-  ) {
+  result?.finalPayload?.status === "success" ||
+  result?.status === "success" ||
+  result?.transaction_id ||
+  result?.finalPayload?.transaction_id
+) {
 
     setStatus(
       "Transferencia completada"
@@ -682,10 +715,9 @@ if (tokenInfo.isNative) {
   }
 
   return;
-
 }
-else{
-      // =========================
+else{   
+  // =========================
       // ERC20
       // =========================
 
@@ -699,6 +731,8 @@ const data =
     "transfer",
     [
       recipient,
+      const cleanAmount =
+  sendAmount.replace(",", ".");
       ethers.parseUnits(
         sendAmount,
         tokenInfo.decimals
@@ -727,7 +761,9 @@ console.log(result);
 
 if (
   result?.finalPayload?.status === "success" ||
-  result?.status === "success"
+  result?.status === "success" ||
+  result?.transaction_id ||
+  result?.finalPayload?.transaction_id
 ) {
   setStatus(
     "Transferencia completada"
@@ -757,20 +793,36 @@ if (
         return;
       }
 
-      await ethereum.request({
-        method:
-          "wallet_switchEthereumChain",
+      try {
 
-        params: [
-          {
-            chainId:
-              "0x" +
-              tokenInfo.chainId.toString(
-                16
-              ),
-          },
-        ],
-      });
+  await ethereum.request({
+    method:
+      "wallet_switchEthereumChain",
+
+    params: [
+      {
+        chainId:
+          "0x" +
+          tokenInfo.chainId.toString(
+            16
+          ),
+      },
+    ],
+  });
+
+} catch (switchError) {
+
+  console.log(
+    "SWITCH ERROR:",
+    switchError
+  );
+
+  setStatus(
+    "No se pudo cambiar de red"
+  );
+
+  return;
+}
 
       const provider =
         new ethers.BrowserProvider(
@@ -791,6 +843,8 @@ if (
             to: recipient,
 
             value:
+              const cleanAmount =
+  sendAmount.replace(",", ".");
               ethers.parseEther(
                 sendAmount
               ),
