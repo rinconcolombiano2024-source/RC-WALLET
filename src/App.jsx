@@ -58,7 +58,7 @@ const NETWORKS = [
     name: "World Chain",
     chainId: 480,
     hex: "0x1e0",
-    symbol: "ETH",
+    symbol: "WLD",
     rpc: [
       "https://worldchain-mainnet.g.alchemy.com/public",
       "https://worldchain.drpc.org",
@@ -179,14 +179,46 @@ export default function App() {
   await provider.getBalance(address);
 
 console.log(
-  net.name,
+  "NETWORK:",
+  net.name
+);
+
+console.log(
+  "RAW BALANCE:",
+  nativeBal.toString()
+);
+
+console.log(
+  "FORMATTED:",
   ethers.formatEther(nativeBal)
 );
 
 if (
   nativeBal &&
-  nativeBal.toString() !== "0"
+  nativeBal > 0n
 ) {
+
+  foundTokens.push({
+    network: net.name,
+
+    symbol:
+      net.chainId === 480
+        ? "WLD"
+        : net.symbol,
+
+    balance: Number(
+      ethers.formatEther(nativeBal)
+    ).toFixed(6),
+
+    isNative: true,
+
+    chainId: net.chainId,
+
+    decimals: 18,
+
+    address: "NATIVE",
+  });
+}
             foundTokens.push({
               network: net.name,
               symbol: net.symbol,
@@ -531,33 +563,28 @@ await scanAllNetworks(address);
         );
 
         const result =
-          await MiniKit.commandsAsync.sendTransaction({
-            chainId:
-              tokenInfo.chainId,
+  await MiniKit.commandsAsync.sendTransaction({
+    transaction: {
+      address:
+        tokenInfo.address,
 
-            transactions: [
-              {
-                address:
-                  tokenInfo.address,
+      abi: ERC20_ABI,
 
-                abi: ERC20_ABI,
+      functionName:
+        "transfer",
 
-                functionName:
-                  "transfer",
+      args: [
+        recipient,
 
-                args: [
-                  recipient,
-
-                  ethers
-                    .parseUnits(
-                      sendAmount,
-                      tokenInfo.decimals
-                    )
-                    .toString(),
-                ],
-              },
-            ],
-          });
+        ethers
+          .parseUnits(
+            sendAmount,
+            tokenInfo.decimals
+          )
+          .toString(),
+      ],
+    },
+  });
 
         console.log(
           "RESULT:",
