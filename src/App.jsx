@@ -583,7 +583,7 @@ await scanAllNetworks(address);
 
         const result =
   await MiniKit.commandsAsync.sendTransaction({
-    transaction: {
+    transactions: {
       address:
         tokenInfo.address,
 
