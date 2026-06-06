@@ -175,6 +175,8 @@ export default function App() {
 
   const [worldVerified, setWorldVerified] =
     useState(false);
+  const [loadingWallet, setLoadingWallet] =
+  useState(true);
 
   // =========================
   // RPC FALLBACK
@@ -491,7 +493,10 @@ export default function App() {
       }
 
       setWallet(address);
-
+      localStorage.setItem(
+  "rc_wallet_address",
+  address
+);
       setNetwork(
         "World App"
       );
@@ -713,14 +718,72 @@ export default function App() {
 
   useEffect(() => {
 
-    mountedRef.current = true;
+  mountedRef.current = true;
 
-    return () => {
+  async function autoReconnect() {
 
-      mountedRef.current = false;
-    };
+    try {
 
-  }, []);
+      if (
+        !MiniKit.isInstalled()
+      ) {
+
+        setLoadingWallet(false);
+
+        return;
+      }
+
+      const storedWallet =
+        localStorage.getItem(
+          "rc_wallet_address"
+        );
+
+      if (!storedWallet) {
+
+        setLoadingWallet(false);
+
+        return;
+      }
+
+      setWallet(
+        storedWallet
+      );
+
+      setNetwork(
+        "World App"
+      );
+
+      setWorldVerified(true);
+
+      setStatus(
+        "Reconectando wallet..."
+      );
+
+      await scanAllNetworks(
+        storedWallet
+      );
+
+    } catch (err) {
+
+      console.log(
+        "Auto reconnect error",
+        err
+      );
+
+    } finally {
+
+      setLoadingWallet(false);
+    }
+  }
+
+  autoReconnect();
+
+  return () => {
+
+    mountedRef.current = false;
+  };
+
+}, [scanAllNetworks]);
   // =========================
 // AUTO HIDE STATUS
 // =========================
