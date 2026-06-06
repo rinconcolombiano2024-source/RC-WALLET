@@ -588,8 +588,6 @@ await scanAllNetworks(address);
       // =========================
       // MONEDA NATIVA
       // =========================
-
-      if (tokenInfo.isNative) {
 if (tokenInfo.isNative) {
 
   console.log(
