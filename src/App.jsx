@@ -598,14 +598,6 @@ await scanAllNetworks(address);
       },
     ],
   });
-
-        
-        } else {
-          setStatus(
-            "Transacción cancelada"
-          );
-        }
-
       }
 
       // =========================
