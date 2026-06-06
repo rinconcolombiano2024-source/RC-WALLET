@@ -222,19 +222,20 @@ console.log(
 if (
   nativeBal &&
   nativeBal > 0n
-) if (
-  net.chainId === 480
 ) {
 
-  setNativeBalance(
-    Number(
-      ethers.formatEther(
-        nativeBal
-      )
-    ).toFixed(6)
-  );
-}
-{
+  if (
+    net.chainId === 480
+  ) {
+
+    setNativeBalance(
+      Number(
+        ethers.formatEther(
+          nativeBal
+        )
+      ).toFixed(6)
+    );
+  }
 
   foundTokens.push({
     network: net.name,
@@ -257,7 +258,6 @@ if (
     address: "NATIVE",
   });
 }
-
           for (const token of TOKENS) {
             const tokenAddress =
               token.addresses[net.chainId];
@@ -725,16 +725,15 @@ else{
   new ethers.Interface(
     ERC20_ABI
   );
-
+const cleanAmount =
+  sendAmount.replace(",", ".");
 const data =
   iface.encodeFunctionData(
     "transfer",
     [
       recipient,
-      const cleanAmount =
-  sendAmount.replace(",", ".");
       ethers.parseUnits(
-        sendAmount,
+  cleanAmount,
         tokenInfo.decimals
       ),
     ]
@@ -837,17 +836,18 @@ if (
       // =========================
 
       if (tokenInfo.isNative) {
-
+        const cleanAmount =
+  sendAmount.replace(",", ".");
+        
         const tx =
           await signer.sendTransaction({
             to: recipient,
 
             value:
-              const cleanAmount =
-  sendAmount.replace(",", ".");
+              
               ethers.parseEther(
-                sendAmount
-              ),
+  cleanAmount
+              )
           });
 
         await tx.wait();
