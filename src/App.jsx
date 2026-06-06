@@ -409,6 +409,11 @@ if (!address) {
 
 setWallet(address);
 
+console.log(
+  "FINAL WALLET USED:",
+  address
+);
+
 setWorldVerified(true);
 
 setNetwork("World App");
