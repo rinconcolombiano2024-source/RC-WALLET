@@ -1465,6 +1465,27 @@ export default function App() {
     };
 
   }, []);
+      useEffect(() => {
+
+  if (!status) return;
+
+  const timer =
+    setTimeout(() => {
+
+      if (
+        status !==
+        "Inicializando RC Wallet..."
+      ) {
+
+        setStatus("");
+      }
+
+    }, 3500);
+
+  return () =>
+    clearTimeout(timer);
+
+}, [status]);
 
   // =========================
   // UI
