@@ -739,14 +739,14 @@ export default function App() {
     >
 
       <h1>
-        RC Wallet
-      </h1>
+  RC Wallet
+</h1>
 
+{/* =========================
+   STATUS TOAST
+========================= */}
 
-      // =========================
-// STATUS TOAST
-// =========================
-      {status && (
+{status && (
   <div
     style={{
       position: "fixed",
