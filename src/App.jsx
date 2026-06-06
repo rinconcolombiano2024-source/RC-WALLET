@@ -60,9 +60,10 @@ const NETWORKS = [
     hex: "0x1e0",
     symbol: "WLD",
     rpc: [
-      "https://worldchain-mainnet.g.alchemy.com/public",
-      "https://worldchain.drpc.org",
-    ],
+  "https://worldchain-mainnet.g.alchemy.com/public",
+  "https://480.rpc.thirdweb.com",
+  "https://worldchain.drpc.org",
+],
   },
 ];
 
@@ -172,7 +173,10 @@ export default function App() {
         try {
           const provider =
             await getWorkingProvider(net.rpc);
-
+          console.log(
+  "RPC OK:",
+  net.name
+);
           if (!provider) continue;
 
           const nativeBal =
@@ -335,6 +339,25 @@ if (
   });
 
 console.log("WORLD RES:", res);
+    console.log(
+  "FINAL PAYLOAD:",
+  res?.finalPayload
+);
+
+console.log(
+  "ADDRESS:",
+  res?.finalPayload?.address
+);
+
+console.log(
+  "WALLET ADDRESS:",
+  res?.finalPayload?.walletAddress
+);
+
+console.log(
+  "RAW RES:",
+  JSON.stringify(res)
+);
 
 const payload =
   res?.finalPayload || res;
