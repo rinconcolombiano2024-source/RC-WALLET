@@ -799,3 +799,290 @@ export default function App() {
     {status}
   </div>
 )}
+<button
+  onClick={
+    handleWorldLogin
+  }
+
+  style={{
+    width: "100%",
+    padding: 14,
+    borderRadius: 14,
+    border: "none",
+    background: "#2563eb",
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+    marginBottom: 20,
+  }}
+>
+  Iniciar sesión con World ID
+</button>
+
+<hr />
+
+{/* =========================
+   WALLET INFO
+========================= */}
+
+<p>
+  Wallet:
+</p>
+
+<div
+  style={{
+    background: "#111827",
+    padding: 12,
+    borderRadius: 12,
+    wordBreak: "break-all",
+    marginBottom: 12,
+    border: "1px solid #333",
+  }}
+>
+  {wallet || "No conectada"}
+</div>
+
+<button
+  onClick={() => {
+
+    if (!wallet) return;
+
+    navigator.clipboard.writeText(
+      wallet
+    );
+
+    setStatus(
+      "Dirección copiada"
+    );
+  }}
+
+  style={{
+    width: "100%",
+    padding: 12,
+    borderRadius: 12,
+    border: "none",
+    background: "#16a34a",
+    color: "#fff",
+    fontWeight: "bold",
+    marginBottom: 20,
+  }}
+>
+  Copiar dirección
+</button>
+
+{/* =========================
+   QR WALLET
+========================= */}
+
+{wallet && (
+
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      marginBottom: 20,
+    }}
+  >
+
+    <img
+      src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${wallet}`}
+
+      alt="QR Wallet"
+
+      style={{
+        width: 240,
+        height: 240,
+        borderRadius: 20,
+        border: "4px solid #111827",
+        background: "#fff",
+      }}
+    />
+
+  </div>
+)}
+
+<p>
+  Red: {network}
+</p>
+
+<p>
+  Balance: {nativeBalance}
+</p>
+
+<p>
+  World ID:
+  {" "}
+  {worldVerified
+    ? "Verificado"
+    : "No verificado"}
+</p>
+
+<hr />
+
+<h2>
+  Fondos Detectados
+</h2>
+
+{tokensDetected.length === 0 && (
+  <p>
+    No se detectaron fondos
+  </p>
+)}
+
+{tokensDetected.map(
+  (
+    token,
+    index
+  ) => (
+
+    <div
+      key={index}
+
+      style={{
+        border:
+          "1px solid #333",
+
+        padding: 14,
+
+        borderRadius: 14,
+
+        marginBottom: 12,
+
+        background:
+          "#111827",
+      }}
+    >
+
+      <p>
+        {token.network}
+      </p>
+
+      <p>
+        {token.symbol}
+      </p>
+
+      <p>
+        {token.balance}
+      </p>
+
+    </div>
+  )
+)}
+
+<hr />
+
+<h2>
+  Enviar Fondos
+</h2>
+
+<select
+  value={
+    selectedToken
+  }
+
+  onChange={(e) =>
+    setSelectedToken(
+      e.target.value
+    )
+  }
+
+  style={{
+    width: "100%",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 14,
+  }}
+>
+
+  {tokensDetected.map(
+    (
+      token,
+      index
+    ) => (
+
+      <option
+        key={index}
+
+        value={JSON.stringify(
+          token
+        )}
+      >
+
+        {token.network}
+        {" - "}
+        {token.symbol}
+
+      </option>
+    )
+  )}
+</select>
+
+<input
+  placeholder="Dirección destino"
+
+  value={recipient}
+
+  onChange={(e) =>
+    setRecipient(
+      e.target.value
+    )
+  }
+
+  style={{
+    width: "100%",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 14,
+  }}
+/>
+
+<input
+  placeholder="Cantidad"
+
+  value={sendAmount}
+
+  onChange={(e) =>
+    setSendAmount(
+      e.target.value
+    )
+  }
+
+  style={{
+    width: "100%",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 14,
+  }}
+/>
+
+<button
+  disabled={sending}
+
+  onClick={
+    handleSend
+  }
+
+  style={{
+    width: "100%",
+    padding: 14,
+    borderRadius: 14,
+    border: "none",
+    background:
+      sending
+        ? "#555"
+        : "#2563eb",
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  }}
+>
+
+  {sending
+    ? "Enviando..."
+    : "Enviar"}
+
+</button>
+
+</div>
+);
+}
