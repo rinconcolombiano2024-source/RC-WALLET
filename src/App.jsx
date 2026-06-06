@@ -652,7 +652,7 @@ if (
     "Transacción cancelada"
   );
 }
-
+    }
     // =========================
     // METAMASK / WINDOW.ETHEREUM
     // =========================
