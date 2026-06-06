@@ -347,10 +347,27 @@ if (tokenBal > 0n) {
 
   async function handleWorldLogin() {
   try {
-    if (!MiniKit.isInstalled()) {
-      setStatus("World App no detectada");
-      return;
-    }
+    console.log(
+  "MINIKIT INSTALLED:",
+  MiniKit.isInstalled()
+);
+
+console.log(
+  "WINDOW ETHEREUM:",
+  !!window.ethereum
+);
+
+if (
+  !MiniKit.isInstalled() &&
+  !window.ethereum
+) {
+
+  setStatus(
+    "World App no detectada"
+  );
+
+  return;
+}
 
     setStatus(
       "Conectando wallet..."
