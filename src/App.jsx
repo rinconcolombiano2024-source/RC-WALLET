@@ -947,16 +947,6 @@ export default function App() {
     }}
   >
 
-    {wallet && (
-
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "center",
-      marginBottom: 20,
-    }}
-  >
-
     <div
       style={{
         background: "#fff",
