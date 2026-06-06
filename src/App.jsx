@@ -721,11 +721,6 @@ if (tokenInfo.isNative) {
   return;
 }
 
-else { 
-  // =========================
-      // ERC20
-      // =========================
-
       const iface =
   new ethers.Interface(
     ERC20_ABI
