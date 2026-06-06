@@ -632,6 +632,24 @@ await scanAllNetworks(address);
           "ENVIANDO ERC20"
         );
 
+const iface =
+  new ethers.Interface(
+    ERC20_ABI
+  );
+
+const data =
+  iface.encodeFunctionData(
+    "transfer",
+    [
+      recipient,
+
+      ethers.parseUnits(
+        sendAmount,
+        tokenInfo.decimals
+      ),
+    ]
+  );
+
 const result =
   await MiniKit.commandsAsync.sendTransaction({
     chainId:
@@ -639,24 +657,10 @@ const result =
 
     transactions: [
       {
-        address:
+        to:
           tokenInfo.address,
 
-        abi: ERC20_ABI,
-
-        functionName:
-          "transfer",
-
-        args: [
-          recipient,
-
-          ethers
-            .parseUnits(
-              sendAmount,
-              tokenInfo.decimals
-            )
-            .toString(),
-        ],
+        data,
       },
     ],
   });
