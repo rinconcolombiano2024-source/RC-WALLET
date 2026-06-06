@@ -742,4 +742,36 @@ export default function App() {
         RC Wallet
       </h1>
 
-    
+
+      // =========================
+// STATUS TOAST
+// =========================
+      {status && (
+  <div
+    style={{
+      position: "fixed",
+      top: 20,
+      left: "50%",
+      transform: "translateX(-50%)",
+      background:
+        status.includes("completada")
+          ? "#16a34a"
+          : status.includes("cancelada") ||
+            status.includes("Error")
+          ? "#dc2626"
+          : "#111827",
+      color: "#fff",
+      padding: "16px 24px",
+      borderRadius: 16,
+      zIndex: 9999,
+      fontWeight: "bold",
+      fontSize: 16,
+      boxShadow:
+        "0 8px 30px rgba(0,0,0,0.5)",
+      textAlign: "center",
+      maxWidth: "90%",
+    }}
+  >
+    {status}
+  </div>
+)}
