@@ -590,32 +590,70 @@ await scanAllNetworks(address);
       // =========================
 
       if (tokenInfo.isNative) {
+if (tokenInfo.isNative) {
 
-        console.log(
-          "ENVIANDO NATIVA"
-        );
+  console.log(
+    "ENVIANDO NATIVA"
+  );
 
-        const result =
-  await MiniKit.commandsAsync.sendTransaction({
-    chainId:
-  "0x" +
-  tokenInfo.chainId.toString(16),
+  const result =
+    await MiniKit.commandsAsync.sendTransaction({
+      chainId:
+        "0x" +
+        tokenInfo.chainId.toString(16),
 
-    transactions: [
-      {
-        to: recipient,
+      transactions: [
+        {
+          to: recipient,
 
-        value:
-          "0x" +
-          ethers
-            .parseEther(
-              sendAmount
-            )
-            .toString(16),
-      },
-    ],
-  });
-      }
+          value:
+            "0x" +
+            ethers
+              .parseEther(
+                sendAmount
+              )
+              .toString(16),
+        },
+      ],
+    });
+
+  console.log(
+    "SEND RESULT:",
+    result
+  );
+
+  console.log(
+    "FINAL PAYLOAD:",
+    result?.finalPayload
+  );
+
+  if (
+    result?.finalPayload
+      ?.status === "success" ||
+
+    result?.status ===
+      "success"
+  ) {
+
+    setStatus(
+      "Transferencia completada"
+    );
+
+    await scanAllNetworks(
+      wallet
+    );
+
+  } else {
+
+    setStatus(
+      "Transacción cancelada"
+    );
+
+  }
+
+  return;
+
+}
 
       // =========================
       // ERC20
