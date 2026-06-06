@@ -599,22 +599,7 @@ await scanAllNetworks(address);
     ],
   });
 
-        console.log(
-          "RESULT:",
-          result
-        );
-
-        alert(
-          JSON.stringify(result)
-        );
-
-        if (
-          result?.finalPayload
-            ?.status === "success"
-        ) {
-          setStatus(
-            "Transferencia completada"
-          );
+        
         } else {
           setStatus(
             "Transacción cancelada"
