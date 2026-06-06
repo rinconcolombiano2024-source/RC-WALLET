@@ -8,6 +8,7 @@ import React, {
 import { ethers } from "ethers";
 
 import { MiniKit } from "@worldcoin/minikit-js";
+
 import QRCode from "react-qr-code";
 MiniKit.install();
 
