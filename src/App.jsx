@@ -261,9 +261,21 @@ if (
                 );
 
               const tokenBal =
-  await contract.balanceOf(
-    address
-  );
+  await Promise.race([
+    contract.balanceOf(address),
+
+    new Promise((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              "Token timeout"
+            )
+          ),
+        5000
+      )
+    ),
+  ]);
 
 console.log(
   "TOKEN:",
@@ -567,21 +579,24 @@ await scanAllNetworks(address);
         );
 
         const result =
-          await MiniKit.commandsAsync.sendTransaction({
-            transactions: [
-              {
-                to: recipient,
+  await MiniKit.commandsAsync.sendTransaction({
+    chainId:
+      tokenInfo.chainId,
 
-                value:
-                  "0x" +
-                  ethers
-                    .parseEther(
-                      sendAmount
-                    )
-                    .toString(16),
-              },
-            ],
-          });
+    transactions: [
+      {
+        to: recipient,
+
+        value:
+          "0x" +
+          ethers
+            .parseEther(
+              sendAmount
+            )
+            .toString(16),
+      },
+    ],
+  });
 
         console.log(
           "RESULT:",
