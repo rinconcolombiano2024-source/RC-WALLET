@@ -282,7 +282,6 @@ console.log(
     token.decimals
   )
 );
-
 if (tokenBal > 0n) {
                 foundTokens.push({
                   network: net.name,
