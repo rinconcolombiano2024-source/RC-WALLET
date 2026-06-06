@@ -1,3 +1,5 @@
+import QRCode from "react-qr-code";
+import { MiniKit } from "@worldcoin/minikit-js";
 import React, {
   useEffect,
   useState,
@@ -947,19 +949,17 @@ export default function App() {
     }}
   >
 
-    <img
-      src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${wallet}`}
-
-      alt="QR Wallet"
-
-      style={{
-        width: 240,
-        height: 240,
-        borderRadius: 20,
-        border: "4px solid #111827",
-        background: "#fff",
-      }}
-    />
+    <div
+  style={{
+    background: "#fff",
+    padding: 16,
+    borderRadius: 20,
+  }}
+>
+  <QRCode
+    value={wallet}
+    size={240}
+  />
 
   </div>
 )}
