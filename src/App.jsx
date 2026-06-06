@@ -180,7 +180,21 @@ export default function App() {
           if (!provider) continue;
 
           const nativeBal =
-  await provider.getBalance(address);
+  await Promise.race([
+    provider.getBalance(address),
+
+    new Promise((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              "Balance timeout"
+            )
+          ),
+        5000
+      )
+    ),
+  ]);
           console.log(
   "CHAIN:",
   net.chainId
@@ -581,28 +595,33 @@ await scanAllNetworks(address);
           "ENVIANDO ERC20"
         );
 
-        const result =
+const result =
   await MiniKit.commandsAsync.sendTransaction({
-    transactions: {
-      address:
-        tokenInfo.address,
+    chainId:
+      tokenInfo.chainId,
 
-      abi: ERC20_ABI,
+    transactions: [
+      {
+        address:
+          tokenInfo.address,
 
-      functionName:
-        "transfer",
+        abi: ERC20_ABI,
 
-      args: [
-        recipient,
+        functionName:
+          "transfer",
 
-        ethers
-          .parseUnits(
-            sendAmount,
-            tokenInfo.decimals
-          )
-          .toString(),
-      ],
-    },
+        args: [
+          recipient,
+
+          ethers
+            .parseUnits(
+              sendAmount,
+              tokenInfo.decimals
+            )
+            .toString(),
+        ],
+      },
+    ],
   });
 
         console.log(
