@@ -775,65 +775,157 @@ if (
     }
     }
     // =========================
-    // METAMASK / WINDOW.ETHEREUM
-    // =========================
+// METAMASK / WINDOW.ETHEREUM
+// =========================
 
-    else {
+else {
 
-      const ethereum =
-        window.ethereum;
+  const ethereum =
+    window.ethereum;
 
-      if (!ethereum) {
+  if (!ethereum) {
 
-        setStatus(
-          "Wallet no encontrada"
-        );
+    setStatus(
+      "Wallet no encontrada"
+    );
 
-        return;
-      }
+    return;
+  }
 
-      try {
+  try {
 
-  await ethereum.request({
-    method:
-      "wallet_switchEthereumChain",
+    await ethereum.request({
+      method:
+        "wallet_switchEthereumChain",
 
-    params: [
-      {
-        chainId:
-          "0x" +
-          tokenInfo.chainId.toString(
-            16
+      params: [
+        {
+          chainId:
+            "0x" +
+            tokenInfo.chainId.toString(
+              16
+            ),
+        },
+      ],
+    });
+
+  } catch (switchError) {
+
+    console.log(
+      "SWITCH ERROR:",
+      switchError
+    );
+
+    setStatus(
+      "No se pudo cambiar de red"
+    );
+
+    return;
+  }
+
+  const provider =
+    new ethers.BrowserProvider(
+      ethereum
+    );
+
+  const signer =
+    await provider.getSigner();
+
+  // =========================
+  // NATIVA
+  // =========================
+
+  if (tokenInfo.isNative) {
+
+    const cleanAmount =
+      sendAmount.replace(",", ".");
+
+    console.log(
+      "ENVIANDO NATIVA METAMASK"
+    );
+
+    const tx =
+      await signer.sendTransaction({
+        to: recipient,
+
+        value:
+          ethers.parseEther(
+            cleanAmount
           ),
-      },
-    ],
-  });
+      });
 
-} catch (switchError) {
+    console.log(
+      "TX HASH:",
+      tx.hash
+    );
 
-  console.log(
-    "SWITCH ERROR:",
-    switchError
-  );
+    setStatus(
+      "Esperando confirmación..."
+    );
 
-  setStatus(
-    "No se pudo cambiar de red"
-  );
+    await tx.wait();
+
+    setStatus(
+      "Transferencia completada"
+    );
+
+    await scanAllNetworks(
+      wallet
+    );
+  }
+
+  // =========================
+  // ERC20
+  // =========================
+
+  else {
+
+    const cleanAmount =
+      sendAmount.replace(",", ".");
+
+    const contract =
+      new ethers.Contract(
+        tokenInfo.address,
+        ERC20_ABI,
+        signer
+      );
+
+    console.log(
+      "ENVIANDO ERC20 METAMASK"
+    );
+
+    const tx =
+      await contract.transfer(
+        recipient,
+
+        ethers.parseUnits(
+          cleanAmount,
+          tokenInfo.decimals
+        )
+      );
+
+    console.log(
+      "TX HASH:",
+      tx.hash
+    );
+
+    setStatus(
+      "Esperando confirmación..."
+    );
+
+    await tx.wait();
+
+    setStatus(
+      "Transferencia completada"
+    );
+
+    await scanAllNetworks(
+      wallet
+    );
+  }
 
   return;
 }
-
-      const provider =
-        new ethers.BrowserProvider(
-          ethereum
-        );
-
-      const signer =
-        await provider.getSigner();
-
-      // =========================
-      // NATIVA
-      // =========================
 
       if (tokenInfo.isNative) {
         const cleanAmount =
