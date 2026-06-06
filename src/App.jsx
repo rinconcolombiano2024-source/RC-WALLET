@@ -604,73 +604,54 @@ await scanAllNetworks(address);
       // ERC20
       // =========================
 
-      else {
-
-  console.log(
-    "ENVIANDO ERC20"
+      const iface =
+  new ethers.Interface(
+    ERC20_ABI
   );
 
-  const ethereum =
-    window.ethereum;
+const data =
+  iface.encodeFunctionData(
+    "transfer",
+    [
+      recipient,
+      ethers.parseUnits(
+        sendAmount,
+        tokenInfo.decimals
+      ),
+    ]
+  );
 
-  if (!ethereum) {
+const result =
+  await MiniKit.commandsAsync.sendTransaction({
+    chainId:
+      "0x" +
+      tokenInfo.chainId.toString(16),
 
-    setStatus(
-      "Wallet no encontrada"
-    );
-
-    return;
-  }
-
-  await ethereum.request({
-    method:
-      "wallet_switchEthereumChain",
-
-    params: [
+    transactions: [
       {
-        chainId:
-          "0x" +
-          tokenInfo.chainId.toString(
-            16
-          ),
+        to: tokenInfo.address,
+
+        data,
+        
+        value: "0x0",
       },
     ],
   });
 
-  const provider =
-    new ethers.BrowserProvider(
-      ethereum
-    );
+console.log(result);
 
-  const signer =
-    await provider.getSigner();
-
-  const contract =
-    new ethers.Contract(
-      tokenInfo.address,
-      ERC20_ABI,
-      signer
-    );
-
-  const tx =
-    await contract.transfer(
-      recipient,
-
-      ethers.parseUnits(
-        sendAmount,
-        tokenInfo.decimals
-      )
-    );
-
-  await tx.wait();
-
+if (
+  result?.finalPayload
+    ?.status === "success"
+) {
   setStatus(
     "Transferencia completada"
   );
+} else {
+  setStatus(
+    "Transacción cancelada"
+  );
 }
-        
-      }
-    }
 
     // =========================
     // METAMASK / WINDOW.ETHEREUM
