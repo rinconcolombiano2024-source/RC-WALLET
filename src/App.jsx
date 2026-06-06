@@ -177,6 +177,10 @@ export default function App() {
 
           const nativeBal =
   await provider.getBalance(address);
+          console.log(
+  "CHAIN:",
+  net.chainId
+);
 
 console.log(
   "NETWORK:",
@@ -184,15 +188,19 @@ console.log(
 );
 
 console.log(
-  "RAW BALANCE:",
+  "ADDRESS:",
+  address
+);
+
+console.log(
+  "BALANCE RAW:",
   nativeBal.toString()
 );
 
 console.log(
-  "FORMATTED:",
+  "BALANCE FORMAT:",
   ethers.formatEther(nativeBal)
 );
-
 if (
   nativeBal &&
   nativeBal > 0n
