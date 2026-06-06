@@ -219,18 +219,6 @@ if (
     address: "NATIVE",
   });
 }
-            foundTokens.push({
-              network: net.name,
-              symbol: net.symbol,
-              balance: Number(
-                ethers.formatEther(nativeBal)
-              ).toFixed(6),
-              isNative: true,
-              chainId: net.chainId,
-              decimals: 18,
-              address: "NATIVE",
-            });
-          }
 
           for (const token of TOKENS) {
             const tokenAddress =
