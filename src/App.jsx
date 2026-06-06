@@ -261,11 +261,29 @@ if (
                 );
 
               const tokenBal =
-                await contract.balanceOf(
-                  address
-                );
+  await contract.balanceOf(
+    address
+  );
 
-              if (tokenBal > 0n) {
+console.log(
+  "TOKEN:",
+  token.symbol
+);
+
+console.log(
+  "TOKEN BALANCE RAW:",
+  tokenBal.toString()
+);
+
+console.log(
+  "TOKEN BALANCE FORMAT:",
+  ethers.formatUnits(
+    tokenBal,
+    token.decimals
+  )
+);
+
+if (tokenBal > 0n) {
                 foundTokens.push({
                   network: net.name,
                   symbol: token.symbol,
