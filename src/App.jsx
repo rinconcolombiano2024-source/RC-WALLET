@@ -559,6 +559,7 @@ await scanAllNetworks(address);
     
   const handleSend = async () => {
   try {
+
     if (
       !recipient ||
       !sendAmount ||
@@ -567,6 +568,36 @@ await scanAllNetworks(address);
       setStatus(
         "Completa todos los campos"
       );
+
+      return;
+    }
+
+    // ✅ VALIDAR DIRECCIÓN
+
+    if (
+      !ethers.isAddress(
+        recipient
+      )
+    ) {
+
+      setStatus(
+        "Dirección inválida"
+      );
+
+      return;
+    }
+
+    // ✅ VALIDAR CANTIDAD
+
+    if (
+      Number(sendAmount) <= 0 ||
+      isNaN(sendAmount)
+    ) {
+
+      setStatus(
+        "Cantidad inválida"
+      );
+
       return;
     }
 
@@ -575,6 +606,7 @@ await scanAllNetworks(address);
     const tokenInfo =
       JSON.parse(selectedToken);
 
+    // 
     // =========================
     // WORLD APP / MINIKIT
     // =========================
@@ -694,8 +726,8 @@ const result =
 console.log(result);
 
 if (
-  result?.finalPayload
-    ?.status === "success"
+  result?.finalPayload?.status === "success" ||
+  result?.status === "success"
 ) {
   setStatus(
     "Transferencia completada"
