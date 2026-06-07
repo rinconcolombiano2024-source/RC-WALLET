@@ -525,52 +525,95 @@ export default function App() {
   // =========================
 
   const handleSend =
-    async () => {
+  async () => {
 
-      try {
+    try {
 
-        if (
-          !recipient ||
-          !sendAmount ||
-          !selectedToken
-        ) {
+      if (
+        sending
+      ) return;
 
-          setStatus(
-            "Completa todos los campos"
-          );
-
-          return;
-        }
-
-        if (
-          !ethers.isAddress(
-            recipient
-          )
-        ) {
-
-          setStatus(
-            "Dirección inválida"
-          );
-
-          return;
-        }
-
-        setSending(true);
+      if (
+        !recipient ||
+        !sendAmount ||
+        !selectedToken
+      ) {
 
         setStatus(
-          "Esperando confirmación..."
+          "Completa todos los campos"
         );
 
-        const tokenInfo =
-          JSON.parse(
-            selectedToken
-          );
+        return;
+      }
 
-        const cleanAmount =
-          sendAmount.replace(
-            ",",
-            "."
-          );
+      const tokenInfo =
+        JSON.parse(
+          selectedToken
+        );
+
+      const cleanAmount =
+        sendAmount
+          .trim()
+          .replace(",", ".");
+
+      const cleanRecipient =
+        recipient.trim();
+
+      if (
+        !ethers.isAddress(
+          cleanRecipient
+        )
+      ) {
+
+        setStatus(
+          "Dirección inválida"
+        );
+
+        return;
+      }
+
+      if (
+        isNaN(cleanAmount) ||
+        Number(cleanAmount) <= 0
+      ) {
+
+        setStatus(
+          "Cantidad inválida"
+        );
+
+        return;
+      }
+
+      if (
+        Number(cleanAmount) >
+        Number(tokenInfo.balance)
+      ) {
+
+        setStatus(
+          "Balance insuficiente"
+        );
+
+        return;
+      }
+
+      if (
+        cleanRecipient.toLowerCase() ===
+        wallet.toLowerCase()
+      ) {
+
+        setStatus(
+          "No puedes enviarte fondos a ti mismo"
+        );
+
+        return;
+      }
+
+      setSending(true);
+
+      setStatus(
+        "Esperando confirmación..."
+      );
+        
 
         // =========================
         // NATIVA
@@ -590,7 +633,7 @@ export default function App() {
 
               transactions: [
                 {
-                  to: recipient,
+                  to: cleanRecipient,
 
                   value:
                     "0x" +
@@ -643,7 +686,7 @@ export default function App() {
           iface.encodeFunctionData(
             "transfer",
             [
-              recipient,
+              cleanRecipient,
 
               ethers.parseUnits(
                 cleanAmount,
