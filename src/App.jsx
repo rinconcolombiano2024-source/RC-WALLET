@@ -726,8 +726,6 @@ export default function App() {
         !MiniKit.isInstalled()
       ) {
 
-        setLoadingWallet(false);
-
         return;
       }
 
@@ -737,8 +735,6 @@ export default function App() {
         );
 
       if (!storedWallet) {
-
-        setLoadingWallet(false);
 
         return;
       }
