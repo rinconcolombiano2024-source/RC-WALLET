@@ -743,9 +743,10 @@ export default function App() {
         console.error(err);
 
         setStatus(
-          err?.message ||
-            "Error enviando"
-        );
+  err?.shortMessage ||
+  err?.message ||
+  "Error enviando"
+);
 
       } finally {
 
