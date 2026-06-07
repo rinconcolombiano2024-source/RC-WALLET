@@ -532,6 +532,14 @@ export default function App() {
       if (
         sending
       ) return;
+      if (!worldVerified) {
+
+  setStatus(
+    "Debes iniciar sesión primero"
+  );
+
+  return;
+      }
 
       if (
         !recipient ||
