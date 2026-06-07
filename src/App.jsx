@@ -764,10 +764,7 @@ export default function App() {
         err
       );
 
-    } finally {
-
-      setLoadingWallet(false);
-    }
+    } 
   }
 
   autoReconnect();
