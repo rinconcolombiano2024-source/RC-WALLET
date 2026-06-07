@@ -581,9 +581,9 @@ export default function App() {
       }
 
       if (
-        isNaN(cleanAmount) ||
-        Number(cleanAmount) <= 0
-      ) {
+  isNaN(Number(cleanAmount)) ||
+  Number(cleanAmount) <= 0
+) {
 
         setStatus(
           "Cantidad inválida"
@@ -602,6 +602,14 @@ export default function App() {
         );
 
         return;
+      }
+      if (!wallet) {
+
+  setStatus(
+    "Wallet no conectada"
+  );
+
+  return;
       }
 
       if (
