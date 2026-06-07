@@ -175,7 +175,11 @@ export default function App() {
 
   const [worldVerified, setWorldVerified] =
     useState(false);
-  
+  const [estimatedGas, setEstimatedGas] =
+  useState("0");
+
+const [maxSendAmount, setMaxSendAmount] =
+  useState("0");
   // =========================
   // RPC FALLBACK
   // =========================
@@ -222,7 +226,65 @@ export default function App() {
 
     return null;
   }
+async function estimateNativeGas(
+  chainId,
+  from,
+  to,
+  amount
+) {
 
+  try {
+
+    const network =
+      NETWORKS.find(
+        (n) =>
+          n.chainId === chainId
+      );
+
+    if (!network)
+      return null;
+
+    const provider =
+      await getWorkingProvider(
+        network.rpc
+      );
+
+    if (!provider)
+      return null;
+
+    const gasPrice =
+      await provider.getFeeData();
+
+    const estimatedGas =
+      await provider.estimateGas({
+        from,
+        to,
+        value:
+          ethers.parseEther(
+            amount
+          ),
+      });
+
+    const gasCost =
+      estimatedGas *
+      (gasPrice.gasPrice || 0n);
+
+    return Number(
+      ethers.formatEther(
+        gasCost
+      )
+    );
+
+  } catch (err) {
+
+    console.log(
+      "Gas estimation error",
+      err
+    );
+
+    return null;
+  }
+}
   // =========================
   // SCAN
   // =========================
@@ -624,6 +686,49 @@ export default function App() {
         return;
       }
 
+      if (tokenInfo.isNative) {
+
+  const gasEstimate =
+    await estimateNativeGas(
+      tokenInfo.chainId,
+      wallet,
+      cleanRecipient,
+      cleanAmount
+    );
+
+  if (gasEstimate === null) {
+
+    setStatus(
+      "No se pudo calcular gas"
+    );
+
+    return;
+  }
+
+  setEstimatedGas(
+    gasEstimate.toFixed(8)
+  );
+
+  const availableBalance =
+    Number(tokenInfo.balance) -
+    gasEstimate;
+
+  if (
+    Number(cleanAmount) >
+    availableBalance
+  ) {
+
+    setStatus(
+      "Fondos insuficientes para gas"
+    );
+
+    return;
+  }
+
+  setMaxSendAmount(
+    availableBalance.toFixed(8)
+  );
+      }
       setSending(true);
 
       setStatus(
@@ -1167,7 +1272,48 @@ export default function App() {
     marginBottom: 14,
   }}
 />
+<button
+  onClick={() => {
 
+    if (!selectedToken)
+      return;
+
+    const tokenInfo =
+      JSON.parse(
+        selectedToken
+      );
+
+    if (
+      tokenInfo.isNative
+    ) {
+
+      setSendAmount(
+        maxSendAmount ||
+        tokenInfo.balance
+      );
+
+    } else {
+
+      setSendAmount(
+        tokenInfo.balance
+      );
+    }
+  }}
+
+  style={{
+    width: "100%",
+    padding: 10,
+    borderRadius: 12,
+    border: "none",
+    background: "#374151",
+    color: "#fff",
+    marginBottom: 14,
+    fontWeight: "bold",
+  }}
+>
+  MAX
+</button>
+      
 <button
   disabled={sending}
 
