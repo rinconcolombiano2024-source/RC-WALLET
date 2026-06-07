@@ -9,7 +9,6 @@ import { ethers } from "ethers";
 
 import { MiniKit } from "@worldcoin/minikit-js";
 
-import QRCode from "react-qr-code";
 MiniKit.install();
 
 // =========================
@@ -948,22 +947,22 @@ export default function App() {
     }}
   >
 
-    <div
+    <img
+      src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${wallet}`}
+
+      alt="QR Wallet"
+
       style={{
-        background: "#fff",
-        padding: 16,
+        width: 240,
+        height: 240,
         borderRadius: 20,
+        border: "4px solid #111827",
+        background: "#fff",
       }}
-    >
-      <QRCode
-        value={wallet}
-        size={240}
-      />
-    </div>
+    />
 
   </div>
 )}
-
 <p>
   Red: {network}
 </p>
