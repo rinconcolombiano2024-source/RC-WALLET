@@ -175,9 +175,7 @@ export default function App() {
 
   const [worldVerified, setWorldVerified] =
     useState(false);
-  const [loadingWallet, setLoadingWallet] =
-  useState(true);
-
+  
   // =========================
   // RPC FALLBACK
   // =========================
