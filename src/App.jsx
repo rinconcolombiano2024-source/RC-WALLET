@@ -493,8 +493,8 @@ async function estimateNativeGas(
       setStatus(
         "Conectando wallet..."
       );
-        const res =
-  await MiniKit.commandsAsync.walletAuth({
+       const res =
+  await MiniKit.commands.walletAuth({
     nonce:
       Math.random()
         .toString(36)
@@ -744,17 +744,22 @@ if (tokenInfo.isNative) {
   try {
 
     const weiValue =
-      "0x"+
+      "0x" +
       ethers
         .parseEther(cleanAmount)
         .toString(16);
 
     const result =
-      await MiniKit.commandsAsync.sendTransaction({
+      await MiniKit.commands.sendTransaction({
+
+        chainId:
+          "0x" +
+          Number(tokenInfo.chainId)
+            .toString(16),
 
         transactions: [
           {
-            address: cleanRecipient,
+            to: cleanRecipient,
 
             value: weiValue,
           },
@@ -800,73 +805,53 @@ if (tokenInfo.isNative) {
       err?.message ||
       "Error enviando nativo"
     );
+
   } finally {
 
-  setSending(false);
-}
+    setSending(false);
+  }
 
   return;
 }
- // =========================
+// =========================
 // ERC20
 // =========================
 
 try {
 
-  const amount =
-    ethers
-      .parseUnits(
-        cleanAmount,
-        tokenInfo.decimals
-      )
-      .toString();
+  const iface =
+    new ethers.Interface(
+      ERC20_ABI
+    );
+
+  const data =
+    iface.encodeFunctionData(
+      "transfer",
+      [
+        cleanRecipient,
+
+        ethers.parseUnits(
+          cleanAmount,
+          tokenInfo.decimals
+        ),
+      ]
+    );
 
   const result =
-    await MiniKit.commandsAsync.sendTransaction({
+    await MiniKit.commands.sendTransaction({
+
+      chainId:
+        "0x" +
+        Number(tokenInfo.chainId)
+          .toString(16),
 
       transactions: [
         {
-          address: tokenInfo.address,
+          to: tokenInfo.address,
 
-          abi: [
-            {
-              inputs: [
-                {
-                  internalType: "address",
-                  name: "to",
-                  type: "address",
-                },
-                {
-                  internalType: "uint256",
-                  name: "amount",
-                  type: "uint256",
-                },
-              ],
+          data,
 
-              name: "transfer",
-
-              outputs: [
-                {
-                  internalType: "bool",
-                  name: "",
-                  type: "bool",
-                },
-              ],
-
-              stateMutability:
-                "nonpayable",
-
-              type: "function",
-            },
-          ],
-
-          functionName:
-            "transfer",
-
-          args: [
-            cleanRecipient,
-            amount,
-          ],
+          value: "0x0",
         },
       ],
     });
@@ -887,7 +872,9 @@ try {
 
     setTimeout(async () => {
 
-      await scanAllNetworks(wallet);
+      await scanAllNetworks(
+        wallet
+      );
 
     }, 3000);
 
@@ -906,17 +893,16 @@ try {
     err
   );
 
- setStatus(
-  err?.message ||
-  "Error enviando token"
-);
+  setStatus(
+    err?.message ||
+    "Error enviando token"
+  );
 
 } finally {
 
   setSending(false);
 }
-
-} catch (err) {
+      } catch (err) {
 
   console.error(err);
 
@@ -924,6 +910,10 @@ try {
     err?.message ||
     "Error enviando"
   );
+
+} finally {
+
+  setSending(false);
 }
 
 };
