@@ -744,9 +744,10 @@ if (tokenInfo.isNative) {
   try {
 
     const weiValue =
+      "0x"+
       ethers
         .parseEther(cleanAmount)
-        .toString();
+        .toString(16);
 
     const result =
       await MiniKit.commandsAsync.sendTransaction({
