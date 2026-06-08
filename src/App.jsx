@@ -9,8 +9,6 @@ import { ethers } from "ethers";
 
 import { MiniKit } from "@worldcoin/minikit-js";
 
-MiniKit.install();
-
 // =========================
 // NETWORKS
 // =========================
@@ -497,31 +495,30 @@ async function estimateNativeGas(
       );
         const res =
   await MiniKit.commandsAsync.walletAuth({
-          nonce:
-            Math.random()
-              .toString(36)
-              .substring(2),
+    nonce:
+      Math.random()
+        .toString(36)
+        .substring(2),
 
-          requestId:
-            Math.random()
-              .toString(36)
-              .substring(2),
+    requestId:
+      Math.random()
+        .toString(36)
+        .substring(2),
 
-          expirationTime:
-            new Date(
-              Date.now() +
-                1000 *
-                  60 *
-                  5
-            ),
+    expirationTime:
+      new Date(
+        Date.now() +
+          1000 *
+            60 *
+            5
+      ),
 
-          notBefore:
-            new Date(),
+    notBefore:
+      new Date(),
 
-          statement:
-            "Conectar RC Wallet",
-        });
-
+    statement:
+      "Conectar RC Wallet",
+  });
       if (
         res?.error_code
       ) {
@@ -745,19 +742,16 @@ async function estimateNativeGas(
 
           const result =
   await MiniKit.commands.sendTransaction({
-    chainId:
-      "0x" +
-      tokenInfo.chainId.toString(16),
+    chainId: tokenInfo.chainId,
 
     transactions: [
       {
         to: cleanRecipient,
 
         value:
-          "0x" +
           ethers
             .parseEther(cleanAmount)
-            .toString(16),
+            .toString(),
       },
     ],
   });
@@ -813,9 +807,7 @@ async function estimateNativeGas(
 
         const result =
   await MiniKit.commands.sendTransaction({
-    chainId:
-      "0x" +
-      tokenInfo.chainId.toString(16),
+    chainId: tokenInfo.chainId,
 
     transactions: [
       {
@@ -823,7 +815,7 @@ async function estimateNativeGas(
 
         data,
 
-        value: "0x0",
+        value: "0",
       },
     ],
   });
@@ -872,7 +864,8 @@ async function estimateNativeGas(
   // =========================
 
   useEffect(() => {
-
+MiniKit.install();
+    
   mountedRef.current = true;
 
   async function autoReconnect() {
