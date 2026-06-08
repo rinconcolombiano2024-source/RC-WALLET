@@ -905,17 +905,28 @@ try {
     err
   );
 
-  setStatus(
-    err?.message ||
-    "Error enviando token"
-  );
+ setStatus(
+  err?.message ||
+  "Error enviando token"
+);
+
 } finally {
 
   setSending(false);
-} 
-      };
-      
-      // =========================
+}
+
+} catch (err) {
+
+  console.error(err);
+
+  setStatus(
+    err?.message ||
+    "Error enviando"
+  );
+}
+
+};
+  // =========================
   // INIT
   // =========================
 
