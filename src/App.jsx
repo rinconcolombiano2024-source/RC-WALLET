@@ -495,8 +495,6 @@ async function estimateNativeGas(
       setStatus(
         "Conectando wallet..."
       );
-
-      const res =
         const res =
   await MiniKit.commandsAsync.walletAuth({
           nonce:
