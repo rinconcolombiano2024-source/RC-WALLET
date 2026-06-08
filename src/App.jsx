@@ -752,9 +752,10 @@ async function estimateNativeGas(
           args: [],
 
           value:
+            "0x"+
             ethers
               .parseEther(cleanAmount)
-              .toString(),
+              .toString(16),
         },
       ],
     });
