@@ -782,7 +782,9 @@ if (tokenInfo.isNative) {
 
       setTimeout(async () => {
 
-        await scanAllNetworks(wallet);
+        await scanAllNetworks(
+          wallet
+        );
 
       }, 3000);
 
@@ -838,7 +840,7 @@ try {
     );
 
   const result =
-    await MiniKit.commands.sendTransaction({
+   await MiniKit.commands.sendTransaction({
 
       chainId:
         "0x" +
@@ -902,7 +904,8 @@ try {
 
   setSending(false);
 }
-      } catch (err) {
+
+} catch (err) {
 
   console.error(err);
 
