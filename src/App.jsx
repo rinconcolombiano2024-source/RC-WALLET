@@ -744,24 +744,23 @@ async function estimateNativeGas(
         ) {
 
           const result =
-            await MiniKit.commandsAsync.sendTransaction({
-              chainId:
-  tokenInfo.chainId,
+  await MiniKit.commandsAsync.sendTransaction({
+    chainId:
+      "0x" +
+      tokenInfo.chainId.toString(16),
 
-              transactions: [
-                {
-                  to: cleanRecipient,
+    transactions: [
+      {
+        to: cleanRecipient,
 
-                  value:
-                    "0x" +
-                    ethers
-                      .parseEther(
-                        cleanAmount
-                      )
-                      .toString(16),
-                },
-              ],
-            });
+        value:
+          "0x" +
+          ethers
+            .parseEther(cleanAmount)
+            .toString(16),
+      },
+    ],
+  });
 
           if (
             result
@@ -813,21 +812,21 @@ async function estimateNativeGas(
           );
 
         const result =
-          await MiniKit.commandsAsync.sendTransaction({
-              chainId:
-                tokenInfo.chainId,
+  await MiniKit.commandsAsync.sendTransaction({
+    chainId:
+      "0x" +
+      tokenInfo.chainId.toString(16),
 
-            transactions: [
-              {
-                to:
-                  tokenInfo.address,
+    transactions: [
+      {
+        to: tokenInfo.address,
 
-                data,
+        data,
 
-                value: "0x0",
-              },
-            ],
-          });
+        value: "0x0",
+      },
+    ],
+  });
 
         if (
           result?.finalPayload
