@@ -741,7 +741,7 @@ async function estimateNativeGas(
         ) {
 
          const result =
-  await MiniKit.commands.sendTransaction({
+  await MiniKit.commandsAsync.sendTransaction({
     chainId:
       "0x" +
       Number(tokenInfo.chainId).toString(16),
@@ -809,7 +809,7 @@ async function estimateNativeGas(
           );
 
       const result =
-  await MiniKit.commands.sendTransaction({
+  await MiniKit.commandsAsync.sendTransaction({
     chainId:
       "0x" +
       Number(tokenInfo.chainId).toString(16),
