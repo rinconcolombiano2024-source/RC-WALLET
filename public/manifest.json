@@ -1,0 +1,9 @@
+{
+  "name": "RC Wallet",
+  "short_name": "RC Wallet",
+  "description": "RC Wallet Recovery",
+  "icons": [],
+  "permissions": [
+    "wallet"
+  ]
+}
