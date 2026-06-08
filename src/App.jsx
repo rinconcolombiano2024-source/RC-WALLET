@@ -497,7 +497,8 @@ async function estimateNativeGas(
       );
 
       const res =
-        await MiniKit.commands.sendTransaction({
+        const res =
+  await MiniKit.commandsAsync.walletAuth({
           nonce:
             Math.random()
               .toString(36)
@@ -814,7 +815,7 @@ async function estimateNativeGas(
           );
 
         const result =
-          await MiniKit.commandsAsync.sendTransaction({
+          await MiniKit.commands.sendTransaction({
               chainId:
                 tokenInfo.chainId,
 
