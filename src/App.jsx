@@ -740,7 +740,7 @@ async function estimateNativeGas(
           tokenInfo.isNative
         ) {
 
-          const result =
+         const result =
   await MiniKit.commands.sendTransaction({
     chainId: tokenInfo.chainId,
 
@@ -749,9 +749,10 @@ async function estimateNativeGas(
         to: cleanRecipient,
 
         value:
+          "0x" +
           ethers
             .parseEther(cleanAmount)
-            .toString(),
+            .toString(16),
       },
     ],
   });
