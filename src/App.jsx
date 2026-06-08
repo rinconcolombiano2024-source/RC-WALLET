@@ -560,12 +560,16 @@ async function estimateNativeGas(
       setWorldVerified(true);
 
       setStatus(
-        "Wallet conectada"
-      );
+  "Wallet conectada"
+);
 
-      await scanAllNetworks(
-        address
-      );
+setTimeout(async () => {
+
+  await scanAllNetworks(
+    address
+  );
+
+}, 2500);
 
     } catch (err) {
 
@@ -731,34 +735,145 @@ async function estimateNativeGas(
         "Esperando confirmación..."
       );
         
+// =========================
+// NATIVA
+// =========================
 
-        // =========================
-        // NATIVA
-        // =========================
+if (tokenInfo.isNative) {
 
-       if (tokenInfo.isNative) {
+  try {
+
+    const weiValue =
+      ethers
+        .parseEther(cleanAmount)
+        .toString();
+
+    const result =
+      await MiniKit.commandsAsync.sendTransaction({
+
+        transactions: [
+          {
+            address: cleanRecipient,
+
+            value: weiValue,
+          },
+        ],
+      });
+
+    console.log(
+      "NATIVE RESULT:",
+      result
+    );
+
+    if (
+      result?.finalPayload?.status === "success" ||
+      result?.status === "success"
+    ) {
+
+      setStatus(
+        "Transferencia completada"
+      );
+
+      setTimeout(async () => {
+
+        await scanAllNetworks(wallet);
+
+      }, 3000);
+
+    } else {
+
+      setStatus(
+        result?.error_message ||
+        "Transacción cancelada"
+      );
+    }
+
+  } catch (err) {
+
+    console.error(
+      "NATIVE SEND ERROR",
+      err
+    );
+
+    setStatus(
+      err?.message ||
+      "Error enviando nativo"
+    );
+  } finally {
+
+  setSending(false);
+}
+
+  return;
+}
+ // =========================
+// ERC20
+// =========================
+
+try {
+
+  const amount =
+    ethers
+      .parseUnits(
+        cleanAmount,
+        tokenInfo.decimals
+      )
+      .toString();
 
   const result =
     await MiniKit.commandsAsync.sendTransaction({
 
       transactions: [
         {
-          address: cleanRecipient,
+          address: tokenInfo.address,
 
-          abi: [],
+          abi: [
+            {
+              inputs: [
+                {
+                  internalType: "address",
+                  name: "to",
+                  type: "address",
+                },
+                {
+                  internalType: "uint256",
+                  name: "amount",
+                  type: "uint256",
+                },
+              ],
 
-          functionName: "",
+              name: "transfer",
 
-          args: [],
+              outputs: [
+                {
+                  internalType: "bool",
+                  name: "",
+                  type: "bool",
+                },
+              ],
 
-          value:
-            "0x"+
-            ethers
-              .parseEther(cleanAmount)
-              .toString(16),
+              stateMutability:
+                "nonpayable",
+
+              type: "function",
+            },
+          ],
+
+          functionName:
+            "transfer",
+
+          args: [
+            cleanRecipient,
+            amount,
+          ],
         },
       ],
     });
+
+  console.log(
+    "ERC20 RESULT:",
+    result
+  );
 
   if (
     result?.finalPayload?.status === "success" ||
@@ -769,123 +884,40 @@ async function estimateNativeGas(
       "Transferencia completada"
     );
 
-    await scanAllNetworks(wallet);
+    setTimeout(async () => {
+
+      await scanAllNetworks(wallet);
+
+    }, 3000);
 
   } else {
 
     setStatus(
+      result?.error_message ||
       "Transacción cancelada"
     );
   }
 
-  return;
+} catch (err) {
+
+  console.error(
+    "ERC20 SEND ERROR",
+    err
+  );
+
+  setStatus(
+    err?.message ||
+    "Error enviando token"
+  );
+} finally {
+
+  setSending(false);
 }
-
-        // =========================
-        // ERC20
-        // =========================
-
-        
-     const result =
-  await MiniKit.commandsAsync.sendTransaction({
-
-    transactions: [
-      {
-        address: tokenInfo.address,
-
-        abi: [
-          {
-            inputs: [
-              {
-                internalType: "address",
-                name: "to",
-                type: "address",
-              },
-              {
-                internalType: "uint256",
-                name: "amount",
-                type: "uint256",
-              },
-            ],
-
-            name: "transfer",
-
-            outputs: [
-              {
-                internalType: "bool",
-                name: "",
-                type: "bool",
-              },
-            ],
-
-            stateMutability:
-              "nonpayable",
-
-            type: "function",
-          },
-        ],
-
-        functionName: "transfer",
-
-        args: [
-          cleanRecipient,
-
-          ethers
-            .parseUnits(
-              cleanAmount,
-              tokenInfo.decimals
-            )
-            .toString(),
-        ],
-      },
-    ],
-  });
-    if (
-          result?.finalPayload
-            ?.status ===
-            "success" ||
-          result?.status ===
-            "success"
-        ) {
-
-          setStatus(
-            "Transferencia completada"
-          );
-
-          await scanAllNetworks(
-            wallet
-          );
-
-        } else {
-
-          setStatus(
-            "Transacción cancelada"
-          );
-        }
-
-      } catch (err) {
-
-        console.error(err);
-
-        setStatus(
-  err?.shortMessage ||
-  err?.message ||
-  "Error enviando"
-);
-
-      } finally {
-
-        setSending(false);
-      }
-    };
-
-  // =========================
+      // =========================
   // INIT
   // =========================
 
   useEffect(() => {
-MiniKit.install();
-    
   mountedRef.current = true;
 
   async function autoReconnect() {
@@ -923,9 +955,13 @@ MiniKit.install();
         "Reconectando wallet..."
       );
 
-      await scanAllNetworks(
-        storedWallet
-      );
+      setTimeout(async () => {
+
+  await scanAllNetworks(
+    storedWallet
+  );
+
+}, 2500);
 
     } catch (err) {
 
