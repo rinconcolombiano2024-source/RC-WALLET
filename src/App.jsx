@@ -736,95 +736,110 @@ async function estimateNativeGas(
         // NATIVA
         // =========================
 
-        if (
-          tokenInfo.isNative
-        ) {
+       if (tokenInfo.isNative) {
 
-         const result =
-  await MiniKit.commandsAsync.sendTransaction({
-    chainId:
-      "0x" +
-      Number(tokenInfo.chainId).toString(16),
+  const result =
+    await MiniKit.commandsAsync.sendTransaction({
 
-    transactions: [
-      {
-        to: cleanRecipient,
+      transactions: [
+        {
+          address: cleanRecipient,
 
-        value:
-          "0x" +
-          ethers
-            .parseEther(cleanAmount)
-            .toString(16),
-      },
-    ],
-  });
+          abi: [],
 
-          if (
-            result
-              ?.finalPayload
-              ?.status ===
-              "success" ||
-            result?.status ===
-              "success"
-          ) {
+          functionName: "",
 
-            setStatus(
-              "Transferencia completada"
-            );
+          args: [],
 
-            await scanAllNetworks(
-              wallet
-            );
+          value:
+            ethers
+              .parseEther(cleanAmount)
+              .toString(),
+        },
+      ],
+    });
 
-          } else {
+  if (
+    result?.finalPayload?.status === "success" ||
+    result?.status === "success"
+  ) {
 
-            setStatus(
-              "Transacción cancelada"
-            );
-          }
+    setStatus(
+      "Transferencia completada"
+    );
 
-          return;
-        }
+    await scanAllNetworks(wallet);
+
+  } else {
+
+    setStatus(
+      "Transacción cancelada"
+    );
+  }
+
+  return;
+}
 
         // =========================
         // ERC20
         // =========================
 
-        const iface =
-          new ethers.Interface(
-            ERC20_ABI
-          );
-
-        const data =
-          iface.encodeFunctionData(
-            "transfer",
-            [
-              cleanRecipient,
-
-              ethers.parseUnits(
-                cleanAmount,
-                tokenInfo.decimals
-              ),
-            ]
-          );
-
-      const result =
+        
+     const result =
   await MiniKit.commandsAsync.sendTransaction({
-    chainId:
-      "0x" +
-      Number(tokenInfo.chainId).toString(16),
 
     transactions: [
       {
-        to: tokenInfo.address,
+        address: tokenInfo.address,
 
-        data,
+        abi: [
+          {
+            inputs: [
+              {
+                internalType: "address",
+                name: "to",
+                type: "address",
+              },
+              {
+                internalType: "uint256",
+                name: "amount",
+                type: "uint256",
+              },
+            ],
 
-        value: "0x0",
+            name: "transfer",
+
+            outputs: [
+              {
+                internalType: "bool",
+                name: "",
+                type: "bool",
+              },
+            ],
+
+            stateMutability:
+              "nonpayable",
+
+            type: "function",
+          },
+        ],
+
+        functionName: "transfer",
+
+        args: [
+          cleanRecipient,
+
+          ethers
+            .parseUnits(
+              cleanAmount,
+              tokenInfo.decimals
+            )
+            .toString(),
+        ],
       },
     ],
   });
-        if (
+    if (
           result?.finalPayload
             ?.status ===
             "success" ||
