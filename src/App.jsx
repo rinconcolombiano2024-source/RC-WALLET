@@ -794,7 +794,7 @@ if (tokenInfo.isNative) {
     Number(tokenInfo.chainId)
       .toString(16),
 
-          transactions: [
+          transaction: [
             {
               to: cleanRecipient,
 
@@ -817,7 +817,7 @@ if (tokenInfo.isNative) {
     Number(tokenInfo.chainId)
       .toString(16),
 
-          transactions: [
+          transaction: [
             {
               to: cleanRecipient,
 
@@ -975,7 +975,7 @@ try {
     Number(tokenInfo.chainId)
       .toString(16),
 
-        transactions: [
+        transaction: [
           {
             to: tokenInfo.address,
 
@@ -1000,7 +1000,7 @@ try {
     Number(tokenInfo.chainId)
       .toString(16),
 
-        transactions: [
+        transaction: [
           {
             to: tokenInfo.address,
 
