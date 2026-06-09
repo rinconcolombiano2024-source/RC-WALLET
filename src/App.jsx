@@ -901,9 +901,12 @@ if (tokenInfo.isNative) {
       } catch (err) {
 
         console.log(
-          "Fallback failed:",
+          "NATIVE FALLBACK ERROR:",
           err
         );
+        alert(
+          JSON.stringify(err)
+          );
 
         lastError = err;
       }
@@ -1087,9 +1090,12 @@ try {
     } catch (err) {
 
       console.log(
-        "ERC20 fallback failed:",
+        "ERC20 FALLBACK ERROR:",
         err
       );
+      alert(
+        JSON.stringify(err)
+        );
 
       lastError = err;
     }
