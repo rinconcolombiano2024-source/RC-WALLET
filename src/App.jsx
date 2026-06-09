@@ -835,7 +835,7 @@ if (
       try {
 
         const result =
-          await MiniKit.sendTransaction({
+          await MiniKit.commandsAsync.sendTransaction({
 
             chainId: "480",
 
@@ -912,10 +912,12 @@ if (
   } else {
 
     const result =
-      await MiniKit.sendTransaction({
+      await MiniKit.commandsAsync.sendTransaction({
 
         chainId:
-          tokenInfo.chainId,
+  String(
+    tokenInfo.chainId
+  ),
 
         transactions: [
           {
@@ -1055,7 +1057,7 @@ if (
     try {
 
       const result =
-        await MiniKit.sendTransaction({
+        await MiniKit.commandsAsync.sendTransaction({
 
           chainId: "480",
 
@@ -1123,10 +1125,12 @@ if (
 } else {
 
   const result =
-    await MiniKit.sendTransaction({
+    await MiniKit.commandsAsync.sendTransaction({
 
       chainId:
-        tokenInfo.chainId,
+        String(
+          tokenInfo.chainId
+        ),
 
       transactions: [
         {
