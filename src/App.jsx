@@ -524,7 +524,7 @@ const scanAllNetworks =
         "Conectando wallet..."
       );
        const res =
-  await MiniKit.commandsAsync.walletAuth({
+ await MiniKit.walletAuth({
     nonce:
       Math.random()
         .toString(36)
@@ -632,7 +632,17 @@ setTimeout(async () => {
 
   return;
       }
+if (
+  typeof window.ethereum ===
+  "undefined"
+) {
 
+  setStatus(
+    "Provider EVM no disponible"
+  );
+
+  return;
+}
       if (
         !recipient ||
         !sendAmount ||
@@ -765,165 +775,157 @@ setTimeout(async () => {
         "Esperando confirmación..."
       );
         
+
 // =========================
-// NATIVA
+// NATIVO
 // =========================
 
-if (tokenInfo.isNative) {
+if (
+  tokenInfo.isNative
+) {
 
   try {
 
-    const weiValue =
+    setStatus(
+      "Preparando transacción..."
+    );
+
+    // =========================
+    // CHAIN ID
+    // =========================
+
+    const hexChainId =
       "0x" +
-      ethers
-        .parseEther(cleanAmount)
-        .toString(16);
+      Number(
+        tokenInfo.chainId
+      ).toString(16);
 
-    const payloads = [
+    // =========================
+    // SWITCH NETWORK
+    // =========================
 
-      // =========================
-      // TRY 1
-      // =========================
+    try {
 
-      {
-        method: "commands",
+      await window.ethereum.request({
 
-        payload: {
-  chainId:
-    "0x" +
-    Number(tokenInfo.chainId)
-      .toString(16),
+        method:
+          "wallet_switchEthereumChain",
 
-          transaction: [
-            {
-              to: cleanRecipient,
+        params: [
+          {
+            chainId:
+              hexChainId,
+          },
+        ],
+      });
 
-              value: weiValue,
-            },
-          ],
-        },
-      },
+    } catch (switchError) {
 
-      // =========================
-      // TRY 2
-      // =========================
+      console.log(
+        "SWITCH ERROR",
+        switchError
+      );
+    }
 
-      {
-        method: "commandsAsync",
+    // =========================
+    // WORLD CHAIN
+    // =========================
 
-        payload: {
-  chainId:
-    "0x" +
-    Number(tokenInfo.chainId)
-      .toString(16),
-
-          transaction: [
-            {
-              to: cleanRecipient,
-
-              value: weiValue,
-            },
-          ],
-        },
-      },
-
-          ];
-
-    let success = false;
-
-    let lastError = null;
-
-    for (const attempt of payloads) {
+    if (
+      tokenInfo.chainId === 480
+    ) {
 
       try {
 
-        console.log(
-          "TRY:",
-          attempt.method,
-          attempt.payload
-        );
+        const result =
+          await MiniKit.sendTransaction({
 
-        let result;
+            chainId: 480,
 
-        if (
-          attempt.method ===
-          "commands"
-        ) {
+            transactions: [
+              {
+                to:
+                  cleanRecipient,
 
-          result =
-            await MiniKit
-              .commands
-              .sendTransaction(
-                attempt.payload
-              );
-
-        } else {
-
-          result =
-            await MiniKit
-              .commandsAsync
-              .sendTransaction(
-                attempt.payload
-              );
-        }
+                value:
+                  "0x" +
+                  ethers
+                    .parseEther(
+                      cleanAmount
+                    )
+                    .toString(16),
+              },
+            ],
+          });
 
         console.log(
-          "RESULT:",
+          "WORLD CHAIN RESULT",
           result
         );
 
-        if (
-          result?.finalPayload
-            ?.status ===
-            "success" ||
-
-          result?.status ===
-            "success"
-        ) {
-
-          success = true;
-
-          setStatus(
-            "Transferencia completada"
-          );
-
-          setTimeout(async () => {
-
-            await scanAllNetworks(
-              wallet
-            );
-
-          }, 3000);
-
-          break;
-        }
-
-      } catch (err) {
+      } catch (worldError) {
 
         console.log(
-          "NATIVE FALLBACK ERROR:",
-          err
+          "WORLD CHAIN ERROR",
+          worldError
         );
-        alert(
-          JSON.stringify(err)
-          );
 
-        lastError = err;
+        throw worldError;
       }
-    }
 
-    if (!success) {
+    } else {
 
-      setStatus(
-        lastError?.message ||
-        "Error enviando nativo"
+      // =========================
+      // EVM SEND
+      // =========================
+
+      const txHash =
+        await window.ethereum.request({
+
+          method:
+            "eth_sendTransaction",
+
+          params: [
+            {
+              from:
+                wallet,
+
+              to:
+                cleanRecipient,
+
+              value:
+                "0x" +
+                ethers
+                  .parseEther(
+                    cleanAmount
+                  )
+                  .toString(16),
+            },
+          ],
+        });
+
+      console.log(
+        "NATIVE TX HASH",
+        txHash
       );
     }
+
+    setStatus(
+      "Transferencia enviada"
+    );
+
+    setTimeout(async () => {
+
+      await scanAllNetworks(
+        wallet
+      );
+
+    }, 3000);
 
   } catch (err) {
 
     console.error(
-      "NATIVE FATAL ERROR",
+      "NATIVE SEND ERROR",
       err
     );
 
@@ -939,16 +941,62 @@ if (tokenInfo.isNative) {
 
   return;
 }
+
 // =========================
 // ERC20
 // =========================
 
 try {
 
-  const iface =
-    new ethers.Interface(
-      ERC20_ABI
+  setStatus(
+    "Preparando transferencia..."
+  );
+
+  // =========================
+  // CHAIN ID
+  // =========================
+
+  const hexChainId =
+    "0x" +
+    Number(
+      tokenInfo.chainId
+    ).toString(16);
+
+  // =========================
+  // SWITCH NETWORK
+  // =========================
+
+  try {
+
+    await window.ethereum.request({
+
+      method:
+        "wallet_switchEthereumChain",
+
+      params: [
+        {
+          chainId:
+            hexChainId,
+        },
+      ],
+    });
+
+  } catch (switchError) {
+
+    console.log(
+      "SWITCH ERROR",
+      switchError
     );
+  }
+
+  // =========================
+  // ERC20 CALLDATA
+  // =========================
+
+  const iface =
+    new ethers.Interface([
+      "function transfer(address to,uint256 amount)"
+    ]);
 
   const data =
     iface.encodeFunctionData(
@@ -963,156 +1011,96 @@ try {
       ]
     );
 
-  const payloads = [
+  // =========================
+  // WORLD CHAIN
+  // =========================
 
-    // =========================
-    // TRY 1
-    // =========================
-
-    {
-      method: "commands",
-
-      payload: {
-  chainId:
-    "0x" +
-    Number(tokenInfo.chainId)
-      .toString(16),
-
-        transaction: [
-          {
-            to: tokenInfo.address,
-
-            data,
-
-            value: "0x0",
-          },
-        ],
-      },
-    },
-
-    // =========================
-    // TRY 2
-    // =========================
-
-    {
-      method: "commandsAsync",
-
-      payload: {
-  chainId:
-    "0x" +
-    Number(tokenInfo.chainId)
-      .toString(16),
-
-        transaction: [
-          {
-            to: tokenInfo.address,
-
-            data,
-
-            value: "0x0",
-          },
-        ],
-      },
-    },
-
-   
-  ];
-
-  let success = false;
-
-  let lastError = null;
-
-  for (const attempt of payloads) {
+  if (
+    tokenInfo.chainId === 480
+  ) {
 
     try {
 
-      console.log(
-        "ERC20 TRY:",
-        attempt.method,
-        attempt.payload
-      );
+      const result =
+        await MiniKit.sendTransaction({
 
-      let result;
+          chainId: 480,
 
-      if (
-        attempt.method ===
-        "commands"
-      ) {
+          transactions: [
+            {
+              to:
+                tokenInfo.address,
 
-        result =
-          await MiniKit
-            .commands
-            .sendTransaction(
-              attempt.payload
-            );
+              data,
 
-      } else {
-
-        result =
-          await MiniKit
-            .commandsAsync
-            .sendTransaction(
-              attempt.payload
-            );
-      }
+              value:
+                "0x0",
+            },
+          ],
+        });
 
       console.log(
-        "ERC20 RESULT:",
+        "WORLD ERC20 RESULT",
         result
       );
 
-      if (
-        result?.finalPayload
-          ?.status ===
-          "success" ||
-
-        result?.status ===
-          "success"
-      ) {
-
-        success = true;
-
-        setStatus(
-          "Transferencia completada"
-        );
-
-        setTimeout(async () => {
-
-          await scanAllNetworks(
-            wallet
-          );
-
-        }, 3000);
-
-        break;
-      }
-
-    } catch (err) {
+    } catch (worldError) {
 
       console.log(
-        "ERC20 FALLBACK ERROR:",
-        err
+        "WORLD ERC20 ERROR",
+        worldError
       );
-      alert(
-        JSON.stringify(err)
-        );
 
-      lastError = err;
+      throw worldError;
     }
-  }
 
-  if (!success) {
+  } else {
 
-    setStatus(
-      lastError?.message ||
-      "Error enviando token"
+    // =========================
+    // EVM ERC20 SEND
+    // =========================
+
+    const txHash =
+      await window.ethereum.request({
+
+        method:
+          "eth_sendTransaction",
+
+        params: [
+          {
+            from:
+              wallet,
+
+            to:
+              tokenInfo.address,
+
+            data,
+          },
+        ],
+      });
+
+    console.log(
+      "ERC20 TX HASH",
+      txHash
     );
   }
+
+  setStatus(
+    "Transferencia enviada"
+  );
+
+  setTimeout(async () => {
+
+    await scanAllNetworks(
+      wallet
+    );
+
+  }, 3000);
 
 } catch (err) {
 
   console.error(
-    "ERC20 FATAL ERROR",
+    "ERC20 SEND ERROR",
     err
   );
 
@@ -1125,22 +1113,21 @@ try {
 
   setSending(false);
 }
-
 } catch (err) {
 
-  console.error(err);
+  console.error(
+    "HANDLE SEND ERROR",
+    err
+  );
 
   setStatus(
     err?.message ||
     "Error enviando"
   );
 
-} finally {
-
   setSending(false);
 }
-
-};
+  };
   // =========================
   // INIT
   // =========================
