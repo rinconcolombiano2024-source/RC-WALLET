@@ -840,8 +840,7 @@ if (
             chainId: "480",
 
             transaction: {
-              {
-                to:
+              to:
                   cleanRecipient,
 
                 value:
