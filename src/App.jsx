@@ -143,6 +143,7 @@ const ERC20_ABI = [
 export default function App() {
 
   const mountedRef = useRef(true);
+  const scanLockRef = useRef(false);
 
   const [status, setStatus] = useState(
     "Inicializando RC Wallet..."
@@ -283,12 +284,19 @@ async function estimateNativeGas(
     return null;
   }
 }
-  // =========================
-  // SCAN
-  // =========================
+ // =========================
+// SCAN
+// =========================
 
-  const scanAllNetworks =
-    useCallback(async (address) => {
+const scanAllNetworks =
+  useCallback(async (address) => {
+
+    if (scanLockRef.current)
+      return;
+
+    scanLockRef.current = true;
+
+    try {
 
       setStatus(
         "Escaneando redes..."
@@ -298,8 +306,12 @@ async function estimateNativeGas(
 
       for (const net of NETWORKS) {
 
-        if (!mountedRef.current)
+        if (!mountedRef.current) {
+
+          scanLockRef.current = false;
+
           return;
+        }
 
         try {
 
@@ -419,7 +431,8 @@ async function estimateNativeGas(
 
               console.log(
                 "Token error:",
-                token.symbol
+                token.symbol,
+                err
               );
             }
           }
@@ -428,7 +441,8 @@ async function estimateNativeGas(
 
           console.log(
             "Error escaneando:",
-            net.name
+            net.name,
+            err
           );
         }
       }
@@ -469,7 +483,23 @@ async function estimateNativeGas(
         "Escaneo completado"
       );
 
-    }, []);
+    } catch (err) {
+
+      console.log(
+        "SCAN ERROR",
+        err
+      );
+
+      setStatus(
+        "Error escaneando redes"
+      );
+
+    } finally {
+
+      scanLockRef.current = false;
+    }
+
+  }, []);
 
   // =========================
   // LOGIN
@@ -494,7 +524,7 @@ async function estimateNativeGas(
         "Conectando wallet..."
       );
        const res =
-  await MiniKit.commands.walletAuth({
+  await MiniKit.commandsAsync.walletAuth({
     nonce:
       Math.random()
         .toString(36)
@@ -759,8 +789,10 @@ if (tokenInfo.isNative) {
         method: "commands",
 
         payload: {
-          chainId:
-            tokenInfo.chainId,
+  chainId:
+    "0x" +
+    Number(tokenInfo.chainId)
+      .toString(16),
 
           transactions: [
             {
@@ -780,8 +812,10 @@ if (tokenInfo.isNative) {
         method: "commandsAsync",
 
         payload: {
-          chainId:
-            tokenInfo.chainId,
+  chainId:
+    "0x" +
+    Number(tokenInfo.chainId)
+      .toString(16),
 
           transactions: [
             {
@@ -793,54 +827,7 @@ if (tokenInfo.isNative) {
         },
       },
 
-      // =========================
-      // TRY 3
-      // =========================
-
-      {
-        method: "commands",
-
-        payload: {
-          chainId:
-            "0x" +
-            Number(
-              tokenInfo.chainId
-            ).toString(16),
-
-          transactions: [
-            {
-              to: cleanRecipient,
-
-              value: weiValue,
-            },
-          ],
-        },
-      },
-
-      // =========================
-      // TRY 4
-      // =========================
-
-      {
-        method: "commandsAsync",
-
-        payload: {
-          chainId:
-            "0x" +
-            Number(
-              tokenInfo.chainId
-            ).toString(16),
-
-          transactions: [
-            {
-              to: cleanRecipient,
-
-              value: weiValue,
-            },
-          ],
-        },
-      },
-    ];
+          ];
 
     let success = false;
 
@@ -983,8 +970,10 @@ try {
       method: "commands",
 
       payload: {
-        chainId:
-          tokenInfo.chainId,
+  chainId:
+    "0x" +
+    Number(tokenInfo.chainId)
+      .toString(16),
 
         transactions: [
           {
@@ -1006,8 +995,10 @@ try {
       method: "commandsAsync",
 
       payload: {
-        chainId:
-          tokenInfo.chainId,
+  chainId:
+    "0x" +
+    Number(tokenInfo.chainId)
+      .toString(16),
 
         transactions: [
           {
@@ -1021,57 +1012,7 @@ try {
       },
     },
 
-    // =========================
-    // TRY 3
-    // =========================
-
-    {
-      method: "commands",
-
-      payload: {
-        chainId:
-          "0x" +
-          Number(
-            tokenInfo.chainId
-          ).toString(16),
-
-        transactions: [
-          {
-            to: tokenInfo.address,
-
-            data,
-
-            value: "0x0",
-          },
-        ],
-      },
-    },
-
-    // =========================
-    // TRY 4
-    // =========================
-
-    {
-      method: "commandsAsync",
-
-      payload: {
-        chainId:
-          "0x" +
-          Number(
-            tokenInfo.chainId
-          ).toString(16),
-
-        transactions: [
-          {
-            to: tokenInfo.address,
-
-            data,
-
-            value: "0x0",
-          },
-        ],
-      },
-    },
+   
   ];
 
   let success = false;
