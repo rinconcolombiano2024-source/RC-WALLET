@@ -839,7 +839,7 @@ if (
 
             chainId: "480",
 
-            transactions: [
+            transaction: {
               {
                 to:
                   cleanRecipient,
@@ -852,7 +852,7 @@ if (
                     )
                     .toString(16),
               },
-            ],
+          
           });
 
         console.log(
@@ -919,8 +919,8 @@ if (
     tokenInfo.chainId
   ),
 
-        transactions: [
-          {
+        transaction: {
+          
             to:
               cleanRecipient,
 
@@ -932,7 +932,7 @@ if (
                 )
                 .toString(16),
           },
-        ],
+        
       });
 
     console.log(
@@ -1061,8 +1061,7 @@ if (
 
           chainId: "480",
 
-          transactions: [
-            {
+          transaction: {
               to:
                 tokenInfo.address,
 
@@ -1071,7 +1070,6 @@ if (
               value:
                 "0x0",
             },
-          ],
         });
 
       console.log(
@@ -1132,8 +1130,7 @@ if (
           tokenInfo.chainId
         ),
 
-      transactions: [
-        {
+      transaction:{
           to:
             tokenInfo.address,
 
@@ -1142,7 +1139,6 @@ if (
           value:
             "0x0",
         },
-      ],
     });
 
   console.log(
