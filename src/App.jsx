@@ -632,17 +632,10 @@ setTimeout(async () => {
 
   return;
       }
-if (
-  typeof window.ethereum ===
-  "undefined"
-) {
+const hasEthereumProvider =
+  typeof window.ethereum !==
+  "undefined";
 
-  setStatus(
-    "Provider EVM no disponible"
-  );
-
-  return;
-}
       if (
         !recipient ||
         !sendAmount ||
@@ -803,29 +796,33 @@ if (
     // =========================
     // SWITCH NETWORK
     // =========================
+if (
+  hasEthereumProvider
+) {
 
-    try {
+  try {
 
-      await window.ethereum.request({
+    await window.ethereum.request({
 
-        method:
-          "wallet_switchEthereumChain",
+      method:
+        "wallet_switchEthereumChain",
 
-        params: [
-          {
-            chainId:
-              hexChainId,
-          },
-        ],
-      });
+      params: [
+        {
+          chainId:
+            hexChainId,
+        },
+      ],
+    });
 
-    } catch (switchError) {
+  } catch (switchError) {
 
-      console.log(
-        "SWITCH ERROR",
-        switchError
-      );
-    }
+    console.log(
+      "SWITCH ERROR",
+      switchError
+    );
+  }
+}
 
     // =========================
     // WORLD CHAIN
@@ -840,7 +837,7 @@ if (
         const result =
           await MiniKit.sendTransaction({
 
-            chainId: 480,
+            chainId: "480",
 
             transactions: [
               {
@@ -872,44 +869,76 @@ if (
 
         throw worldError;
       }
+} else {
 
-    } else {
+  // =========================
+  // EVM SEND
+  // =========================
 
-      // =========================
-      // EVM SEND
-      // =========================
+  if (
+    hasEthereumProvider
+  ) {
 
-      const txHash =
-        await window.ethereum.request({
+    const txHash =
+      await window.ethereum.request({
 
-          method:
-            "eth_sendTransaction",
+        method:
+          "eth_sendTransaction",
 
-          params: [
-            {
-              from:
-                wallet,
+        params: [
+          {
+            from:
+              wallet,
 
-              to:
-                cleanRecipient,
+            to:
+              cleanRecipient,
 
-              value:
-                "0x" +
-                ethers
-                  .parseEther(
-                    cleanAmount
-                  )
-                  .toString(16),
-            },
-          ],
-        });
+            value:
+              "0x" +
+              ethers
+                .parseEther(
+                  cleanAmount
+                )
+                .toString(16),
+          },
+        ],
+      });
 
-      console.log(
-        "NATIVE TX HASH",
-        txHash
-      );
-    }
+    console.log(
+      "NATIVE TX HASH",
+      txHash
+    );
 
+  } else {
+
+    const result =
+      await MiniKit.sendTransaction({
+
+        chainId:
+          tokenInfo.chainId,
+
+        transactions: [
+          {
+            to:
+              cleanRecipient,
+
+            value:
+              "0x" +
+              ethers
+                .parseEther(
+                  cleanAmount
+                )
+                .toString(16),
+          },
+        ],
+      });
+
+    console.log(
+      "MINIKIT FALLBACK RESULT",
+      result
+    );
+  }
+}
     setStatus(
       "Transferencia enviada"
     );
@@ -966,6 +995,10 @@ try {
   // SWITCH NETWORK
   // =========================
 
+if (
+  hasEthereumProvider
+) {
+
   try {
 
     await window.ethereum.request({
@@ -988,8 +1021,8 @@ try {
       switchError
     );
   }
-
-  // =========================
+}
+// =========================
   // ERC20 CALLDATA
   // =========================
 
@@ -1024,7 +1057,7 @@ try {
       const result =
         await MiniKit.sendTransaction({
 
-          chainId: 480,
+          chainId: "480",
 
           transactions: [
             {
@@ -1059,32 +1092,61 @@ try {
     // =========================
     // EVM ERC20 SEND
     // =========================
+if (
+  hasEthereumProvider
+) {
 
-    const txHash =
-      await window.ethereum.request({
+  const txHash =
+    await window.ethereum.request({
 
-        method:
-          "eth_sendTransaction",
+      method:
+        "eth_sendTransaction",
 
-        params: [
-          {
-            from:
-              wallet,
+      params: [
+        {
+          from:
+            wallet,
 
-            to:
-              tokenInfo.address,
+          to:
+            tokenInfo.address,
 
-            data,
-          },
-        ],
-      });
+          data,
+        },
+      ],
+    });
 
-    console.log(
-      "ERC20 TX HASH",
-      txHash
-    );
+  console.log(
+    "ERC20 TX HASH",
+    txHash
+  );
+
+} else {
+
+  const result =
+    await MiniKit.sendTransaction({
+
+      chainId:
+        tokenInfo.chainId,
+
+      transactions: [
+        {
+          to:
+            tokenInfo.address,
+
+          data,
+
+          value:
+            "0x0",
+        },
+      ],
+    });
+
+  console.log(
+    "ERC20 FALLBACK RESULT",
+    result
+  );
+}
   }
-
   setStatus(
     "Transferencia enviada"
   );
