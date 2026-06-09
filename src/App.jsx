@@ -749,57 +749,191 @@ if (tokenInfo.isNative) {
         .parseEther(cleanAmount)
         .toString(16);
 
-    const result =
-      await MiniKit.commands.sendTransaction({
+    const payloads = [
 
-        chainId:
-          "0x" +
-          Number(tokenInfo.chainId)
-            .toString(16),
+      // =========================
+      // TRY 1
+      // =========================
 
-        transactions: [
-          {
-            to: cleanRecipient,
+      {
+        method: "commands",
 
-            value: weiValue,
-          },
-        ],
-      });
+        payload: {
+          chainId:
+            tokenInfo.chainId,
 
-    console.log(
-      "NATIVE RESULT:",
-      result
-    );
+          transactions: [
+            {
+              to: cleanRecipient,
 
-    if (
-      result?.finalPayload?.status === "success" ||
-      result?.status === "success"
-    ) {
+              value: weiValue,
+            },
+          ],
+        },
+      },
 
-      setStatus(
-        "Transferencia completada"
-      );
+      // =========================
+      // TRY 2
+      // =========================
 
-      setTimeout(async () => {
+      {
+        method: "commandsAsync",
 
-        await scanAllNetworks(
-          wallet
+        payload: {
+          chainId:
+            tokenInfo.chainId,
+
+          transactions: [
+            {
+              to: cleanRecipient,
+
+              value: weiValue,
+            },
+          ],
+        },
+      },
+
+      // =========================
+      // TRY 3
+      // =========================
+
+      {
+        method: "commands",
+
+        payload: {
+          chainId:
+            "0x" +
+            Number(
+              tokenInfo.chainId
+            ).toString(16),
+
+          transactions: [
+            {
+              to: cleanRecipient,
+
+              value: weiValue,
+            },
+          ],
+        },
+      },
+
+      // =========================
+      // TRY 4
+      // =========================
+
+      {
+        method: "commandsAsync",
+
+        payload: {
+          chainId:
+            "0x" +
+            Number(
+              tokenInfo.chainId
+            ).toString(16),
+
+          transactions: [
+            {
+              to: cleanRecipient,
+
+              value: weiValue,
+            },
+          ],
+        },
+      },
+    ];
+
+    let success = false;
+
+    let lastError = null;
+
+    for (const attempt of payloads) {
+
+      try {
+
+        console.log(
+          "TRY:",
+          attempt.method,
+          attempt.payload
         );
 
-      }, 3000);
+        let result;
 
-    } else {
+        if (
+          attempt.method ===
+          "commands"
+        ) {
+
+          result =
+            await MiniKit
+              .commands
+              .sendTransaction(
+                attempt.payload
+              );
+
+        } else {
+
+          result =
+            await MiniKit
+              .commandsAsync
+              .sendTransaction(
+                attempt.payload
+              );
+        }
+
+        console.log(
+          "RESULT:",
+          result
+        );
+
+        if (
+          result?.finalPayload
+            ?.status ===
+            "success" ||
+
+          result?.status ===
+            "success"
+        ) {
+
+          success = true;
+
+          setStatus(
+            "Transferencia completada"
+          );
+
+          setTimeout(async () => {
+
+            await scanAllNetworks(
+              wallet
+            );
+
+          }, 3000);
+
+          break;
+        }
+
+      } catch (err) {
+
+        console.log(
+          "Fallback failed:",
+          err
+        );
+
+        lastError = err;
+      }
+    }
+
+    if (!success) {
 
       setStatus(
-        result?.error_message ||
-        "Transacción cancelada"
+        lastError?.message ||
+        "Error enviando nativo"
       );
     }
 
   } catch (err) {
 
     console.error(
-      "NATIVE SEND ERROR",
+      "NATIVE FATAL ERROR",
       err
     );
 
@@ -839,59 +973,199 @@ try {
       ]
     );
 
-  const result =
-   await MiniKit.commands.sendTransaction({
+  const payloads = [
 
-      chainId:
-        "0x" +
-        Number(tokenInfo.chainId)
-          .toString(16),
+    // =========================
+    // TRY 1
+    // =========================
 
-      transactions: [
-        {
-          to: tokenInfo.address,
+    {
+      method: "commands",
 
-          data,
+      payload: {
+        chainId:
+          tokenInfo.chainId,
 
-          value: "0x0",
-        },
-      ],
-    });
+        transactions: [
+          {
+            to: tokenInfo.address,
 
-  console.log(
-    "ERC20 RESULT:",
-    result
-  );
+            data,
 
-  if (
-    result?.finalPayload?.status === "success" ||
-    result?.status === "success"
-  ) {
+            value: "0x0",
+          },
+        ],
+      },
+    },
 
-    setStatus(
-      "Transferencia completada"
-    );
+    // =========================
+    // TRY 2
+    // =========================
 
-    setTimeout(async () => {
+    {
+      method: "commandsAsync",
 
-      await scanAllNetworks(
-        wallet
+      payload: {
+        chainId:
+          tokenInfo.chainId,
+
+        transactions: [
+          {
+            to: tokenInfo.address,
+
+            data,
+
+            value: "0x0",
+          },
+        ],
+      },
+    },
+
+    // =========================
+    // TRY 3
+    // =========================
+
+    {
+      method: "commands",
+
+      payload: {
+        chainId:
+          "0x" +
+          Number(
+            tokenInfo.chainId
+          ).toString(16),
+
+        transactions: [
+          {
+            to: tokenInfo.address,
+
+            data,
+
+            value: "0x0",
+          },
+        ],
+      },
+    },
+
+    // =========================
+    // TRY 4
+    // =========================
+
+    {
+      method: "commandsAsync",
+
+      payload: {
+        chainId:
+          "0x" +
+          Number(
+            tokenInfo.chainId
+          ).toString(16),
+
+        transactions: [
+          {
+            to: tokenInfo.address,
+
+            data,
+
+            value: "0x0",
+          },
+        ],
+      },
+    },
+  ];
+
+  let success = false;
+
+  let lastError = null;
+
+  for (const attempt of payloads) {
+
+    try {
+
+      console.log(
+        "ERC20 TRY:",
+        attempt.method,
+        attempt.payload
       );
 
-    }, 3000);
+      let result;
 
-  } else {
+      if (
+        attempt.method ===
+        "commands"
+      ) {
+
+        result =
+          await MiniKit
+            .commands
+            .sendTransaction(
+              attempt.payload
+            );
+
+      } else {
+
+        result =
+          await MiniKit
+            .commandsAsync
+            .sendTransaction(
+              attempt.payload
+            );
+      }
+
+      console.log(
+        "ERC20 RESULT:",
+        result
+      );
+
+      if (
+        result?.finalPayload
+          ?.status ===
+          "success" ||
+
+        result?.status ===
+          "success"
+      ) {
+
+        success = true;
+
+        setStatus(
+          "Transferencia completada"
+        );
+
+        setTimeout(async () => {
+
+          await scanAllNetworks(
+            wallet
+          );
+
+        }, 3000);
+
+        break;
+      }
+
+    } catch (err) {
+
+      console.log(
+        "ERC20 fallback failed:",
+        err
+      );
+
+      lastError = err;
+    }
+  }
+
+  if (!success) {
 
     setStatus(
-      result?.error_message ||
-      "Transacción cancelada"
+      lastError?.message ||
+      "Error enviando token"
     );
   }
 
 } catch (err) {
 
   console.error(
-    "ERC20 SEND ERROR",
+    "ERC20 FATAL ERROR",
     err
   );
 
