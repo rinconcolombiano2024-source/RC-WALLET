@@ -1230,7 +1230,10 @@ if (
 
   setSending(false);
 } 
-      } catch (err) {
+      
+}
+
+} catch (err) {
 
   console.error(
     "HANDLE SEND ERROR",
