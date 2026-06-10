@@ -284,6 +284,175 @@ async function estimateNativeGas(
     return null;
   }
 }
+  // =========================
+// PROVIDER DETECTION
+// =========================
+
+async function detectProvider() {
+
+  try {
+
+    const detected = [];
+
+    // =========================
+    // WINDOW ETHEREUM
+    // =========================
+
+    if (
+      typeof window.ethereum !==
+      "undefined"
+    ) {
+
+      detected.push({
+        name:
+          "window.ethereum",
+
+        provider:
+          window.ethereum,
+
+        hasRequest:
+          typeof window.ethereum
+            ?.request ===
+          "function",
+      });
+
+      // =========================
+      // MULTIPLE PROVIDERS
+      // =========================
+
+      if (
+        Array.isArray(
+          window.ethereum
+            ?.providers
+        )
+      ) {
+
+        for (
+          const provider of
+          window.ethereum
+            .providers
+        ) {
+
+          detected.push({
+            name:
+              "ethereum.providers[]",
+
+            provider,
+
+            hasRequest:
+              typeof provider
+                ?.request ===
+              "function",
+          });
+        }
+      }
+    }
+
+    // =========================
+    // WINDOW SAFE
+    // =========================
+
+    if (
+      typeof window.safe !==
+      "undefined"
+    ) {
+
+      detected.push({
+        name:
+          "window.safe",
+
+        provider:
+          window.safe,
+
+        hasRequest:
+          typeof window.safe
+            ?.request ===
+          "function",
+      });
+    }
+
+    // =========================
+    // WINDOW WORLD
+    // =========================
+
+    if (
+      typeof window.world !==
+      "undefined"
+    ) {
+
+      detected.push({
+        name:
+          "window.world",
+
+        provider:
+          window.world,
+
+        hasRequest:
+          typeof window.world
+            ?.request ===
+          "function",
+      });
+    }
+
+    // =========================
+    // MINIKIT PROVIDERS
+    // =========================
+
+    if (
+      MiniKit?.provider
+    ) {
+
+      detected.push({
+        name:
+          "MiniKit.provider",
+
+        provider:
+          MiniKit.provider,
+
+        hasRequest:
+          typeof MiniKit
+            ?.provider
+            ?.request ===
+          "function",
+      });
+    }
+
+    if (
+      MiniKit?.walletProvider
+    ) {
+
+      detected.push({
+        name:
+          "MiniKit.walletProvider",
+
+        provider:
+          MiniKit.walletProvider,
+
+        hasRequest:
+          typeof MiniKit
+            ?.walletProvider
+            ?.request ===
+          "function",
+      });
+    }
+
+    console.log(
+      "DETECTED PROVIDERS",
+      detected
+    );
+
+    return detected;
+
+  } catch (err) {
+
+    console.log(
+      "PROVIDER DETECTION ERROR",
+      err
+    );
+
+    return [];
+  }
+}
  // =========================
 // SCAN
 // =========================
