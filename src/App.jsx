@@ -1610,7 +1610,22 @@ try {
 
   setSending(false);
 }
-      
+      } catch (err) {
+
+  console.error(
+    "HANDLE SEND ERROR",
+    err
+  );
+
+  setStatus(
+    err?.message ||
+    "Error enviando"
+  );
+
+  setSending(false);
+
+}
+};
   // =========================
   // INIT
   // =========================
