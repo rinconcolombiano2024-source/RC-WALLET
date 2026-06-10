@@ -225,6 +225,120 @@ const [maxSendAmount, setMaxSendAmount] =
 
     return null;
   }
+// =========================
+// DYNAMIC TOKEN DETECTION
+// =========================
+
+async function getDynamicTokens(
+  address,
+  chainId
+) {
+
+  try {
+
+    const network =
+      NETWORKS.find(
+        (n) =>
+          n.chainId ===
+          chainId
+      );
+
+    if (!network)
+      return [];
+
+    const provider =
+      await getWorkingProvider(
+        network.rpc
+      );
+
+    if (!provider)
+      return [];
+
+    // =========================
+    // TOKENS BASE
+    // =========================
+
+    const knownTokens =
+      TOKENS.filter(
+        (token) =>
+          token.addresses[
+            chainId
+          ]
+      );
+
+    const detected = [];
+
+    for (const token of knownTokens) {
+
+      try {
+
+        const tokenAddress =
+          token.addresses[
+            chainId
+          ];
+
+        const contract =
+          new ethers.Contract(
+            tokenAddress,
+            ERC20_ABI,
+            provider
+          );
+
+        const balance =
+          await contract.balanceOf(
+            address
+          );
+
+        if (balance > 0n) {
+
+          detected.push({
+            symbol:
+              token.symbol,
+
+            balance:
+              ethers.formatUnits(
+                balance,
+                token.decimals
+              ),
+
+            decimals:
+              token.decimals,
+
+            address:
+              tokenAddress,
+
+            chainId,
+          });
+        }
+
+      } catch (err) {
+
+        console.log(
+          "DYNAMIC TOKEN ERROR",
+          token.symbol,
+          err
+        );
+      }
+    }
+
+    console.log(
+      "DYNAMIC TOKENS",
+      detected
+    );
+
+    return detected;
+
+  } catch (err) {
+
+    console.log(
+      "TOKEN DETECTION ERROR",
+      err
+    );
+
+    return [];
+  }
+}
+  
 async function estimateNativeGas(
   chainId,
   from,
@@ -539,73 +653,45 @@ const scanAllNetworks =
               );
             }
           }
+  // =========================
+// DYNAMIC TOKENS
+// =========================
 
-          // =========================
-          // ERC20
-          // =========================
+const dynamicTokens =
+  await getDynamicTokens(
+    address,
+    net.chainId
+  );
 
-          for (const token of TOKENS) {
+for (
+  const token of
+  dynamicTokens
+) {
 
-            const tokenAddress =
-              token.addresses[
-                net.chainId
-              ];
+  foundTokens.push({
+    network:
+      net.name,
 
-            if (!tokenAddress)
-              continue;
+    symbol:
+      token.symbol,
 
-            try {
+    balance:
+      Number(
+        token.balance
+      ).toFixed(4),
 
-              const contract =
-                new ethers.Contract(
-                  tokenAddress,
-                  ERC20_ABI,
-                  provider
-                );
+    isNative: false,
 
-              const tokenBal =
-                await contract.balanceOf(
-                  address
-                );
+    chainId:
+      token.chainId,
 
-              if (tokenBal > 0n) {
+    decimals:
+      token.decimals,
 
-                foundTokens.push({
-                  network: net.name,
-
-                  symbol:
-                    token.symbol,
-
-                  balance: Number(
-                    ethers.formatUnits(
-                      tokenBal,
-                      token.decimals
-                    )
-                  ).toFixed(4),
-
-                  isNative: false,
-
-                  chainId:
-                    net.chainId,
-
-                  decimals:
-                    token.decimals,
-
-                  address:
-                    tokenAddress,
-                });
-              }
-
-            } catch (err) {
-
-              console.log(
-                "Token error:",
-                token.symbol,
-                err
-              );
-            }
-          }
-
+    address:
+      token.address,
+  });
+}
         } catch (err) {
 
           console.log(
@@ -692,31 +778,12 @@ const scanAllNetworks =
       setStatus(
         "Conectando wallet..."
       );
-       const res =
- await MiniKit.walletAuth({
+      const res =
+  await MiniKit.commandsAsync.walletAuth({
     nonce:
       Math.random()
         .toString(36)
         .substring(2),
-
-    requestId:
-      Math.random()
-        .toString(36)
-        .substring(2),
-
-    expirationTime:
-      new Date(
-        Date.now() +
-          1000 *
-            60 *
-            5
-      ),
-
-    notBefore:
-      new Date(),
-
-    statement:
-      "Conectar RC Wallet",
   });
       if (
         res?.error_code
