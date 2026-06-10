@@ -592,6 +592,20 @@ const scanAllNetworks =
       setStatus(
   "Wallet conectada"
 );
+      console.log(
+  "WINDOW ETHEREUM",
+  window.ethereum
+);
+
+console.log(
+  "WINDOW",
+  window
+);
+
+console.log(
+  "MINIKIT",
+  MiniKit
+);
 
 setTimeout(async () => {
 
