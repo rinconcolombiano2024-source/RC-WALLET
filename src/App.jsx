@@ -1858,78 +1858,62 @@ PROVIDERS
       <button
   onClick={() => {
 
-    let explorer = "";
+   let explorer = "";
 
-    if (
-      token.chainId === 1
-    ) {
-      explorer =
-        `https://etherscan.io/address/${wallet}`;
-    }
+if (token.chainId === 1) {
 
-    else if (
-      token.chainId === 10
-    ) {
-      explorer =
-        `https://optimistic.etherscan.io/address/${wallet}`;
-    }
+  explorer =
+    token.isNative
 
-    else if (
-      token.chainId === 8453
-    ) {
-      explorer =
-        `https://basescan.org/address/${wallet}`;
-    }
+      ? `https://etherscan.io/address/${wallet}`
 
-    else if (
-      token.chainId === 56
-    ) {
-      explorer =
-        `https://bscscan.com/address/${wallet}`;
-    }
+      : `https://etherscan.io/token/${token.address}?a=${wallet}`;
 
-    else if (
-      token.chainId === 480
-    ) {
-      explorer =
-        token.isNative
-        
-        ?`https://etherscan.io/address/${wallet}`
-        :
-        `https://etherscan.io/token/${token.address}?=${wallet}`
-        ;
+}
 
-      explorer =
-  token.isNative
+else if (token.chainId === 10) {
 
-    ? `https://optimistic.etherscan.io/address/${wallet}`
+  explorer =
+    token.isNative
 
-    : `https://optimistic.etherscan.io/token/${token.address}?a=${wallet}`
-        ;
-      explorer =
-  token.isNative
+      ? `https://optimistic.etherscan.io/address/${wallet}`
 
-    ? `https://basescan.org/address/${wallet}`
+      : `https://optimistic.etherscan.io/token/${token.address}?a=${wallet}`;
 
-    :
-        `https://basescan.org/token/${token.address}?a=${wallet}`
-        ;
-      explorer =
-  token.isNative
+}
 
-    ?` https://bscscan.com/address/${wallet}`
+else if (token.chainId === 8453) {
 
-    : `https://bscscan.com/token/${token.address}?a=${wallet}`
-      ;
-      explorer =
-  token.isNative
+  explorer =
+    token.isNative
 
-    ? `https://worldscan.org/address/${wallet}`
+      ? `https://basescan.org/address/${wallet}`
 
-    : `https://worldscan.org/token/${token.address}?a=${wallet}`
-        ;
-    }
+      : `https://basescan.org/token/${token.address}?a=${wallet}`;
 
+}
+
+else if (token.chainId === 56) {
+
+  explorer =
+    token.isNative
+
+      ? `https://bscscan.com/address/${wallet}`
+
+      : `https://bscscan.com/token/${token.address}?a=${wallet}`;
+
+}
+
+else if (token.chainId === 480) {
+
+  explorer =
+    token.isNative
+
+      ? `https://worldscan.org/address/${wallet}`
+
+      : `https://worldscan.org/token/${token.address}?a=${wallet}`;
+
+}
     window.open(
       explorer,
       "_blank"
