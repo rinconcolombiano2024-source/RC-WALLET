@@ -1111,35 +1111,34 @@ if (
 }
       try {
 
-        const result =
-          await MiniKit.commandsAsync.sendTransaction({
+       const result =
+  await MiniKit.commands.sendTransaction({
 
-            chainId: "480",
+    chainId: "480",
 
-            transaction: [
-              {
-                to:
-                  cleanRecipient,
+    transactions: [
+      {
+        to:
+          cleanRecipient,
 
-                value:
-                  "0x" +
-                  ethers
-                    .parseEther(
-                      cleanAmount
-                    )
-                    .toString(16),
-              },
-            ],
-          });
+        value:
+          "0x" +
+          ethers
+            .parseEther(
+              cleanAmount
+            )
+            .toString(16),
+      },
+    ],
+  });
 
-       console.log(
-  "WORLD NATIVE SUCCESS",
-  {
-    chainId:
-      tokenInfo.chainId,
-
+      console.log(
+  "WORLD NATIVE FULL RESULT",
+  JSON.stringify(
     result,
-  }
+    null,
+    2
+  )
 );
 
       } catch (worldError) {
@@ -1345,22 +1344,22 @@ if (
     try {
 
       const result =
-        await MiniKit.commandsAsync.sendTransaction({
+  await MiniKit.commands.sendTransaction({
 
-          chainId: "480",
+    chainId: "480",
 
-          transaction: [
-            {
-              to:
-                tokenInfo.address,
+    transactions: [
+      {
+        to:
+          tokenInfo.address,
 
-              data,
+        data,
 
-              value:
-                "0x0",
-            },
-          ],
-        });
+        value:
+          "0x0",
+      },
+    ],
+  });
 
      console.log(
   "WORLD ERC20 SUCCESS",
