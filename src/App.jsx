@@ -784,7 +784,7 @@ for (
         "Conectando wallet..."
       );
       const res =
-  await MiniKit.commandsAsync.walletAuth({
+await MiniKit.walletAuth({
     nonce:
       Math.random()
         .toString(36)
@@ -1049,22 +1049,160 @@ if (
     );
 
     // =========================
-    // CHAIN ID
-    // =========================
-
-    const hexChainId =
-      "0x" +
-      Number(
-        tokenInfo.chainId
-      ).toString(16);
-
-    // =========================
-    // SWITCH NETWORK
+    // WORLD CHAIN
     // =========================
 
     if (
-      hasEthereumProvider
+      tokenInfo.chainId === 480
     ) {
+
+      if (
+        !MiniKit?.commands
+      ) {
+
+        setStatus(
+          "MiniKit no disponible"
+        );
+
+        setSending(false);
+
+        return;
+      }
+
+      const txPayload = {
+        reference:
+          `rc-native-${Date.now()}`,
+
+        to:
+          cleanRecipient,
+
+        value:
+          ethers
+            .parseEther(
+              cleanAmount
+            )
+            .toString(),
+      };
+
+      console.log(
+        "WORLD NATIVE PAYLOAD",
+        txPayload
+      );
+
+      const result =
+        await MiniKit.commands.sendTransaction({
+
+          transaction: [
+            txPayload,
+          ],
+        });
+
+      console.log(
+        "WORLD NATIVE RESULT",
+        JSON.stringify(
+          result,
+          null,
+          2
+        )
+      );
+
+      if (
+        !result
+      ) {
+
+        setStatus(
+          "Sin respuesta MiniKit"
+        );
+
+        setSending(false);
+
+        return;
+      }
+
+      if (
+        result?.finalPayload
+          ?.status ===
+        "error"
+      ) {
+
+        setStatus(
+          result.finalPayload
+            ?.error_code ||
+
+          "Transacción rechazada"
+        );
+
+        setSending(false);
+
+        return;
+      }
+
+      const txId =
+        result?.finalPayload
+          ?.transaction_id;
+
+      if (!txId) {
+
+        setStatus(
+          "No hubo tx hash"
+        );
+
+        setSending(false);
+
+        return;
+      }
+
+      console.log(
+        "WORLD NATIVE HASH",
+        txId
+      );
+
+      setStatus(
+        "Transferencia completada"
+      );
+
+      setTimeout(async () => {
+
+        try {
+
+          await scanAllNetworks(
+            wallet
+          );
+
+        } catch (err) {
+
+          console.log(
+            "RESCAN ERROR",
+            err
+          );
+        }
+
+      }, 3000);
+
+    } else {
+
+      // =========================
+      // EVM EXTERNO
+      // =========================
+
+      if (
+        !hasEthereumProvider
+      ) {
+
+        setStatus(
+          "Provider no disponible"
+        );
+
+        setSending(false);
+
+        return;
+      }
+
+      const hexChainId =
+        "0x" +
+        Number(
+          tokenInfo.chainId
+        ).toString(16);
 
       try {
 
@@ -1088,146 +1226,70 @@ if (
           switchError
         );
       }
-    }
 
-    // =========================
-    // WORLD CHAIN
-    // =========================
+      const txHash =
+        await window.ethereum.request({
 
-    if (
-      tokenInfo.chainId === 480
-    ) {
-if (
-  !MiniKit?.commandsAsync
-) {
+          method:
+            "eth_sendTransaction",
 
-  setStatus(
-    "MiniKit no disponible"
-  );
+          params: [
+            {
+              from:
+                wallet,
 
-  setSending(false);
+              to:
+                cleanRecipient,
 
-  return;
-}
-      try {
-
-       const result =
-  await MiniKit.commands.sendTransaction({
-
-    chainId: "480",
-
-    transactions: [
-      {
-        to:
-          cleanRecipient,
-
-        value:
-          "0x" +
-          ethers
-            .parseEther(
-              cleanAmount
-            )
-            .toString(16),
-      },
-    ],
-  });
+              value:
+                "0x" +
+                ethers
+                  .parseEther(
+                    cleanAmount
+                  )
+                  .toString(16),
+            },
+          ],
+        });
 
       console.log(
-  "WORLD NATIVE FULL RESULT",
-  JSON.stringify(
-    result,
-    null,
-    2
-  )
-);
+        "EVM NATIVE HASH",
+        txHash
+      );
 
-      } catch (worldError) {
-
-        console.log(
-          "WORLD CHAIN ERROR",
-          worldError
-        );
-
-        throw worldError;
-      }
-
-    } else {
-
-      // =========================
-      // EVM SEND
-      // =========================
-
-      if (
-        hasEthereumProvider
-      ) {
-
-        const txHash =
-          await window.ethereum.request({
-
-            method:
-              "eth_sendTransaction",
-
-            params: [
-              {
-                from:
-                  wallet,
-
-                to:
-                  cleanRecipient,
-
-                value:
-                  "0x" +
-                  ethers
-                    .parseEther(
-                      cleanAmount
-                    )
-                    .toString(16),
-              },
-            ],
-          });
-
-        console.log(
-  "ETH SEND SUCCESS",
-  {
-    chainId:
-      tokenInfo.chainId,
-
-    txHash,
-  }
-);
-      } else {
+      if (!txHash) {
 
         setStatus(
-          "Provider no disponible"
+          "No hubo tx hash"
         );
 
         setSending(false);
 
         return;
       }
+
+      setStatus(
+        "Transferencia enviada"
+      );
+
+      setTimeout(async () => {
+
+        try {
+
+          await scanAllNetworks(
+            wallet
+          );
+
+        } catch (err) {
+
+          console.log(
+            "RESCAN ERROR",
+            err
+          );
+        }
+
+      }, 3000);
     }
-
-    setStatus(
-      "Transferencia enviada"
-    );
-
-   setTimeout(async () => {
-
-  try {
-
-    await scanAllNetworks(
-      wallet
-    );
-
-  } catch (err) {
-
-    console.log(
-      "RESCAN ERROR",
-      err
-    );
-  }
-
-}, 3000);
 
   } catch (err) {
 
@@ -1238,6 +1300,7 @@ if (
 
     setStatus(
       err?.message ||
+
       "Error enviando nativo"
     );
 
@@ -1248,6 +1311,7 @@ if (
 
   return;
 }
+      
 // =========================
 // ERC20
 // =========================
@@ -1259,22 +1323,189 @@ try {
   );
 
   // =========================
-  // CHAIN ID
+  // ERC20 CALLDATA
   // =========================
 
-  const hexChainId =
-    "0x" +
-    Number(
-      tokenInfo.chainId
-    ).toString(16);
+  const iface =
+    new ethers.Interface([
+      "function transfer(address to,uint256 amount)"
+    ]);
+
+  const encodedData =
+    iface.encodeFunctionData(
+      "transfer",
+      [
+        cleanRecipient,
+
+        ethers.parseUnits(
+          cleanAmount,
+          tokenInfo.decimals
+        ),
+      ]
+    );
 
   // =========================
-  // SWITCH NETWORK
+  // WORLD CHAIN ERC20
   // =========================
 
   if (
-    hasEthereumProvider
+    tokenInfo.chainId === 480
   ) {
+
+    if (
+      !MiniKit?.commands
+    ) {
+
+      setStatus(
+        "MiniKit no disponible"
+      );
+
+      setSending(false);
+
+      return;
+    }
+
+    const txPayload = {
+
+      reference:
+        `rc-erc20-${Date.now()}`,
+
+      to:
+        tokenInfo.address,
+
+      data:
+        encodedData,
+
+      value: "0",
+    };
+
+    console.log(
+      "WORLD ERC20 PAYLOAD",
+      txPayload
+    );
+
+    const result =
+      await MiniKit.commands.sendTransaction({
+
+        transaction: [
+          txPayload,
+        ],
+      });
+
+    console.log(
+      "WORLD ERC20 RESULT",
+      JSON.stringify(
+        result,
+        null,
+        2
+      )
+    );
+
+    // =========================
+    // VALIDATE RESULT
+    // =========================
+
+    if (
+      !result
+    ) {
+
+      setStatus(
+        "Sin respuesta MiniKit"
+      );
+
+      setSending(false);
+
+      return;
+    }
+
+    if (
+      result?.finalPayload
+        ?.status ===
+      "error"
+    ) {
+
+      setStatus(
+        result.finalPayload
+          ?.error_code ||
+
+        "Transferencia rechazada"
+      );
+
+      setSending(false);
+
+      return;
+    }
+
+    const txId =
+      result?.finalPayload
+        ?.transaction_id;
+
+    if (!txId) {
+
+      setStatus(
+        "No hubo tx hash"
+      );
+
+      setSending(false);
+
+      return;
+    }
+
+    console.log(
+      "WORLD ERC20 HASH",
+      txId
+    );
+
+    setStatus(
+      "ERC20 enviado"
+    );
+
+    setTimeout(async () => {
+
+      try {
+
+        await scanAllNetworks(
+          wallet
+        );
+
+      } catch (err) {
+
+        console.log(
+          "RESCAN ERROR",
+          err
+        );
+      }
+
+    }, 3000);
+
+  } else {
+
+    // =========================
+    // EXTERNAL EVM ERC20
+    // =========================
+
+    if (
+      !hasEthereumProvider
+    ) {
+
+      setStatus(
+        "Provider no disponible"
+      );
+
+      setSending(false);
+
+      return;
+    }
+
+    const hexChainId =
+      "0x" +
+      Number(
+        tokenInfo.chainId
+      ).toString(16);
+
+    // =========================
+    // SWITCH NETWORK
+    // =========================
 
     try {
 
@@ -1298,167 +1529,69 @@ try {
         switchError
       );
     }
-  }
-
-  // =========================
-  // ERC20 CALLDATA
-  // =========================
-
-  const iface =
-    new ethers.Interface([
-      "function transfer(address to,uint256 amount)"
-    ]);
-
-  const data =
-    iface.encodeFunctionData(
-      "transfer",
-      [
-        cleanRecipient,
-
-        ethers.parseUnits(
-          cleanAmount,
-          tokenInfo.decimals
-        ),
-      ]
-    );
-
-  // =========================
-  // WORLD CHAIN
-  // =========================
-
-  if (
-    tokenInfo.chainId === 480
-  ) {
-if (
-  !MiniKit?.commandsAsync
-) {
-
-  setStatus(
-    "MiniKit no disponible"
-  );
-
-  setSending(false);
-
-  return;
-}
-    try {
-
-      const result =
-  await MiniKit.commands.sendTransaction({
-
-    chainId: "480",
-
-    transactions: [
-      {
-        to:
-          tokenInfo.address,
-
-        data,
-
-        value:
-          "0x0",
-      },
-    ],
-  });
-
-     console.log(
-  "WORLD ERC20 SUCCESS",
-  {
-    chainId:
-      tokenInfo.chainId,
-
-    token:
-      tokenInfo.symbol,
-
-    result,
-  }
-);
-
-    } catch (worldError) {
-
-      console.log(
-        "WORLD ERC20 ERROR",
-        worldError
-      );
-
-      throw worldError;
-    }
-
-  } else {
 
     // =========================
-    // EVM ERC20 SEND
+    // SEND ERC20
     // =========================
 
-    if (
-      hasEthereumProvider
-    ) {
+    const txHash =
+      await window.ethereum.request({
 
-      const txHash =
-        await window.ethereum.request({
+        method:
+          "eth_sendTransaction",
 
-          method:
-            "eth_sendTransaction",
+        params: [
+          {
+            from:
+              wallet,
 
-          params: [
-            {
-              from:
-                wallet,
+            to:
+              tokenInfo.address,
 
-              to:
-                tokenInfo.address,
-
-              data,
-            },
-          ],
-        });
+            data:
+              encodedData,
+          },
+        ],
+      });
 
     console.log(
-  "ERC20 SEND SUCCESS",
-  {
-    chainId:
-      tokenInfo.chainId,
+      "EVM ERC20 HASH",
+      txHash
+    );
 
-    token:
-      tokenInfo.symbol,
-
-    txHash,
-  }
-);
-
-    } else {
+    if (!txHash) {
 
       setStatus(
-        "Provider no disponible"
+        "No hubo tx hash"
       );
 
       setSending(false);
 
       return;
     }
-  }
 
-  setStatus(
-    "Transferencia enviada"
-  );
-
-  setTimeout(async () => {
-
-  try {
-
-    await scanAllNetworks(
-      wallet
+    setStatus(
+      "ERC20 enviado"
     );
 
-  } catch (err) {
+    setTimeout(async () => {
 
-    console.log(
-      "RESCAN ERROR",
-      err
-    );
+      try {
+
+        await scanAllNetworks(
+          wallet
+        );
+
+      } catch (err) {
+
+        console.log(
+          "RESCAN ERROR",
+          err
+        );
+      }
+
+    }, 3000);
   }
-
-}, 3000);
 
 } catch (err) {
 
@@ -1469,29 +1602,15 @@ if (
 
   setStatus(
     err?.message ||
-    "Error enviando token"
+
+    "Error enviando ERC20"
   );
 
 } finally {
 
   setSending(false);
 }
-
-} catch (err) {
-
-  console.error(
-    "HANDLE SEND ERROR",
-    err
-  );
-
-  setStatus(
-    err?.message ||
-    "Error enviando"
-  );
-
-  setSending(false);
-}
-};
+      
   // =========================
   // INIT
   // =========================
