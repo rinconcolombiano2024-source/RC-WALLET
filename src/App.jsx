@@ -1376,7 +1376,7 @@ try {
       data:
         encodedData,
 
-      value: "0",
+      value: "0x0",
     };
 
     console.log(
