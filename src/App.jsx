@@ -1229,8 +1229,6 @@ if (
 } finally {
 
   setSending(false);
-} 
-      
 }
 
 } catch (err) {
