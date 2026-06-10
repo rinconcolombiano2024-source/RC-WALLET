@@ -1137,10 +1137,15 @@ if (
         return;
       }
 
-      const txId =
-        result?.finalPayload
-          ?.transaction_id;
+     const txId =
+  result?.finalPayload
+    ?.txHash ||
 
+  result?.finalPayload
+    ?.transactionHash ||
+
+  result?.finalPayload
+    ?.transaction_id;
       if (!txId) {
 
         setStatus(
@@ -1436,9 +1441,15 @@ try {
       return;
     }
 
-    const txId =
-      result?.finalPayload
-        ?.transaction_id;
+   const txId =
+  result?.finalPayload
+    ?.txHash ||
+
+  result?.finalPayload
+    ?.transactionHash ||
+
+  result?.finalPayload
+    ?.transaction_id;
 
     if (!txId) {
 
