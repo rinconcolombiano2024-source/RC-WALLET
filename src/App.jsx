@@ -1892,7 +1892,42 @@ PROVIDERS
       token.chainId === 480
     ) {
       explorer =
-        `https://worldscan.org/address/${wallet}`;
+        token.isNative
+        
+        ?`https://etherscan.io/address/${wallet}`
+        :
+        `https://etherscan.io/token/${token.address}?=${wallet}`
+        ;
+
+      explorer =
+  token.isNative
+
+    ? `https://optimistic.etherscan.io/address/${wallet}`
+
+    : `https://optimistic.etherscan.io/token/${token.address}?a=${wallet}`
+        ;
+      explorer =
+  token.isNative
+
+    ? `https://basescan.org/address/${wallet}`
+
+    :
+        `https://basescan.org/token/${token.address}?a=${wallet}`
+        ;
+      explorer =
+  token.isNative
+
+    ?` https://bscscan.com/address/${wallet}`
+
+    : `https://bscscan.com/token/${token.address}?a=${wallet}`
+      ;
+      explorer =
+  token.isNative
+
+    ? `https://worldscan.org/address/${wallet}`
+
+    : `https://worldscan.org/token/${token.address}?a=${wallet}`
+        ;
     }
 
     window.open(
