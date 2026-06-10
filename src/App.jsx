@@ -633,8 +633,12 @@ setTimeout(async () => {
   return;
       }
 const hasEthereumProvider =
+
   typeof window.ethereum !==
-  "undefined";
+    "undefined" &&
+
+  typeof window.ethereum.request ===
+    "function";
 
       if (
         !recipient ||
@@ -796,33 +800,34 @@ if (
     // =========================
     // SWITCH NETWORK
     // =========================
-if (
-  hasEthereumProvider
-) {
 
-  try {
+    if (
+      hasEthereumProvider
+    ) {
 
-    await window.ethereum.request({
+      try {
 
-      method:
-        "wallet_switchEthereumChain",
+        await window.ethereum.request({
 
-      params: [
-        {
-          chainId:
-            hexChainId,
-        },
-      ],
-    });
+          method:
+            "wallet_switchEthereumChain",
 
-  } catch (switchError) {
+          params: [
+            {
+              chainId:
+                hexChainId,
+            },
+          ],
+        });
 
-    console.log(
-      "SWITCH ERROR",
-      switchError
-    );
-  }
-}
+      } catch (switchError) {
+
+        console.log(
+          "SWITCH ERROR",
+          switchError
+        );
+      }
+    }
 
     // =========================
     // WORLD CHAIN
@@ -831,7 +836,18 @@ if (
     if (
       tokenInfo.chainId === 480
     ) {
+if (
+  !MiniKit?.commandsAsync
+) {
 
+  setStatus(
+    "MiniKit no disponible"
+  );
+
+  setSending(false);
+
+  return;
+}
       try {
 
         const result =
@@ -839,8 +855,9 @@ if (
 
             chainId: "480",
 
-            transaction: {
-              to:
+            transactions: [
+              {
+                to:
                   cleanRecipient,
 
                 value:
@@ -851,13 +868,18 @@ if (
                     )
                     .toString(16),
               },
-          
+            ],
           });
 
-        console.log(
-          "WORLD CHAIN RESULT",
-          result
-        );
+       console.log(
+  "WORLD NATIVE SUCCESS",
+  {
+    chainId:
+      tokenInfo.chainId,
+
+    result,
+  }
+);
 
       } catch (worldError) {
 
@@ -868,89 +890,84 @@ if (
 
         throw worldError;
       }
-} else {
 
-  // =========================
-  // EVM SEND
-  // =========================
+    } else {
 
-  if (
-    hasEthereumProvider
-  ) {
+      // =========================
+      // EVM SEND
+      // =========================
 
-    const txHash =
-      await window.ethereum.request({
+      if (
+        hasEthereumProvider
+      ) {
 
-        method:
-          "eth_sendTransaction",
+        const txHash =
+          await window.ethereum.request({
 
-        params: [
-          {
-            from:
-              wallet,
+            method:
+              "eth_sendTransaction",
 
-            to:
-              cleanRecipient,
+            params: [
+              {
+                from:
+                  wallet,
 
-            value:
-              "0x" +
-              ethers
-                .parseEther(
-                  cleanAmount
-                )
-                .toString(16),
-          },
-        ],
-      });
+                to:
+                  cleanRecipient,
 
-    console.log(
-      "NATIVE TX HASH",
-      txHash
-    );
+                value:
+                  "0x" +
+                  ethers
+                    .parseEther(
+                      cleanAmount
+                    )
+                    .toString(16),
+              },
+            ],
+          });
 
-  } else {
+        console.log(
+  "ETH SEND SUCCESS",
+  {
+    chainId:
+      tokenInfo.chainId,
 
-    const result =
-      await MiniKit.commandsAsync.sendTransaction({
-
-        chainId:
-  String(
-    tokenInfo.chainId
-  ),
-
-        transaction: {
-          
-            to:
-              cleanRecipient,
-
-            value:
-              "0x" +
-              ethers
-                .parseEther(
-                  cleanAmount
-                )
-                .toString(16),
-          },
-        
-      });
-
-    console.log(
-      "MINIKIT FALLBACK RESULT",
-      result
-    );
+    txHash,
   }
-}
+);
+      } else {
+
+        setStatus(
+          "Provider no disponible"
+        );
+
+        setSending(false);
+
+        return;
+      }
+    }
+
     setStatus(
       "Transferencia enviada"
     );
 
-    setTimeout(async () => {
+   setTimeout(async () => {
 
-      await scanAllNetworks(
-        wallet
-      );
+  try {
 
-    }, 3000);
+    await scanAllNetworks(
+      wallet
+    );
+
+  } catch (err) {
+
+    console.log(
+      "RESCAN ERROR",
+      err
+    );
+  }
+
+}, 3000);
 
   } catch (err) {
 
@@ -971,7 +988,6 @@ if (
 
   return;
 }
-
 // =========================
 // ERC20
 // =========================
@@ -996,34 +1012,35 @@ try {
   // SWITCH NETWORK
   // =========================
 
-if (
-  hasEthereumProvider
-) {
+  if (
+    hasEthereumProvider
+  ) {
 
-  try {
+    try {
 
-    await window.ethereum.request({
+      await window.ethereum.request({
 
-      method:
-        "wallet_switchEthereumChain",
+        method:
+          "wallet_switchEthereumChain",
 
-      params: [
-        {
-          chainId:
-            hexChainId,
-        },
-      ],
-    });
+        params: [
+          {
+            chainId:
+              hexChainId,
+          },
+        ],
+      });
 
-  } catch (switchError) {
+    } catch (switchError) {
 
-    console.log(
-      "SWITCH ERROR",
-      switchError
-    );
+      console.log(
+        "SWITCH ERROR",
+        switchError
+      );
+    }
   }
-}
-// =========================
+
+  // =========================
   // ERC20 CALLDATA
   // =========================
 
@@ -1052,7 +1069,18 @@ if (
   if (
     tokenInfo.chainId === 480
   ) {
+if (
+  !MiniKit?.commandsAsync
+) {
 
+  setStatus(
+    "MiniKit no disponible"
+  );
+
+  setSending(false);
+
+  return;
+}
     try {
 
       const result =
@@ -1060,7 +1088,8 @@ if (
 
           chainId: "480",
 
-          transaction: {
+          transactions: [
+            {
               to:
                 tokenInfo.address,
 
@@ -1069,12 +1098,21 @@ if (
               value:
                 "0x0",
             },
+          ],
         });
 
-      console.log(
-        "WORLD ERC20 RESULT",
-        result
-      );
+     console.log(
+  "WORLD ERC20 SUCCESS",
+  {
+    chainId:
+      tokenInfo.chainId,
+
+    token:
+      tokenInfo.symbol,
+
+    result,
+  }
+);
 
     } catch (worldError) {
 
@@ -1091,72 +1129,76 @@ if (
     // =========================
     // EVM ERC20 SEND
     // =========================
-if (
-  hasEthereumProvider
-) {
 
-  const txHash =
-    await window.ethereum.request({
+    if (
+      hasEthereumProvider
+    ) {
 
-      method:
-        "eth_sendTransaction",
+      const txHash =
+        await window.ethereum.request({
 
-      params: [
-        {
-          from:
-            wallet,
+          method:
+            "eth_sendTransaction",
 
-          to:
-            tokenInfo.address,
+          params: [
+            {
+              from:
+                wallet,
 
-          data,
-        },
-      ],
-    });
+              to:
+                tokenInfo.address,
 
-  console.log(
-    "ERC20 TX HASH",
-    txHash
-  );
+              data,
+            },
+          ],
+        });
 
-} else {
+    console.log(
+  "ERC20 SEND SUCCESS",
+  {
+    chainId:
+      tokenInfo.chainId,
 
-  const result =
-    await MiniKit.commandsAsync.sendTransaction({
+    token:
+      tokenInfo.symbol,
 
-      chainId:
-        String(
-          tokenInfo.chainId
-        ),
-
-      transaction:{
-          to:
-            tokenInfo.address,
-
-          data,
-
-          value:
-            "0x0",
-        },
-    });
-
-  console.log(
-    "ERC20 FALLBACK RESULT",
-    result
-  );
-}
+    txHash,
   }
+);
+
+    } else {
+
+      setStatus(
+        "Provider no disponible"
+      );
+
+      setSending(false);
+
+      return;
+    }
+  }
+
   setStatus(
     "Transferencia enviada"
   );
 
   setTimeout(async () => {
 
+  try {
+
     await scanAllNetworks(
       wallet
     );
 
-  }, 3000);
+  } catch (err) {
+
+    console.log(
+      "RESCAN ERROR",
+      err
+    );
+  }
+
+}, 3000);
 
 } catch (err) {
 
@@ -1173,8 +1215,8 @@ if (
 } finally {
 
   setSending(false);
-}
-} catch (err) {
+} 
+      } catch (err) {
 
   console.error(
     "HANDLE SEND ERROR",
@@ -1188,7 +1230,7 @@ if (
 
   setSending(false);
 }
-  };
+};
   // =========================
   // INIT
   // =========================
