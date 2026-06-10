@@ -174,6 +174,9 @@ export default function App() {
 
   const [worldVerified, setWorldVerified] =
     useState(false);
+  const [detectedProviders,
+  setDetectedProviders] =
+  useState([]);
   const [estimatedGas, setEstimatedGas] =
   useState("0");
 
@@ -554,7 +557,9 @@ async function detectProvider() {
       "DETECTED PROVIDERS",
       detected
     );
-
+setDetectedProviders(
+  detected
+);
     return detected;
 
   } catch (err) {
@@ -1750,7 +1755,58 @@ if (
     ? "Verificado"
     : "No verificado"}
 </p>
+{/* =========================
+PROVIDERS
+========================= */}
 
+<div
+  style={{
+    marginTop: 20,
+    padding: 10,
+    background: "#111",
+    borderRadius: 10,
+    fontSize: 12,
+    color: "#00ff99",
+    wordBreak:
+      "break-word",
+  }}
+>
+
+  <b>
+    Detected Providers
+  </b>
+
+  {detectedProviders
+    .length === 0 ? (
+
+    <div>
+      Ninguno detectado
+    </div>
+
+  ) : (
+
+    detectedProviders.map(
+      (
+        item,
+        index
+      ) => (
+
+        <div
+          key={index}
+          style={{
+            marginTop: 8,
+          }}
+        >
+          {item.name}
+          {" "}
+          {item.hasRequest
+            ? "✅"
+            : "❌"}
+        </div>
+      )
+    )
+  )}
+</div>
 <hr />
 
 <h2>
