@@ -775,7 +775,13 @@ console.log(
   "MINIKIT",
   MiniKit
 );
+const providers =
+  await detectProvider();
 
+console.log(
+  "FOUND PROVIDERS",
+  providers
+);
 setTimeout(async () => {
 
   await scanAllNetworks(
