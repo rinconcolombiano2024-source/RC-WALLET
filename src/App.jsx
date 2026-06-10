@@ -1116,7 +1116,7 @@ if (
 
             chainId: "480",
 
-            transactions: [
+            transaction: [
               {
                 to:
                   cleanRecipient,
@@ -1349,7 +1349,7 @@ if (
 
           chainId: "480",
 
-          transactions: [
+          transaction: [
             {
               to:
                 tokenInfo.address,
@@ -1855,6 +1855,66 @@ PROVIDERS
         {token.balance}
       </p>
 
+      <button
+  onClick={() => {
+
+    let explorer = "";
+
+    if (
+      token.chainId === 1
+    ) {
+      explorer =
+        `https://etherscan.io/address/${wallet}`;
+    }
+
+    else if (
+      token.chainId === 10
+    ) {
+      explorer =
+        `https://optimistic.etherscan.io/address/${wallet}`;
+    }
+
+    else if (
+      token.chainId === 8453
+    ) {
+      explorer =
+        `https://basescan.org/address/${wallet}`;
+    }
+
+    else if (
+      token.chainId === 56
+    ) {
+      explorer =
+        `https://bscscan.com/address/${wallet}`;
+    }
+
+    else if (
+      token.chainId === 480
+    ) {
+      explorer =
+        `https://worldscan.org/address/${wallet}`;
+    }
+
+    window.open(
+      explorer,
+      "_blank"
+    );
+  }}
+
+  style={{
+    marginTop: 10,
+    padding:
+      "8px 12px",
+    borderRadius: 8,
+    border: "none",
+    background:
+      "#2563eb",
+    color: "white",
+    cursor: "pointer",
+  }}
+>
+  Abrir Explorer
+</button>
     </div>
   )
 )}
