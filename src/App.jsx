@@ -1097,14 +1097,21 @@ if (
           ],
         });
 
-      console.log(
-        "WORLD NATIVE RESULT",
-        JSON.stringify(
-          result,
-          null,
-          2
-        )
-      );
+     console.log(
+  "WORLD NATIVE RAW RESULT",
+  result
+);
+
+console.log(
+  "WORLD NATIVE FULL",
+  JSON.stringify(
+    result,
+    Object.getOwnPropertyNames(
+      result
+    ),
+    2
+  )
+);
 
       if (
         !result
@@ -1398,13 +1405,20 @@ try {
       });
 
     console.log(
-      "WORLD ERC20 RESULT",
-      JSON.stringify(
-        result,
-        null,
-        2
-      )
-    );
+  "WORLD ERC20 RAW RESULT",
+  result
+);
+
+console.log(
+  "WORLD ERC20 FULL",
+  JSON.stringify(
+    result,
+    Object.getOwnPropertyNames(
+      result
+    ),
+    2
+  )
+);
 
     // =========================
     // VALIDATE RESULT
