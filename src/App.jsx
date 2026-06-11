@@ -1219,7 +1219,7 @@ async () => {
     setSending(true);
 
     setStatus(
-      "Esperando confirmación..."
+      "Enviando operación a World App..."
     );
 
     setDebugResult("");
@@ -1348,6 +1348,18 @@ async () => {
       txPayload,
     ],
   });
+        console.log(
+  "MINIKIT RAW RESULT",
+  result
+);
+
+setDebugResult(
+  JSON.stringify(
+    result,
+    null,
+    2
+  )
+);
 
         // =========================
         // PARSE RESULT
