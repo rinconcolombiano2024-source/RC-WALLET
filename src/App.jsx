@@ -1549,9 +1549,9 @@ try {
 
   result =
   await sendTransactionFn({
-      transaction: [
+      transaction:
         txPayload,
-      ],
+      
     });
 
 } catch (modernError) {
@@ -1574,9 +1574,9 @@ try {
     result =
       result =
   await sendTransactionFn({
-        transaction:[
+        transaction:
           txPayload,
-          ]
+          
       });
 
   } catch (legacyError) {
