@@ -1000,6 +1000,108 @@ function parseMiniKitResult(
 }
 
 // =========================
+// WAIT FOR CONFIRMATION
+// =========================
+
+async function waitForBalanceChange(
+
+  walletAddress,
+
+  tokenInfo,
+
+  oldBalance,
+
+  maxAttempts = 12
+) {
+
+  try {
+
+    let attempts = 0;
+
+    while (
+      attempts < maxAttempts
+    ) {
+
+      console.log(
+        "CONFIRMATION ATTEMPT",
+        attempts + 1
+      );
+
+      await new Promise(
+        (resolve) =>
+          setTimeout(
+            resolve,
+            5000
+          )
+      );
+
+      await scanAllNetworks(
+        walletAddress
+      );
+
+      const updatedToken =
+        tokensDetected.find(
+          (t) =>
+
+            t.chainId ===
+              tokenInfo.chainId &&
+
+            t.address ===
+              tokenInfo.address
+        );
+
+      if (!updatedToken) {
+
+        attempts++;
+
+        continue;
+      }
+
+      const newBalance =
+        Number(
+          updatedToken.balance
+        );
+
+      if (
+        newBalance <
+        Number(oldBalance)
+      ) {
+
+        console.log(
+          "BALANCE CHANGED"
+        );
+
+        return {
+
+          success: true,
+
+          oldBalance,
+
+          newBalance,
+        };
+      }
+
+      attempts++;
+    }
+
+    return {
+      success: false,
+    };
+
+  } catch (err) {
+
+    console.log(
+      "CONFIRMATION ERROR",
+      err
+    );
+
+    return {
+      success: false,
+      error: err,
+    };
+  }
+}
+// =========================
 // SEND
 // =========================
 
@@ -1407,8 +1509,35 @@ setDebugResult(
         setStatus(
           `Tx enviada: ${parsed.txId}`
         );
+        setStatus(
+  "Esperando confirmación blockchain..."
+);
 
-        // =========================
+const confirmation =
+  await waitForBalanceChange(
+
+    wallet,
+
+    tokenInfo,
+
+    tokenInfo.balance
+  );
+
+if (
+  confirmation.success
+) {
+
+  setStatus(
+    "Transacción confirmada"
+  );
+
+} else {
+
+  setStatus(
+    "Operación enviada al relay"
+  );
+}
+       // =========================
         // RESCAN
         // =========================
 
