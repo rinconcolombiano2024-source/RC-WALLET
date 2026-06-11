@@ -1451,6 +1451,8 @@ if (!sendTransactionFn) {
 
           txPayload = {
 
+            from: 
+              wallet,
             reference:
               `rc-native-${Date.now()}`,
 
@@ -1503,7 +1505,7 @@ if (!sendTransactionFn) {
               encodedData,
 
             value:
-              "0x00",
+              "0x0",
           };
         }
 
@@ -2605,6 +2607,36 @@ else if (token.chainId === 480) {
     : "Enviar"}
 
 </button>
+
+{/* =========================
+DEBUG RESULT
+========================= */}
+
+{debugResult && (
+
+  <div
+    style={{
+      marginTop: 20,
+      padding: 12,
+      background: "#111",
+      borderRadius: 12,
+      color: "#00ff99",
+      fontSize: 11,
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+    }}
+  >
+
+    <b>
+      DEBUG RESULT
+    </b>
+
+    <pre>
+      {debugResult}
+    </pre>
+
+  </div>
+)}
 
 </div>
 );
