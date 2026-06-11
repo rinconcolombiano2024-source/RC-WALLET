@@ -978,7 +978,7 @@ function parseMiniKitResult(
 
     null;
 
- ```js id="t4m9ys"
+
 const success =
 
   Boolean(txId) ||
@@ -988,7 +988,7 @@ const success =
   result?.success === true ||
 
   finalPayload?.success === true;
-```
+
 
   return {
 
@@ -1334,7 +1334,7 @@ async () => {
     setDebugResult("");
 
     setLastTxResult(null);
-```js id="r3x7mv"
+
 // =========================
 // WORLD ID VERIFY
 // =========================
@@ -1414,7 +1414,7 @@ try {
 
   return;
 }
-```
+
 
     // =========================
     // WORLD CHAIN
