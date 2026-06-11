@@ -1545,9 +1545,11 @@ try {
 
   result =
   await sendTransactionFn({
+    payload:{
       transactions:[
         txPayload,
       ],
+    },
     });
 
 } catch (modernError) {
@@ -1563,7 +1565,10 @@ try {
   "MINIKIT RAW RESULT",
   result
 );
-
+console.log(
+  "TX PAYLOAD SENDT",
+  txPayload
+  );
 setDebugResult(
   JSON.stringify(
     result,
