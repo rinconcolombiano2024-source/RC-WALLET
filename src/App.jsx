@@ -1101,9 +1101,6 @@ async function waitForBalanceChange(
     };
   }
 }
-
-
-
 // =========================
 // GET SEND TRANSACTION FN
 // =========================
@@ -1126,9 +1123,14 @@ function getSendTransactionFn() {
       "USING commandsAsync.sendTransaction"
     );
 
-    return MiniKit
-      .commandsAsync
-      .sendTransaction;
+    return async (
+      payload
+    ) =>
+      await MiniKit
+        .commandsAsync
+        .sendTransaction(
+          payload
+        );
   }
 
   // =========================
@@ -1147,9 +1149,14 @@ function getSendTransactionFn() {
       "USING commands.sendTransaction"
     );
 
-    return MiniKit
-      .commands
-      .sendTransaction;
+    return async (
+      payload
+    ) =>
+      await MiniKit
+        .commands
+        .sendTransaction(
+          payload
+        );
   }
 
   // =========================
@@ -1167,16 +1174,21 @@ function getSendTransactionFn() {
       "USING MiniKit.sendTransaction"
     );
 
-    return MiniKit
-      .sendTransaction;
+    return async (
+      payload
+    ) =>
+      await MiniKit
+        .sendTransaction(
+          payload
+        );
   }
+
+  console.log(
+    "NO SEND TRANSACTION FOUND"
+  );
 
   return null;
 }
-
-
-
-  
 // =========================
 // SEND
 // =========================
