@@ -1495,6 +1495,8 @@ if (!sendTransactionFn) {
 
           txPayload = {
 
+            from:
+              wallet,
             reference:
               `rc-erc20-${Date.now()}`,
 
@@ -1544,14 +1546,14 @@ let result = null;
 try {
 
   console.log(
-    "TRYING transactions[] FORMAT"
+    "TRYING transaction[] FORMAT"
   );
 
   result =
   await sendTransactionFn({
-      transaction:
+      transaction:[
         txPayload,
-      
+      ],
     });
 
 } catch (modernError) {
