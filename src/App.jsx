@@ -174,6 +174,15 @@ export default function App() {
 
   const [worldVerified, setWorldVerified] =
     useState(false);
+
+  const [debugResult,
+setDebugResult] =
+useState("");
+
+const [lastTxResult,
+setLastTxResult] =
+useState(null);
+  
   const [detectedProviders,
   setDetectedProviders] =
   useState([]);
@@ -182,6 +191,9 @@ export default function App() {
 
 const [maxSendAmount, setMaxSendAmount] =
   useState("0");
+
+
+  
   // =========================
   // RPC FALLBACK
   // =========================
@@ -1225,8 +1237,8 @@ async () => {
       try {
 
         if (
-          !MiniKit?.commands
-        ) {
+  !MiniKit?.commands?.sendTransaction
+) {
 
           setStatus(
             "MiniKit no disponible"
@@ -1299,7 +1311,7 @@ async () => {
               encodedData,
 
             value:
-              "0x0",
+              "0x00",
           };
         }
 
@@ -1325,13 +1337,17 @@ async () => {
         // SEND TRANSACTION
         // =========================
 
+       console.log(
+  "MINIKIT SEND TYPE",
+  typeof MiniKit?.commands?.sendTransaction
+);
         const result =
-          await MiniKit.commands.sendTransaction({
+  await MiniKit.commands.sendTransaction({
 
-            transaction: [
-              txPayload,
-            ],
-          });
+    transactions: [
+      txPayload,
+    ],
+  });
 
         // =========================
         // PARSE RESULT
