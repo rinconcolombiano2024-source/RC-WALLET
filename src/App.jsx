@@ -1101,6 +1101,82 @@ async function waitForBalanceChange(
     };
   }
 }
+
+
+
+// =========================
+// GET SEND TRANSACTION FN
+// =========================
+
+function getSendTransactionFn() {
+
+  // =========================
+  // commandsAsync
+  // =========================
+
+  if (
+
+    typeof MiniKit
+      ?.commandsAsync
+      ?.sendTransaction ===
+    "function"
+  ) {
+
+    console.log(
+      "USING commandsAsync.sendTransaction"
+    );
+
+    return MiniKit
+      .commandsAsync
+      .sendTransaction;
+  }
+
+  // =========================
+  // commands
+  // =========================
+
+  if (
+
+    typeof MiniKit
+      ?.commands
+      ?.sendTransaction ===
+    "function"
+  ) {
+
+    console.log(
+      "USING commands.sendTransaction"
+    );
+
+    return MiniKit
+      .commands
+      .sendTransaction;
+  }
+
+  // =========================
+  // direct sendTransaction
+  // =========================
+
+  if (
+
+    typeof MiniKit
+      ?.sendTransaction ===
+    "function"
+  ) {
+
+    console.log(
+      "USING MiniKit.sendTransaction"
+    );
+
+    return MiniKit
+      .sendTransaction;
+  }
+
+  return null;
+}
+
+
+
+  
 // =========================
 // SEND
 // =========================
@@ -1338,16 +1414,18 @@ async () => {
 
       try {
 
-        if (
-  !MiniKit?.commands?.sendTransaction
-) {
 
-          setStatus(
-            "MiniKit no disponible"
-          );
+const sendTransactionFn =
+  getSendTransactionFn();
 
-          return;
-        }
+if (!sendTransactionFn) {
+
+  setStatus(
+    "No existe sendTransaction"
+  );
+
+  return;
+}
 
         let txPayload;
 
@@ -1443,7 +1521,6 @@ async () => {
   "MINIKIT SEND TYPE",
   typeof MiniKit?.commands?.sendTransaction
 );
-        ```js id="jlwm7v"
 let result = null;
 
 // =========================
@@ -1457,8 +1534,7 @@ try {
   );
 
   result =
-    await MiniKit.commands.sendTransaction({
-
+  await sendTransactionFn({
       transactions: [
         txPayload,
       ],
@@ -1482,8 +1558,8 @@ try {
     );
 
     result =
-      await MiniKit.commands.sendTransaction({
-
+      result =
+  await sendTransactionFn({
         transaction:
           txPayload,
       });
@@ -1498,7 +1574,7 @@ try {
     throw legacyError;
   }
 }
-```
+
 
         console.log(
   "MINIKIT RAW RESULT",
