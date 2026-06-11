@@ -1443,13 +1443,63 @@ async () => {
   "MINIKIT SEND TYPE",
   typeof MiniKit?.commands?.sendTransaction
 );
-        const result =
-  await MiniKit.commands.sendTransaction({
+        ```js id="jlwm7v"
+let result = null;
 
-    transactions: [
-      txPayload,
-    ],
-  });
+// =========================
+// TRY MODERN FORMAT
+// =========================
+
+try {
+
+  console.log(
+    "TRYING transactions[] FORMAT"
+  );
+
+  result =
+    await MiniKit.commands.sendTransaction({
+
+      transactions: [
+        txPayload,
+      ],
+    });
+
+} catch (modernError) {
+
+  console.log(
+    "transactions[] FAILED",
+    modernError
+  );
+
+  // =========================
+  // FALLBACK LEGACY FORMAT
+  // =========================
+
+  try {
+
+    console.log(
+      "TRYING transaction FORMAT"
+    );
+
+    result =
+      await MiniKit.commands.sendTransaction({
+
+        transaction:
+          txPayload,
+      });
+
+  } catch (legacyError) {
+
+    console.log(
+      "transaction FAILED",
+      legacyError
+    );
+
+    throw legacyError;
+  }
+}
+```
+
         console.log(
   "MINIKIT RAW RESULT",
   result
