@@ -1144,25 +1144,63 @@ console.log(
         return;
       }
 
-     const txId =
-  result?.finalPayload
-    ?.txHash ||
+     const finalPayload =
+  result?.finalPayload || {};
 
-  result?.finalPayload
-    ?.transactionHash ||
+const txId =
+  finalPayload?.txHash ||
 
-  result?.finalPayload
-    ?.transaction_id;
-      if (!txId) {
+  finalPayload?.transactionHash ||
 
-        setStatus(
-          "No hubo tx hash"
-        );
+  finalPayload?.transaction_id ||
 
-        setSending(false);
+  finalPayload?.hash ||
 
-        return;
-      }
+  finalPayload?.id ||
+
+  finalPayload?.safeTxHash ||
+
+  finalPayload?.userOpHash ||
+
+  finalPayload?.operationHash ||
+
+  result?.txHash ||
+
+  result?.hash ||
+
+  result?.id ||
+
+  null;
+
+console.log(
+  "TX DETECTION RESULT",
+  {
+    txId,
+    result,
+    finalPayload,
+  }
+);
+
+if (!txId) {
+
+  console.log(
+    "NO TX HASH FOUND",
+    JSON.stringify(
+      result,
+      null,
+      2
+    )
+  );
+
+  setStatus(
+    "No hubo tx hash"
+  );
+
+  setSending(false);
+
+  return;
+}
+      
 
       console.log(
         "WORLD NATIVE HASH",
