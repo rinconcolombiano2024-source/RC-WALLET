@@ -872,181 +872,347 @@ setTimeout(async () => {
       );
     }
   }
-
-  // =========================
-  // SEND
-  // =========================
-
-  const handleSend =
-  async () => {
-
-    try {
-
-      if (
-        sending
-      ) return;
-      if (!worldVerified) {
-
-  setStatus(
-    "Debes iniciar sesión primero"
-  );
-
-  return;
-      }
-const hasEthereumProvider =
-
-  typeof window.ethereum !==
-    "undefined" &&
-
-  typeof window.ethereum.request ===
-    "function";
-
-      if (
-        !recipient ||
-        !sendAmount ||
-        !selectedToken
-      ) {
-
-        setStatus(
-          "Completa todos los campos"
-        );
-
-        return;
-      }
-
-      const tokenInfo =
-        JSON.parse(
-          selectedToken
-        );
-
-      const cleanAmount =
-        sendAmount
-          .trim()
-          .replace(",", ".");
-
-      const cleanRecipient =
-        recipient.trim();
-
-      if (
-        !ethers.isAddress(
-          cleanRecipient
-        )
-      ) {
-
-        setStatus(
-          "Dirección inválida"
-        );
-
-        return;
-      }
-
-      if (
-  isNaN(Number(cleanAmount)) ||
-  Number(cleanAmount) <= 0
-) {
-
-        setStatus(
-          "Cantidad inválida"
-        );
-
-        return;
-      }
-
-      if (
-        Number(cleanAmount) >
-        Number(tokenInfo.balance)
-      ) {
-
-        setStatus(
-          "Balance insuficiente"
-        );
-
-        return;
-      }
-      if (!wallet) {
-
-  setStatus(
-    "Wallet no conectada"
-  );
-
-  return;
-      }
-
-      if (
-        cleanRecipient.toLowerCase() ===
-        wallet.toLowerCase()
-      ) {
-
-        setStatus(
-          "No puedes enviarte fondos a ti mismo"
-        );
-
-        return;
-      }
-
-      if (tokenInfo.isNative) {
-
-  const gasEstimate =
-    await estimateNativeGas(
-      tokenInfo.chainId,
-      wallet,
-      cleanRecipient,
-      cleanAmount
-    );
-
-  if (gasEstimate === null) {
-
-    setStatus(
-      "No se pudo calcular gas"
-    );
-
-    return;
-  }
-
-  setEstimatedGas(
-    gasEstimate.toFixed(8)
-  );
-
-  const availableBalance =
-    Number(tokenInfo.balance) -
-    gasEstimate;
-
-  if (
-    Number(cleanAmount) >
-    availableBalance
-  ) {
-
-    setStatus(
-      "Fondos insuficientes para gas"
-    );
-
-    return;
-  }
-
-  setMaxSendAmount(
-    availableBalance.toFixed(8)
-  );
-      }
-      setSending(true);
-
-      setStatus(
-        "Esperando confirmación..."
-      );
-        
-
 // =========================
-// NATIVO
+// ERROR EXTRACTOR
 // =========================
 
-if (
-  tokenInfo.isNative
+function extractMiniKitError(
+  err
 ) {
+
+  return {
+
+    message:
+      err?.message ||
+
+      null,
+
+    shortMessage:
+      err?.shortMessage ||
+
+      null,
+
+    reason:
+      err?.reason ||
+
+      null,
+
+    code:
+      err?.code ||
+
+      null,
+
+    errorCode:
+      err?.error_code ||
+
+      null,
+
+    stack:
+      err?.stack ||
+
+      null,
+
+    raw:
+      err,
+  };
+}
+
+// =========================
+// RESULT PARSER
+// =========================
+
+function parseMiniKitResult(
+  result
+) {
+
+  const finalPayload =
+    result?.finalPayload ||
+
+    result?.payload ||
+
+    {};
+
+  const txId =
+
+    finalPayload?.txHash ||
+
+    finalPayload?.transactionHash ||
+
+    finalPayload?.transaction_id ||
+
+    finalPayload?.safeTxHash ||
+
+    finalPayload?.userOpHash ||
+
+    finalPayload?.operationHash ||
+
+    finalPayload?.hash ||
+
+    finalPayload?.id ||
+
+    result?.txHash ||
+
+    result?.hash ||
+
+    result?.id ||
+
+    null;
+
+  const status =
+
+    finalPayload?.status ||
+
+    result?.status ||
+
+    null;
+
+  const success =
+
+    Boolean(txId) ||
+
+    status === "success";
+
+  return {
+
+    success,
+
+    txId,
+
+    status,
+
+    finalPayload,
+
+    raw:
+      result,
+  };
+}
+
+// =========================
+// SEND
+// =========================
+
+const handleSend =
+async () => {
 
   try {
 
+    if (sending)
+      return;
+
+    // =========================
+    // LOGIN VALIDATION
+    // =========================
+
+    if (!worldVerified) {
+
+      setStatus(
+        "Debes iniciar sesión primero"
+      );
+
+      return;
+    }
+
+    // =========================
+    // PROVIDER DETECTION
+    // =========================
+
+    const hasEthereumProvider =
+
+      typeof window.ethereum !==
+        "undefined" &&
+
+      typeof window.ethereum
+        ?.request ===
+        "function";
+
+    // =========================
+    // INPUT VALIDATION
+    // =========================
+
+    if (
+      !recipient ||
+      !sendAmount ||
+      !selectedToken
+    ) {
+
+      setStatus(
+        "Completa todos los campos"
+      );
+
+      return;
+    }
+
+    const tokenInfo =
+      JSON.parse(
+        selectedToken
+      );
+
+    const cleanAmount =
+      sendAmount
+        .trim()
+        .replace(",", ".");
+
+    const cleanRecipient =
+      recipient.trim();
+
+    // =========================
+    // ADDRESS VALIDATION
+    // =========================
+
+    if (
+      !ethers.isAddress(
+        cleanRecipient
+      )
+    ) {
+
+      setStatus(
+        "Dirección inválida"
+      );
+
+      return;
+    }
+
+    // =========================
+    // AMOUNT VALIDATION
+    // =========================
+
+    if (
+      isNaN(
+        Number(cleanAmount)
+      ) ||
+
+      Number(cleanAmount) <= 0
+    ) {
+
+      setStatus(
+        "Cantidad inválida"
+      );
+
+      return;
+    }
+
+    // =========================
+    // BALANCE CHECK
+    // =========================
+
+    if (
+      Number(cleanAmount) >
+      Number(tokenInfo.balance)
+    ) {
+
+      setStatus(
+        "Balance insuficiente"
+      );
+
+      return;
+    }
+
+    // =========================
+    // WALLET CHECK
+    // =========================
+
+    if (!wallet) {
+
+      setStatus(
+        "Wallet no conectada"
+      );
+
+      return;
+    }
+
+    // =========================
+    // SELF SEND BLOCK
+    // =========================
+
+    if (
+      cleanRecipient
+        .toLowerCase() ===
+
+      wallet
+        .toLowerCase()
+    ) {
+
+      setStatus(
+        "No puedes enviarte fondos a ti mismo"
+      );
+
+      return;
+    }
+
+    // =========================
+    // GAS ESTIMATION
+    // =========================
+
+    if (
+      tokenInfo.isNative
+    ) {
+
+      const gasEstimate =
+        await estimateNativeGas(
+
+          tokenInfo.chainId,
+
+          wallet,
+
+          cleanRecipient,
+
+          cleanAmount
+        );
+
+      if (
+        gasEstimate === null
+      ) {
+
+        setStatus(
+          "No se pudo calcular gas"
+        );
+
+        return;
+      }
+
+      setEstimatedGas(
+        gasEstimate.toFixed(8)
+      );
+
+      const availableBalance =
+
+        Number(
+          tokenInfo.balance
+        ) -
+
+        gasEstimate;
+
+      if (
+        Number(cleanAmount) >
+        availableBalance
+      ) {
+
+        setStatus(
+          "Fondos insuficientes para gas"
+        );
+
+        return;
+      }
+
+      setMaxSendAmount(
+        availableBalance
+          .toFixed(8)
+      );
+    }
+
+    // =========================
+    // START SEND
+    // =========================
+
+    setSending(true);
+
     setStatus(
-      "Preparando transacción..."
+      "Esperando confirmación..."
     );
+
+    setDebugResult("");
+
+    setLastTxResult(null);
 
     // =========================
     // WORLD CHAIN
@@ -1056,183 +1222,225 @@ if (
       tokenInfo.chainId === 480
     ) {
 
-      if (
-        !MiniKit?.commands
-      ) {
+      try {
 
-        setStatus(
-          "MiniKit no disponible"
-        );
+        if (
+          !MiniKit?.commands
+        ) {
 
-        setSending(false);
-
-        return;
-      }
-
-      const txPayload = {
-        reference:
-          `rc-native-${Date.now()}`,
-
-        to:
-          cleanRecipient,
-
-        value:
-          ethers
-            .parseEther(
-              cleanAmount
-            )
-            .toString(),
-      };
-
-      console.log(
-        "WORLD NATIVE PAYLOAD",
-        txPayload
-      );
-
-      const result =
-        await MiniKit.commands.sendTransaction({
-
-          transaction: [
-            txPayload,
-          ],
-        });
-
-     console.log(
-  "WORLD NATIVE RAW RESULT",
-  result
-);
-
-console.log(
-  "WORLD NATIVE FULL",
-  JSON.stringify(
-    result,
-    Object.getOwnPropertyNames(
-      result
-    ),
-    2
-  )
-);
-
-      if (
-        !result
-      ) {
-
-        setStatus(
-          "Sin respuesta MiniKit"
-        );
-
-        setSending(false);
-
-        return;
-      }
-
-      if (
-        result?.finalPayload
-          ?.status ===
-        "error"
-      ) {
-
-        setStatus(
-          result.finalPayload
-            ?.error_code ||
-
-          "Transacción rechazada"
-        );
-
-        setSending(false);
-
-        return;
-      }
-
-     const finalPayload =
-  result?.finalPayload || {};
-
-const txId =
-  finalPayload?.txHash ||
-
-  finalPayload?.transactionHash ||
-
-  finalPayload?.transaction_id ||
-
-  finalPayload?.hash ||
-
-  finalPayload?.id ||
-
-  finalPayload?.safeTxHash ||
-
-  finalPayload?.userOpHash ||
-
-  finalPayload?.operationHash ||
-
-  result?.txHash ||
-
-  result?.hash ||
-
-  result?.id ||
-
-  null;
-
-console.log(
-  "TX DETECTION RESULT",
-  {
-    txId,
-    result,
-    finalPayload,
-  }
-);
-
-if (!txId) {
-
-  console.log(
-    "NO TX HASH FOUND",
-    JSON.stringify(
-      result,
-      null,
-      2
-    )
-  );
-
-  setStatus(
-    "No hubo tx hash"
-  );
-
-  setSending(false);
-
-  return;
-}
-      
-
-      console.log(
-        "WORLD NATIVE HASH",
-        txId
-      );
-
-      setStatus(
-        "Transferencia completada"
-      );
-
-      setTimeout(async () => {
-
-        try {
-
-          await scanAllNetworks(
-            wallet
+          setStatus(
+            "MiniKit no disponible"
           );
 
-        } catch (err) {
-
-          console.log(
-            "RESCAN ERROR",
-            err
-          );
+          return;
         }
 
-      }, 3000);
+        let txPayload;
+
+        // =========================
+        // NATIVE
+        // =========================
+
+        if (
+          tokenInfo.isNative
+        ) {
+
+          txPayload = {
+
+            reference:
+              `rc-native-${Date.now()}`,
+
+            to:
+              cleanRecipient,
+
+            value:
+              "0x" +
+
+              ethers
+                .parseEther(
+                  cleanAmount
+                )
+                .toString(16),
+          };
+
+        } else {
+
+          // =========================
+          // ERC20
+          // =========================
+
+          const iface =
+            new ethers.Interface([
+              "function transfer(address to,uint256 amount)"
+            ]);
+
+          const encodedData =
+            iface.encodeFunctionData(
+              "transfer",
+              [
+                cleanRecipient,
+
+                ethers.parseUnits(
+                  cleanAmount,
+                  tokenInfo.decimals
+                ),
+              ]
+            );
+
+          txPayload = {
+
+            reference:
+              `rc-erc20-${Date.now()}`,
+
+            to:
+              tokenInfo.address,
+
+            data:
+              encodedData,
+
+            value:
+              "0x0",
+          };
+        }
+
+        // =========================
+        // DEBUG PAYLOAD
+        // =========================
+
+        setDebugResult(
+
+          JSON.stringify(
+            {
+              phase:
+                "payload",
+
+              txPayload,
+            },
+            null,
+            2
+          )
+        );
+
+        // =========================
+        // SEND TRANSACTION
+        // =========================
+
+        const result =
+          await MiniKit.commands.sendTransaction({
+
+            transaction: [
+              txPayload,
+            ],
+          });
+
+        // =========================
+        // PARSE RESULT
+        // =========================
+
+        const parsed =
+          parseMiniKitResult(
+            result
+          );
+
+        setLastTxResult(
+          parsed
+        );
+
+        setDebugResult(
+
+          JSON.stringify(
+            parsed,
+            null,
+            2
+          )
+        );
+
+        // =========================
+        // SUCCESS CHECK
+        // =========================
+
+        if (
+          !parsed.success
+        ) {
+
+          setStatus(
+            parsed?.status ||
+
+            "No hubo tx hash"
+          );
+
+          return;
+        }
+
+        // =========================
+        // SUCCESS
+        // =========================
+
+        setStatus(
+          `Tx enviada: ${parsed.txId}`
+        );
+
+        // =========================
+        // RESCAN
+        // =========================
+
+        setTimeout(
+          async () => {
+
+            try {
+
+              await scanAllNetworks(
+                wallet
+              );
+
+            } catch (err) {
+
+              console.log(
+                "RESCAN ERROR",
+                err
+              );
+            }
+
+          },
+
+          4000
+        );
+
+      } catch (err) {
+
+        const parsedError =
+          extractMiniKitError(
+            err
+          );
+
+        setDebugResult(
+
+          JSON.stringify(
+            parsedError,
+            null,
+            2
+          )
+        );
+
+        console.log(
+          "WORLD SEND ERROR",
+          parsedError
+        );
+
+        setStatus(
+
+          parsedError?.message ||
+
+          parsedError?.reason ||
+
+          "Error World Chain"
+        );
+      }
 
     } else {
 
       // =========================
-      // EVM EXTERNO
+      // EXTERNAL EVM
       // =========================
 
       if (
@@ -1243,368 +1451,99 @@ if (!txId) {
           "Provider no disponible"
         );
 
-        setSending(false);
-
         return;
       }
-
-      const hexChainId =
-        "0x" +
-        Number(
-          tokenInfo.chainId
-        ).toString(16);
 
       try {
 
-        await window.ethereum.request({
+        const hexChainId =
+          "0x" +
 
-          method:
-            "wallet_switchEthereumChain",
+          Number(
+            tokenInfo.chainId
+          ).toString(16);
 
-          params: [
-            {
-              chainId:
-                hexChainId,
-            },
-          ],
-        });
-
-      } catch (switchError) {
-
-        console.log(
-          "SWITCH ERROR",
-          switchError
-        );
-      }
-
-      const txHash =
-        await window.ethereum.request({
-
-          method:
-            "eth_sendTransaction",
-
-          params: [
-            {
-              from:
-                wallet,
-
-              to:
-                cleanRecipient,
-
-              value:
-                "0x" +
-                ethers
-                  .parseEther(
-                    cleanAmount
-                  )
-                  .toString(16),
-            },
-          ],
-        });
-
-      console.log(
-        "EVM NATIVE HASH",
-        txHash
-      );
-
-      if (!txHash) {
-
-        setStatus(
-          "No hubo tx hash"
-        );
-
-        setSending(false);
-
-        return;
-      }
-
-      setStatus(
-        "Transferencia enviada"
-      );
-
-      setTimeout(async () => {
+        // =========================
+        // SWITCH NETWORK
+        // =========================
 
         try {
 
-          await scanAllNetworks(
-            wallet
-          );
+          await window.ethereum.request({
 
-        } catch (err) {
+            method:
+              "wallet_switchEthereumChain",
+
+            params: [
+              {
+                chainId:
+                  hexChainId,
+              },
+            ],
+          });
+
+        } catch (switchError) {
 
           console.log(
-            "RESCAN ERROR",
-            err
+            "SWITCH ERROR",
+            switchError
           );
         }
 
-      }, 3000);
-    }
+        let txParams;
 
-  } catch (err) {
+        // =========================
+        // NATIVE
+        // =========================
 
-    console.error(
-      "NATIVE SEND ERROR",
-      err
-    );
+        if (
+          tokenInfo.isNative
+        ) {
 
-    setStatus(
-      err?.message ||
+          txParams = {
 
-      "Error enviando nativo"
-    );
+            from:
+              wallet,
 
-  } finally {
+            to:
+              cleanRecipient,
 
-    setSending(false);
-  }
+            value:
+              "0x" +
 
-  return;
-}
-      
-// =========================
-// ERC20
-// =========================
+              ethers
+                .parseEther(
+                  cleanAmount
+                )
+                .toString(16),
+          };
 
-try {
+        } else {
 
-  setStatus(
-    "Preparando transferencia..."
-  );
+          // =========================
+          // ERC20
+          // =========================
 
-  // =========================
-  // ERC20 CALLDATA
-  // =========================
+          const iface =
+            new ethers.Interface([
+              "function transfer(address to,uint256 amount)"
+            ]);
 
-  const iface =
-    new ethers.Interface([
-      "function transfer(address to,uint256 amount)"
-    ]);
+          const encodedData =
+            iface.encodeFunctionData(
+              "transfer",
+              [
+                cleanRecipient,
 
-  const encodedData =
-    iface.encodeFunctionData(
-      "transfer",
-      [
-        cleanRecipient,
+                ethers.parseUnits(
+                  cleanAmount,
+                  tokenInfo.decimals
+                ),
+              ]
+            );
 
-        ethers.parseUnits(
-          cleanAmount,
-          tokenInfo.decimals
-        ),
-      ]
-    );
+          txParams = {
 
-  // =========================
-  // WORLD CHAIN ERC20
-  // =========================
-
-  if (
-    tokenInfo.chainId === 480
-  ) {
-
-    if (
-      !MiniKit?.commands
-    ) {
-
-      setStatus(
-        "MiniKit no disponible"
-      );
-
-      setSending(false);
-
-      return;
-    }
-
-    const txPayload = {
-
-      reference:
-        `rc-erc20-${Date.now()}`,
-
-      to:
-        tokenInfo.address,
-
-      data:
-        encodedData,
-
-      value: "0x0",
-    };
-
-    console.log(
-      "WORLD ERC20 PAYLOAD",
-      txPayload
-    );
-
-    const result =
-      await MiniKit.commands.sendTransaction({
-
-        transaction: [
-          txPayload,
-        ],
-      });
-
-    console.log(
-  "WORLD ERC20 RAW RESULT",
-  result
-);
-
-console.log(
-  "WORLD ERC20 FULL",
-  JSON.stringify(
-    result,
-    Object.getOwnPropertyNames(
-      result
-    ),
-    2
-  )
-);
-
-    // =========================
-    // VALIDATE RESULT
-    // =========================
-
-    if (
-      !result
-    ) {
-
-      setStatus(
-        "Sin respuesta MiniKit"
-      );
-
-      setSending(false);
-
-      return;
-    }
-
-    if (
-      result?.finalPayload
-        ?.status ===
-      "error"
-    ) {
-
-      setStatus(
-        result.finalPayload
-          ?.error_code ||
-
-        "Transferencia rechazada"
-      );
-
-      setSending(false);
-
-      return;
-    }
-
-   const txId =
-  result?.finalPayload
-    ?.txHash ||
-
-  result?.finalPayload
-    ?.transactionHash ||
-
-  result?.finalPayload
-    ?.transaction_id;
-
-    if (!txId) {
-
-      setStatus(
-        "No hubo tx hash"
-      );
-
-      setSending(false);
-
-      return;
-    }
-
-    console.log(
-      "WORLD ERC20 HASH",
-      txId
-    );
-
-    setStatus(
-      "ERC20 enviado"
-    );
-
-    setTimeout(async () => {
-
-      try {
-
-        await scanAllNetworks(
-          wallet
-        );
-
-      } catch (err) {
-
-        console.log(
-          "RESCAN ERROR",
-          err
-        );
-      }
-
-    }, 3000);
-
-  } else {
-
-    // =========================
-    // EXTERNAL EVM ERC20
-    // =========================
-
-    if (
-      !hasEthereumProvider
-    ) {
-
-      setStatus(
-        "Provider no disponible"
-      );
-
-      setSending(false);
-
-      return;
-    }
-
-    const hexChainId =
-      "0x" +
-      Number(
-        tokenInfo.chainId
-      ).toString(16);
-
-    // =========================
-    // SWITCH NETWORK
-    // =========================
-
-    try {
-
-      await window.ethereum.request({
-
-        method:
-          "wallet_switchEthereumChain",
-
-        params: [
-          {
-            chainId:
-              hexChainId,
-          },
-        ],
-      });
-
-    } catch (switchError) {
-
-      console.log(
-        "SWITCH ERROR",
-        switchError
-      );
-    }
-
-    // =========================
-    // SEND ERC20
-    // =========================
-
-    const txHash =
-      await window.ethereum.request({
-
-        method:
-          "eth_sendTransaction",
-
-        params: [
-          {
             from:
               wallet,
 
@@ -1613,82 +1552,164 @@ console.log(
 
             data:
               encodedData,
+          };
+        }
+
+        // =========================
+        // DEBUG PARAMS
+        // =========================
+
+        setDebugResult(
+
+          JSON.stringify(
+            {
+              phase:
+                "evm-send",
+
+              txParams,
+            },
+            null,
+            2
+          )
+        );
+
+        // =========================
+        // SEND
+        // =========================
+
+        const txHash =
+          await window.ethereum.request({
+
+            method:
+              "eth_sendTransaction",
+
+            params: [
+              txParams,
+            ],
+          });
+
+        // =========================
+        // SUCCESS
+        // =========================
+
+        if (!txHash) {
+
+          setStatus(
+            "No hubo tx hash"
+          );
+
+          return;
+        }
+
+        setStatus(
+          `Tx enviada: ${txHash}`
+        );
+
+        setDebugResult(
+
+          JSON.stringify(
+            {
+              txHash,
+            },
+            null,
+            2
+          )
+        );
+
+        // =========================
+        // RESCAN
+        // =========================
+
+        setTimeout(
+          async () => {
+
+            try {
+
+              await scanAllNetworks(
+                wallet
+              );
+
+            } catch (err) {
+
+              console.log(
+                "RESCAN ERROR",
+                err
+              );
+            }
+
           },
-        ],
-      });
 
-    console.log(
-      "EVM ERC20 HASH",
-      txHash
-    );
-
-    if (!txHash) {
-
-      setStatus(
-        "No hubo tx hash"
-      );
-
-      setSending(false);
-
-      return;
-    }
-
-    setStatus(
-      "ERC20 enviado"
-    );
-
-    setTimeout(async () => {
-
-      try {
-
-        await scanAllNetworks(
-          wallet
+          4000
         );
 
       } catch (err) {
+
+        const parsedError =
+          extractMiniKitError(
+            err
+          );
+
+        setDebugResult(
+
+          JSON.stringify(
+            parsedError,
+            null,
+            2
+          )
+        );
 
         console.log(
-          "RESCAN ERROR",
-          err
+          "EVM SEND ERROR",
+          parsedError
+        );
+
+        setStatus(
+
+          parsedError?.message ||
+
+          parsedError?.reason ||
+
+          "Error EVM"
         );
       }
+    }
 
-    }, 3000);
+  } catch (err) {
+
+    const parsedError =
+      extractMiniKitError(
+        err
+      );
+
+    setDebugResult(
+
+      JSON.stringify(
+        parsedError,
+        null,
+        2
+      )
+    );
+
+    console.log(
+      "HANDLE SEND ERROR",
+      parsedError
+    );
+
+    setStatus(
+
+      parsedError?.message ||
+
+      parsedError?.reason ||
+
+      "Error enviando"
+    );
+
+  } finally {
+
+    setSending(false);
   }
-
-} catch (err) {
-
-  console.error(
-    "ERC20 SEND ERROR",
-    err
-  );
-
-  setStatus(
-    err?.message ||
-
-    "Error enviando ERC20"
-  );
-
-} finally {
-
-  setSending(false);
-}
-      } catch (err) {
-
-  console.error(
-    "HANDLE SEND ERROR",
-    err
-  );
-
-  setStatus(
-    err?.message ||
-    "Error enviando"
-  );
-
-  setSending(false);
-
-}
 };
+
   // =========================
   // INIT
   // =========================
