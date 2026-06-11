@@ -1450,9 +1450,6 @@ if (!sendTransactionFn) {
         ) {
 
           txPayload = {
-
-            from: 
-              wallet,
             reference:
               `rc-native-${Date.now()}`,
 
@@ -1494,9 +1491,6 @@ if (!sendTransactionFn) {
             );
 
           txPayload = {
-
-            from:
-              wallet,
             reference:
               `rc-erc20-${Date.now()}`,
 
@@ -1562,36 +1556,8 @@ try {
     "transactions[] FAILED",
     modernError
   );
-
-  // =========================
-  // FALLBACK LEGACY FORMAT
-  // =========================
-
-  try {
-
-    console.log(
-      "TRYING transaction FORMAT"
-    );
-
-    result =
-      result =
-  await sendTransactionFn({
-        transaction:
-          txPayload,
-          
-      });
-
-  } catch (legacyError) {
-
-    console.log(
-      "transaction FAILED",
-      legacyError
-    );
-
-    throw legacyError;
-  }
 }
-
+  
 
         console.log(
   "MINIKIT RAW RESULT",
