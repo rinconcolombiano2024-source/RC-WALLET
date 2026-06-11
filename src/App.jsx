@@ -1545,7 +1545,7 @@ try {
 
   result =
   await sendTransactionFn({
-      transaction:[
+      transactions:[
         txPayload,
       ],
     });
