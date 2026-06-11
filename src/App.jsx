@@ -978,11 +978,17 @@ function parseMiniKitResult(
 
     null;
 
-  const success =
+ ```js id="t4m9ys"
+const success =
 
-    Boolean(txId) ||
+  Boolean(txId) ||
 
-    status === "success";
+  status === "success" ||
+
+  result?.success === true ||
+
+  finalPayload?.success === true;
+```
 
   return {
 
@@ -1101,94 +1107,7 @@ async function waitForBalanceChange(
     };
   }
 }
-// =========================
-// GET SEND TRANSACTION FN
-// =========================
 
-function getSendTransactionFn() {
-
-  // =========================
-  // commandsAsync
-  // =========================
-
-  if (
-
-    typeof MiniKit
-      ?.commandsAsync
-      ?.sendTransaction ===
-    "function"
-  ) {
-
-    console.log(
-      "USING commandsAsync.sendTransaction"
-    );
-
-    return async (
-      payload
-    ) =>
-      await MiniKit
-        .commandsAsync
-        .sendTransaction(
-          payload
-        );
-  }
-
-  // =========================
-  // commands
-  // =========================
-
-  if (
-
-    typeof MiniKit
-      ?.commands
-      ?.sendTransaction ===
-    "function"
-  ) {
-
-    console.log(
-      "USING commands.sendTransaction"
-    );
-
-    return async (
-      payload
-    ) =>
-      await MiniKit
-        .commands
-        .sendTransaction(
-          payload
-        );
-  }
-
-  // =========================
-  // direct sendTransaction
-  // =========================
-
-  if (
-
-    typeof MiniKit
-      ?.sendTransaction ===
-    "function"
-  ) {
-
-    console.log(
-      "USING MiniKit.sendTransaction"
-    );
-
-    return async (
-      payload
-    ) =>
-      await MiniKit
-        .sendTransaction(
-          payload
-        );
-  }
-
-  console.log(
-    "NO SEND TRANSACTION FOUND"
-  );
-
-  return null;
-}
 // =========================
 // SEND
 // =========================
@@ -1415,6 +1334,87 @@ async () => {
     setDebugResult("");
 
     setLastTxResult(null);
+```js id="r3x7mv"
+// =========================
+// WORLD ID VERIFY
+// =========================
+
+try {
+
+  if (
+    MiniKit?.commandsAsync
+      ?.verify
+  ) {
+
+    setStatus(
+      "Verificando World ID..."
+    );
+
+    const verifyResult =
+      await MiniKit
+        .commandsAsync
+        .verify({
+
+          action:
+            "rc-wallet-send",
+        });
+
+    console.log(
+      "WORLD VERIFY RESULT",
+      verifyResult
+    );
+
+    setDebugResult(
+
+      JSON.stringify(
+        verifyResult,
+        null,
+        2
+      )
+    );
+
+    const verifySuccess =
+
+      verifyResult?.success ===
+        true ||
+
+      verifyResult?.finalPayload
+        ?.success ===
+        true;
+
+    if (!verifySuccess) {
+
+      setStatus(
+        "Verificación cancelada"
+      );
+
+      return;
+    }
+  }
+
+} catch (verifyError) {
+
+  console.log(
+    "WORLD VERIFY ERROR",
+    verifyError
+  );
+
+  setDebugResult(
+
+    JSON.stringify(
+      verifyError,
+      null,
+      2
+    )
+  );
+
+  setStatus(
+    "Error verificando World ID"
+  );
+
+  return;
+}
+```
 
     // =========================
     // WORLD CHAIN
@@ -1427,17 +1427,18 @@ async () => {
       try {
 
 
-const sendTransactionFn =
-  getSendTransactionFn();
-
-if (!sendTransactionFn) {
+if (
+  !MiniKit?.commandsAsync
+    ?.sendTransaction
+) {
 
   setStatus(
-    "No existe sendTransaction"
+    "MiniKit sendTransaction no disponible"
   );
 
   return;
 }
+
 
         let txPayload;
 
@@ -1449,22 +1450,21 @@ if (!sendTransactionFn) {
           tokenInfo.isNative
         ) {
 
-          txPayload = {
-            reference:
-              `rc-native-${Date.now()}`,
+         txPayload = {
 
-            to:
-              cleanRecipient,
+  reference:
+    `rc-native-${Date.now()}`,
 
-            value:
-              "0x" +
+  to:
+    cleanRecipient,
 
-              ethers
-                .parseEther(
-                  cleanAmount
-                )
-                .toString(16),
-          };
+  value:
+    ethers
+      .parseEther(
+        cleanAmount
+      )
+      .toString(),
+};
 
         } else {
 
@@ -1501,7 +1501,7 @@ if (!sendTransactionFn) {
               encodedData,
 
             value:
-              "0x0",
+              "0",
           };
         }
 
@@ -1529,38 +1529,18 @@ if (!sendTransactionFn) {
 
        console.log(
   "MINIKIT SEND TYPE",
-  typeof MiniKit?.commands?.sendTransaction
-);
-let result = null;
+  typeof MiniKit?.commandsAsync?.sendTransaction
+       );
+const result =
+  await MiniKit
+    .commandsAsync
+    .sendTransaction({
 
-// =========================
-// TRY MODERN FORMAT
-// =========================
-
-try {
-
-  console.log(
-    "TRYING transaction[] FORMAT"
-  );
-
-  result =
-  await sendTransactionFn({
-    payload:{
-      transactions:[
+      transaction: [
         txPayload,
       ],
-    },
     });
-
-} catch (modernError) {
-
-  console.log(
-    "transactions[] FAILED",
-    modernError
-  );
-}
-  
-
+        
         console.log(
   "MINIKIT RAW RESULT",
   result
