@@ -1536,7 +1536,7 @@ const result =
     .commandsAsync
     .sendTransaction({
 
-      transaction: [
+      transactions: [
         txPayload,
       ],
     });
