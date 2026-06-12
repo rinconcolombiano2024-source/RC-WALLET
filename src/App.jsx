@@ -624,7 +624,7 @@ const handleSend = async () => {
       return;
     }
 
-    // =========================
+// =========================
     // CÁLCULO DE GAS (SOLO NATIVOS)
     // =========================
     if (tokenInfo.isNative) {
