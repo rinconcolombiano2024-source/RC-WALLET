@@ -782,48 +782,124 @@ setStatus("Fondos insuficientes para cubrir el gas");
     // En MiniKit v3 pasamos el objeto completo o su propiedad interna '.data' para parsear
     const parsed = parseMiniKitResult(result?.data ? result : { data: result });
     setLastTxResult(parsed);
-    setDebugResult(JSON.stringify(parsed, null, 2));
-
-    if (!parsed.success) {
-      setStatus(parsed?.status || "Operación rechazada o fallida");
-      setSending(false);
-      return;
-    }
-
-    // =========================
-    // CONFIRMACIÓN EN BLOCKCHAIN
-    // =========================
-    setStatus("Esperando confirmación en la blockchain...");
-    
-    const confirmation = await waitForBalanceChange(
-      wallet,
-      tokenInfo,
-      tokenInfo.balance
-    );
-
-    if (confirmation.success) {
-      setStatus("¡Transacción confirmada con éxito! Fondos recuperados.");
-    } else {
-      setStatus("Operación enviada al Relay de la red");
-    }
-
-    // Refrescar saldos finales
-    setTimeout(async () => {
-      try {
-        await scanAllNetworks(wallet);
-      } catch (e) {
-        console.error(e);
+  // ==========================================
+  // FUNCIÓN DE ENVÍO DE TOKENS (MINIKIT V3)
+  // ==========================================
+  const handleSend = async () => {
+    try {
+      if (!MiniKit.isInstalled()) {
+        setStatus("Abra desde World App");
+        return;
       }
-      setSending(false);
-    }, 2000);
 
-  } catch (err) {
-    console.error("CRITICAL SEND ERROR:", err);
-    setStatus("Error crítico durante el envío");
-    setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
-    setSending(false);
-  }
-};
+      // Validación inicial de saldo disponible y gas
+      if (tokenInfo.isNative && availableBalance <= 0) {
+        setStatus("Fondos insuficientes para cubrir el gas");
+        return;
+      }
+
+      if (maxSendAmount) {
+        setMaxSendAmount(availableBalance.toFixed(8));
+      }
+
+      // =========================
+      // INICIAR PROCESO DE ENVÍO
+      // =========================
+      setSending(true);
+      setStatus("Enviando operación a World App...");
+      setDebugResult("");
+      setLastTxResult(null);
+
+      let txPayload;
+
+      // =========================
+      // CONSTRUCCIÓN DEL PAYLOAD PARA MINIKIT
+      // =========================
+      if (tokenInfo.isNative) {
+        // Envío de moneda nativa adaptado a la sintaxis estricta de MiniKit v3
+        txPayload = {
+          address: cleanRecipient, // MiniKit v3 requiere 'address' para el destino nativo
+          value: ethers.parseEther(cleanAmount).toString(),
+          abi: [],                 
+          functionName: "", 
+          args: []
+        };
+      } else {
+        // Envío de Tokens ERC20 utilizando la estructura nativa de MiniKit
+        txPayload = {
+          address: tokenInfo.address,
+          abi: ERC20_ABI,
+          functionName: "transfer",
+          args: [cleanRecipient, ethers.parseUnits(cleanAmount, tokenInfo.decimals).toString()],
+          value: "0",
+        };
+      }
+
+      // Guardamos el Payload en Debug para verificación visual
+      setDebugResult(JSON.stringify({ phase: "payload_prepared", txPayload }, null, 2));
+
+      // =========================
+      // EJECUCIÓN EN MINI APP (WORLD APP)
+      // =========================
+      console.log("Ejecutando MiniKit.sendTransaction en red:", tokenInfo.chainId);
+      
+      // Llamado directo compatible con la v3 de MiniKit sin .commandsAsync
+      const result = await MiniKit.sendTransaction({
+        chainId: tokenInfo.chainId, 
+        transactions: [txPayload],
+      });
+
+      console.log("MINIKIT RAW RESULT:", result);
+
+      // =========================
+      // PROCESAMIENTO DE RESPUESTA
+      // =========================
+      // Normalizamos el formato extrayendo la respuesta desde la propiedad .data
+      const parsed = parseMiniKitResult(result?.data ? result : { data: result });
+      setLastTxResult(parsed);
+      setDebugResult(JSON.stringify(parsed, null, 2));
+
+      if (!parsed.success) {
+        setStatus(parsed?.status || "Operación rechazada o fallida");
+        setSending(false);
+        return;
+      }
+
+      // =========================
+      // CONFIRMACIÓN EN BLOCKCHAIN
+      // =========================
+      setStatus("Esperando confirmación en la blockchain...");
+      
+      const confirmation = await waitForBalanceChange(
+        wallet,
+        tokenInfo,
+        tokenInfo.balance
+      );
+
+      if (confirmation.success) {
+        setStatus("¡Transacción confirmada con éxito! Fondos recuperados.");
+      } else {
+        setStatus("Operación enviada al Relay de la red");
+      }
+
+      // Refrescar saldos finales
+      setTimeout(async () => {
+        try {
+          await scanAllNetworks(wallet);
+        } catch (e) {
+          console.error(e);
+        }
+        setSending(false);
+      }, 2000);
+
+    } catch (err) {
+      console.error("CRITICAL SEND ERROR:", err);
+      setStatus("Error crítico durante el envío");
+      setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
+      setSending(false);
+    }
+  };
+
 
 // =========================
 // INIT / AUTO RECONNECT (CORREGIDO)
