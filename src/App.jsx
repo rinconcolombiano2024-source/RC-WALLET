@@ -320,9 +320,17 @@ async function detectProvider() {
   try {
     const detected = [];
 
-    // =========================
-    // WINDOW ETHEREUM (METAMASK/INYECTADOS)
-    // =========================
+    // ========================================================================
+// PROVIDER DETECTION (CORRECCIÓN ESTRICTA DE LLAVES PARA VERCEL)
+// ========================================================================
+async function detectProvider() {
+  if (typeof window === "undefined" || !window) {
+    return [];
+  }
+
+  try {
+    const detected = [];
+
     if (typeof window.ethereum !== "undefined" && window.ethereum) {
       detected.push({
         name: "window.ethereum",
@@ -330,76 +338,20 @@ async function detectProvider() {
         hasRequest: typeof window.ethereum?.request === "function",
       });
 
-      // Mapeo seguro si existen múltiples proveedores inyectados en paralelo
       if (Array.isArray(window.ethereum?.providers)) {
-        window.ethereum.providers.forEach((prov, idx) => {
-          if (prov) {
-            detected.push({
-              name: `ethereum.providers[${idx}]`,
-              provider: prov,
-              hasRequest: typeof prov?.request === "function",
-            });
-          }
-        });
-      }
-    }
-
-    // =========================
-    // MINIKIT PROVIDERS (WORLD APP)
-    // =========================
-    if (typeof MiniKit !== "undefined" && MiniKit?.provider) {
-      detected.push({
-        name: "MiniKit.provider",
-        provider: MiniKit.provider,
-        hasRequest: typeof MiniKit?.provider?.request === "function",
-      });
-    }
-
-    if (typeof MiniKit !== "undefined" && MiniKit?.walletProvider) {
-      detected.push({
-        name: "MiniKit.walletProvider",
-        provider: MiniKit.walletProvider,
-        hasRequest: typeof MiniKit?.walletProvider?.request === "function",
-      });
-    }
-
-    console.log("[PROVIDER DIAGNOSTIC] Entornos web3 detectados:", detected);
-    return detected;
-  } catch (err) {
-    console.error("Critical provider detection bypass:", err);
-    return []; // Retorno seguro para prevenir quiebres de UI
-  }
-}
-      // ========================================================
-      // MULTIPLE PROVIDERS (BLINDADO MULTI-BILLETERA & SSR)
-      // ========================================================
-      if (
-        typeof window !== "undefined" && 
-        window?.ethereum && 
-        Array.isArray(window.ethereum?.providers)
-      ) {
         for (const provider of window.ethereum.providers) {
           if (provider) {
             detected.push({
               name: "ethereum.providers[]",
-              provider: provider,
+              provider,
               hasRequest: typeof provider?.request === "function",
             });
           }
         }
       }
     }
-    // Cierre seguro del bloque superior window.ethereum
-       
-   // ========================================================
-    // WINDOW SAFE (ENTORNOS GNOSIS SAFE - COMPATIBILIDAD TOTAL)
-    // ========================================================
-    if (
-      typeof window !== "undefined" && 
-      window && 
-      typeof window.safe !== "undefined" && 
-      window.safe
-    ) {
+
+    if (typeof window.safe !== "undefined" && window.safe) {
       detected.push({
         name: "window.safe",
         provider: window.safe,
@@ -407,15 +359,7 @@ async function detectProvider() {
       });
     }
 
-        // ========================================================
-    // WINDOW WORLD (ENTORNOS EXPERIMENTALES WORLD APP)
-    // ========================================================
-    if (
-      typeof window !== "undefined" && 
-      window && 
-      typeof window.world !== "undefined" && 
-      window.world
-    ) {
+    if (typeof window.world !== "undefined" && window.world) {
       detected.push({
         name: "window.world",
         provider: window.world,
@@ -423,9 +367,6 @@ async function detectProvider() {
       });
     }
 
-    // ========================================================
-    // MINIKIT PROVIDERS (NATIVO WORLD APP - REVISIÓN ESTALBE)
-    // ========================================================
     if (typeof MiniKit !== "undefined" && MiniKit && typeof MiniKit.provider !== "undefined" && MiniKit.provider) {
       detected.push({
         name: "MiniKit.provider",
@@ -442,13 +383,14 @@ async function detectProvider() {
       });
     }
 
-    console.log("[PROVIDER DIAGNOSTIC] Diagnóstico final de entornos web3:", detected);
-    return detected; // Retorna el arreglo limpio para que el useEffect actualice el estado de React
+    console.log("[PROVIDER DIAGNOSTIC] Diagnóstico final:", detected);
+    return detected;
+
   } catch (err) {
     console.error("PROVIDER DETECTION CRITICAL ERROR:", err?.message || err);
-    return []; // Retorno de contingencia seguro para evitar que la UI colapse
+    return [];
   }
-} // Cierre definitivo de la función detectProvider()
+}
 // ========================================================================
 // SCAN (APERTURA DE ALTA ROBUSTEZ Y RENDIMIENTO MULTICADENA)
 // ========================================================================
