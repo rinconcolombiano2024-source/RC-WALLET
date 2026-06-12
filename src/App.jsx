@@ -1320,9 +1320,11 @@ useEffect(() => {
       const cleanStoredWallet = ethers.getAddress(storedWallet);
       setWallet(cleanStoredWallet);
       
-      // Asignación segura del objeto de red por defecto (World Chain)
+
+            // Asignación segura del objeto de red por defecto (World Chain)
       const defaultChain = NETWORKS.find(n => n.chainId === 480) || NETWORKS[0];
       setNetwork(defaultChain);
+
       
       setWorldVerified(true);
       setStatus("Reconectando sesión...");
@@ -1361,6 +1363,7 @@ useEffect(() => {
     mountedRef.current = false;
   };
 }, [scanAllNetworks]); // Dependencia estable que no generará bucles repetitivos infinitos
+
 // ========================================================================
 // AUTO HIDE STATUS (ROBUSTEZ DE DEPENDENCIAS Y SINCRONIZACIÓN DE INTERFAZ)
 // ========================================================================
@@ -1388,7 +1391,8 @@ useEffect(() => {
 
   return () => clearTimeout(timer);
 }, [status]); // Sincronización lineal y directa basada en eventos de alerta
-  // ========================================================================
+    
+   // ========================================================================
   // UI (CONTENEDOR MAESTRO DE ALTA ROBUSTEZ Y ESTILO RESPONSIVO)
   // ========================================================================
 
@@ -1403,8 +1407,8 @@ useEffect(() => {
         boxSizing: "border-box" // Añadido para prevenir desbordamientos horizontales en pantallas móviles
       }}
     >
-      <h1>RC Wallet</h1>
-      {/* ========================================================
+      <h1 style={{ marginTop: 0, marginBottom: 20 }}>RC Wallet</h1>
+          {/* ========================================================
          STATUS TOAST (CORREGIDO CON ADAPTACIÓN DE COLOR V3)
       ======================================================== */}
       {status && (
@@ -1415,16 +1419,16 @@ useEffect(() => {
             left: "50%",
             transform: "translateX(-50%)",
             background:
-              status.includes("completada") || 
-              status.includes("confirmada") || 
-              status.includes("completado") || 
-              status.includes("confirmado") ||
-              status.includes("éxito")
+              status.toLowerCase().includes("completada") || 
+              status.toLowerCase().includes("confirmada") || 
+              status.toLowerCase().includes("completado") || 
+              status.toLowerCase().includes("confirmado") ||
+              status.toLowerCase().includes("éxito")
                 ? "#16a34a" // Verde para éxitos de rescate de fondos
-                : status.includes("cancelada") || 
-                  status.includes("Error") || 
-                  status.includes("inválida") || 
-                  status.includes("insuficientes")
+                : status.toLowerCase().includes("cancelada") || 
+                  status.toLowerCase().includes("error") || // CORREGIDO: Detecta "error" y "Error" por igual
+                  status.toLowerCase().includes("inválida") || 
+                  status.toLowerCase().includes("insuficientes")
                 ? "#dc2626" // Rojo para advertencias o fondos insuficientes
                 : "#111827", // Gris oscuro para procesos de carga RPC
             color: "#fff",
@@ -1443,11 +1447,11 @@ useEffect(() => {
           {status}
         </div>
       )}
-
       {/* ========================================================
-         BOTÓN DE AUTENTICACIÓN (ESTILO MÓVIL SEGURO)
+         BOTÓN DE AUTENTICACIÓN (ESTILO MÓVIL SEGURO - CORREGIDO)
       ======================================================== */}
       <button
+        type="button" // CORRECCIÓN: Evita recargas erráticas de la página en celulares (Anti-Submit)
         onClick={handleWorldLogin}
         style={{
           width: "100%",
@@ -1460,7 +1464,7 @@ useEffect(() => {
           fontSize: 16,
           marginBottom: 20,
           cursor: "pointer",
-          boxSizing: "border-box" // CORRECCIÓN: Evita desbordamiento horizontal en celulares
+          boxSizing: "border-box" 
         }}
       >
         Iniciar sesión con World ID
@@ -1486,6 +1490,7 @@ useEffect(() => {
       </div>
 
       <button
+        type="button" // CORRECCIÓN: Atributo estricto obligatorio de HTML5 para evitar warnings en Vercel
         disabled={!wallet}
         onClick={() => {
           if (!wallet) return;
@@ -1528,36 +1533,43 @@ useEffect(() => {
       >
         Copiar dirección
       </button>
+
       {/* ========================================================
          QR WALLET (DISEÑO SEGURO Y COMPATIBLE CON IMÁGENES)
       ======================================================== */}
       {wallet && (
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
           <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${wallet}`}
-            alt="QR Wallet"
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(wallet)}`} // CORRECCIÓN: Asegura el escape seguro de la dirección en la URL externa
+            alt={`Código QR de la billetera criptográfica con dirección ${wallet}`} // CORRECCIÓN: Texto alternativo dinámico y descriptivo (Pasa filtros estrictos de ESLint)
+            width="180" // CORRECCIÓN: Dimensiones nativas de renderizado para evitar saltos visuales en el DOM
+            height="180"
             style={{
               width: 180,
               height: 180,
               borderRadius: 20,
               border: "4px solid #111827",
               background: "#fff",
+              display: "block"
             }}
           />
         </div>
       )}
 
-      {/* ========================================================
+          {/* ========================================================
          INFO PANEL (MÁXIMA RESISTENCIA A RENDERIZADO SSR)
       ======================================================== */}
-      <div style={{ background: "#111", padding: 12, borderRadius: 12, marginBottom: 20, border: "1px solid #222" }}>
-        <p style={{ margin: "5px 0" }}><b>Red Activa:</b> {network?.name || "World Chain"}</p>
-        <p style={{ margin: "5px 0" }}><b>Balance Nativo Gas:</b> {nativeBalance} ETH</p>
-        <p style={{ margin: "5px 0" }}>
+      <div style={{ background: "#111", padding: 12, borderRadius: 12, marginBottom: 20, border: "1px solid #222", boxSizing: "border-box" }}>
+        <p style={{ margin: "5px 0", fontSize: 14 }}>
+          <b>Red Activa:</b> {typeof network === "object" && network?.name ? network.name : "World Chain"}
+        </p>
+        <p style={{ margin: "5px 0", fontSize: 14 }}>
+          <b>Balance Nativo Gas:</b> {nativeBalance || "0.000000"} ETH
+        </p>
+        <p style={{ margin: "5px 0", fontSize: 14 }}>
           <b>World ID:</b> {worldVerified ? "✅ Verificado" : "❌ No verificado"}
         </p>
       </div>
-
       {/* ========================================================
          NATIVE QR SCANNER (REQUERIMIENTO: ESCANEAR DESTINATARIOS)
       ======================================================== */}
@@ -1573,15 +1585,15 @@ useEffect(() => {
 
             setStatus("Abriendo cámara del dispositivo...");
             
-            // Invocación al comando nativo de lectura QR de la SDK estable de Worldcoin
-            const qrResult = await MiniKit.commands.scanQrCode();
+            // CORRECCIÓN V3: Invocación directa y asíncrona unificada sobre el objeto principal MiniKit
+            const qrResult = await MiniKit.scanQrCode();
             
             console.log("[QR SCANNER RESPONSE] Datos leídos:", qrResult);
 
-            // Extraemos la dirección filtrando por variantes de respuesta del hardware
-            const scannedData = qrResult?.qr_code || qrResult?.data || qrResult;
+            // CORRECCIÓN SINTAXIS SDK: MiniKit mapea el resultado estrictamente en .qrCode (CamelCase) o .data
+            const scannedData = qrResult?.qrCode || qrResult?.data || qrResult;
 
-            if (!scannedData) {
+            if (!scannedData || typeof scannedData !== "string") {
               setStatus("Lectura de código QR cancelada o vacía");
               return;
             }
@@ -1591,7 +1603,8 @@ useEffect(() => {
             if (cleanScannedAddress.toLowerCase().startsWith("ethereum:")) {
               cleanScannedAddress = cleanScannedAddress.substring(9);
             }
-            // Si el código QR incluye el formato con la consulta de monto (ej: ?amount=) lo recortamos
+            
+            // Si el código QR incluye el formato con la consulta de monto (ej: ?amount=) lo recortamos de forma segura
             if (cleanScannedAddress.includes("?")) {
               cleanScannedAddress = cleanScannedAddress.split("?")[0];
             }
@@ -1626,7 +1639,7 @@ useEffect(() => {
         📸 Escanear QR de Destinatario
       </button>
       {/* ========================================================
-         PROVIDERS DETECTED (DISEÑO BLINDADO DE RENDIMIENTO)
+         PROVIDERS DETECTED (CORRECCIÓN ESTRICTA DE ESTILOS CSS)
       ======================================================== */}
       <div
         style={{
@@ -1648,7 +1661,7 @@ useEffect(() => {
             // Generamos una llave única combinada ultra segura para evitar advertencias de React
             const uniqueKey = item?.name ? `${item.name}-${index}` : `provider-${index}`;
             return (
-              <div key={uniqueKey} style={{ marginTop: 6, display: "flex", justifyContent: "between", alignItems: "center" }}>
+              <div key={uniqueKey} style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}> {/* CORRECCIÓN: "space-between" nativo de React */}
                 <span style={{ color: "#fff" }}>{item?.name || "Unknown"}</span>
                 <span style={{ marginLeft: 8 }}>{item?.hasRequest ? "✅" : "❌"}</span>
               </div>
@@ -1658,7 +1671,8 @@ useEffect(() => {
       </div>
 
       <hr style={{ borderColor: "#222", borderWidth: "1px", borderStyle: "solid", marginBottom: 20 }} />
-      {/* ========================================================
+
+            {/* ========================================================
          FONDOS DETECTADOS (LISTADO MULTICADENA BLINDADO)
       ======================================================== */}
       <h2>Fondos Detectados</h2>
@@ -1666,10 +1680,8 @@ useEffect(() => {
         <p style={{ color: "#aaa" }}>No se detectaron fondos atascados.</p>
       ) : (
         tokensDetected.map((token, index) => {
-          // CORRECCIÓN VERCEL: Generamos una llave única combinando red y contrato para optimizar el DOM de React
           const tokenUniqueKey = `${token?.chainId || index}-${token?.address || "native"}`;
           
-          // Verificación segura y estricta del token actualmente activo
           const isSelected = selectedToken && 
                              typeof selectedToken === "object" && 
                              selectedToken.address === token.address && 
@@ -1716,7 +1728,7 @@ useEffect(() => {
 
                 <button
                   type="button"
-                  disabled={!wallet} // CORRECCIÓN: Desactiva si la wallet no está inicializada aún
+                  disabled={!wallet}
                   onClick={() => {
                     if (!wallet) return;
                     let explorer = "";
@@ -1732,6 +1744,9 @@ useEffect(() => {
                       explorer = token.isNative ? `https://bscscan.com/address/${activeWallet}` : `https://bscscan.com/token/${token.address}?a=${activeWallet}`;
                     } else if (token.chainId === 480) {
                       explorer = token.isNative ? `https://worldscan.org/address/${activeWallet}` : `https://worldscan.org/token/${token.address}?a=${activeWallet}`;
+                    } else if (token.chainId === 4801) {
+                      // CORRECCIÓN: Agrega soporte al explorador de la red de pruebas Sepolia World Chain
+                      explorer = token.isNative ? `https://sepolia.worldscan.org/address/${activeWallet}` : `https://sepolia.worldscan.org/token/${token.address}?a=${activeWallet}`;
                     }
                     
                     if (explorer && typeof window !== "undefined") {
@@ -1811,11 +1826,10 @@ useEffect(() => {
       />
 
       <button
-        type="button" // CORRECCIÓN: Evita comportamientos 'submit' erráticos del navegador
+        type="button" 
         disabled={!selectedToken || sending}
         onClick={() => {
           if (!selectedToken) return;
-          // Validación robusta: Usa el balance máximo descontando gas si es nativo
           if (selectedToken.isNative) {
             setSendAmount(maxSendAmount && maxSendAmount !== "0" ? maxSendAmount : selectedToken.balance);
           } else {
@@ -1838,6 +1852,7 @@ useEffect(() => {
         Utilizar Máximo (MAX)
       </button>
 
+      {/* CORRECCIÓN: Se conserva un único botón de retiro funcional */}
       <button
         type="button"
         disabled={sending || !selectedToken || !recipient || !sendAmount}
@@ -1857,27 +1872,6 @@ useEffect(() => {
       >
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
-
-      <button
-        type="button"
-        disabled={sending || !selectedToken || !recipient || !sendAmount}
-        onClick={handleSend}
-        style={{
-          width: "100%",
-          padding: 14,
-          borderRadius: 14,
-          border: "none",
-          background: sending || !selectedToken || !recipient || !sendAmount ? "#444" : "#2563eb",
-          color: "#fff",
-          fontWeight: "bold",
-          fontSize: 16,
-          cursor: sending || !selectedToken || !recipient || !sendAmount ? "not-allowed" : "pointer",
-          boxSizing: "border-box"
-        }}
-      >
-        {sending ? "Procesando en World App..." : "Retirar Fondos"}
-      </button>
-
       {/* ========================================================
          BANNER PUBLICITARIO: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
@@ -1899,22 +1893,27 @@ useEffect(() => {
           Te invitamos a visitar nuestro local comercial <b>RINCÓN COLOMBIANO</b> para disfrutar del mejor sabor de la comida colombiana en Varsovia.
         </p>
         <div 
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.open("https://google.com", "_blank", "noopener,noreferrer");
+            }
+          }}
           style={{ 
             marginTop: 10, 
             display: "inline-block", 
-            padding: "6px 12px", 
+            padding: "8px 14px", 
             background: "#ffcc00", 
             color: "#000", 
             borderRadius: 8, 
             fontWeight: "bold", 
-            fontSize: 12 
+            fontSize: 12,
+            cursor: "pointer" // CORRECCIÓN INTERACTIVA: Indica al usuario que es cliqueable
           }}
         >
-          📍 Czapelska 33, Varsovia
+          📍 Czapelska 33, Varsovia (Abrir Mapa 🗺️)
         </div>
       </div>
-      
-           {/* ========================================================
+      {/* ========================================================
          CONSOLE DEBUG OUTPUT (VISTA DE DEPURACIÓN ANTI-DESBORDAMIENTO)
       ======================================================== */}
       {debugResult && (
@@ -1947,4 +1946,10 @@ useEffect(() => {
       )}
     </div>
   );
-}
+  }
+
+  
+  
+  
+  
+  } // <--- ESTA DEBE SER LA ÚLTIMA LÍNEA REAL DE TU ARCHIVO EN GITHUB
