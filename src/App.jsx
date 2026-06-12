@@ -1532,11 +1532,9 @@ if (
   typeof MiniKit?.commandsAsync?.sendTransaction
        );
 const result =
-  await MiniKit
-    .commandsAsync
-    .sendTransaction({
+  await MiniKit.commandsAsync.sendTransaction({
 
-      transactions: [
+      transaction:[
         txPayload,
       ],
     });
