@@ -432,17 +432,19 @@ async function handleWorldLogin() {
 
     setStatus("Conectando wallet...");
     
-    // CORRECCIÓN: Invocación a través de commands.walletAuth
-    const res = await MiniKit.commands.walletAuth({
+    // CORREGIDO: Llamada directa sin '.commands' para MiniKit v3
+    const res = await MiniKit.walletAuth({
       nonce: Math.random().toString(36).substring(2),
     });
 
-    if (res?.error_code) {
-      setStatus(res?.error_message || "Login cancelado");
+    // En MiniKit v3 los errores o cancelaciones vienen dentro de res o res.data
+    if (res?.error_code || res?.data?.error_code) {
+      setStatus(res?.error_message || res?.data?.error_message || "Login cancelado");
       return;
     }
 
-    const payload = res?.finalPayload || res;
+    // En la v3, la respuesta exitosa viene estructurada dentro de res.data
+    const payload = res?.data || res?.finalPayload || res;
     const address = payload?.address || payload?.walletAddress;
 
     if (!address) {
@@ -453,7 +455,7 @@ async function handleWorldLogin() {
     setWallet(address);
     localStorage.setItem("rc_wallet_address", address);
     
-    // CORRECCIÓN: Asigna el objeto de red correspondiente a World Chain, no un string
+    // Asigna el objeto de red correspondiente a World Chain
     const worldChainNet = NETWORKS.find(n => n.chainId === 480) || NETWORKS[0];
     setNetwork(worldChainNet);
 
@@ -471,6 +473,7 @@ async function handleWorldLogin() {
     setStatus(err?.message || "Error login");
   }
 }
+
 
 // =========================
 // ERROR EXTRACTOR
@@ -717,6 +720,85 @@ const handleSend = async () => {
       wallet,
       tokenInfo,
       tokenInfo.balance
+// =========================
+// INICIAR PROCESO DE ENVÍO
+// =========================
+setStatus("Fondos insuficientes para cubrir el gas");
+        return;
+      }
+
+      setMaxSendAmount(availableBalance.toFixed(8));
+    }
+
+    setSending(true);
+    setStatus("Enviando operación a World App...");
+    setDebugResult("");
+    setLastTxResult(null);
+
+    let txPayload;
+
+    // =========================
+    // CONSTRUCCIÓN DEL PAYLOAD PARA MINIKIT
+    // =========================
+    if (tokenInfo.isNative) {
+      // Envío de moneda nativa (ETH / WLD Nativo) adaptado a la sintaxis estricta de MiniKit
+      txPayload = {
+        address: cleanRecipient, // MiniKit requiere 'address' en lugar de 'to'
+        value: ethers.parseEther(cleanAmount).toString(),
+        abi: [],                 // Opcional en nativo, pero evita conflictos de validación
+        functionName: "", 
+        args: []
+      };
+    } else {
+      // Envío de Tokens ERC20 (WLD, USDC, USDT) utilizando la estructura nativa de MiniKit
+      txPayload = {
+        address: tokenInfo.address,
+        abi: ERC20_ABI,
+        functionName: "transfer",
+        args: [cleanRecipient, ethers.parseUnits(cleanAmount, tokenInfo.decimals).toString()],
+        value: "0",
+      };
+    }
+
+    // Guardamos el Payload en Debug para verificación visual
+    setDebugResult(JSON.stringify({ phase: "payload_prepared", txPayload }, null, 2));
+
+    // =========================
+    // EJECUCIÓN EN MINI APP (WORLD APP)
+    // =========================
+    console.log("Ejecutando MiniKit.sendTransaction en red:", tokenInfo.chainId);
+    
+    // Firma directa compatible con la v3 de MiniKit
+    const result = await MiniKit.sendTransaction({
+      chainId: tokenInfo.chainId, // Ejecuta dinámicamente en la red del token seleccionado
+      transactions: [txPayload],
+    });
+
+    console.log("MINIKIT RAW RESULT:", result);
+
+    // =========================
+    // PROCESAMIENTO DE RESPUESTA
+    // =========================
+    // En MiniKit v3 pasamos el objeto completo o su propiedad interna '.data' para parsear
+    const parsed = parseMiniKitResult(result?.data ? result : { data: result });
+    setLastTxResult(parsed);
+    setDebugResult(JSON.stringify(parsed, null, 2));
+
+    if (!parsed.success) {
+      setStatus(parsed?.status || "Operación rechazada o fallida");
+      setSending(false);
+      return;
+    }
+
+    // =========================
+    // CONFIRMACIÓN EN BLOCKCHAIN
+    // =========================
+    setStatus("Esperando confirmación en la blockchain...");
+    
+    const confirmation = await waitForBalanceChange(
+      wallet,
+      tokenInfo,
+      tokenInfo.balance
     );
 
     if (confirmation.success) {
@@ -742,6 +824,7 @@ const handleSend = async () => {
     setSending(false);
   }
 };
+
 // =========================
 // INIT / AUTO RECONNECT (CORREGIDO)
 // =========================
