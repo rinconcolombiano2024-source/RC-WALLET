@@ -1523,37 +1523,28 @@ if (
           )
         );
 
-        // =========================
-        // SEND TRANSACTION
-        // =========================
+ // =========================
+// SEND TRANSACTION (CORREGIDO)
+// =========================
 
-       console.log(
-  "MINIKIT SEND TYPE",
-  typeof MiniKit?.commandsAsync?.sendTransaction
-       );
-const result =
-  await MiniKit.commandsAsync.sendTransaction({
+console.log("MINIKIT INSTALLED?", MiniKit.isInstalled());
 
-      transaction:[
-        txPayload,
-      ],
-    });
-        
-        console.log(
-  "MINIKIT RAW RESULT",
-  result
-);
-console.log(
-  "TX PAYLOAD SENDT",
-  txPayload
-  );
-setDebugResult(
-  JSON.stringify(
-    result,
-    null,
-    2
-  )
-);
+try {
+  // 1. Invocación directa y parámetro en plural: transactions
+  const result = await MiniKit.sendTransaction({
+    chainId: 480, // ID de World Chain (Cambiar a 4801 si estás en Testnet)
+    transactions: [
+      txPayload, // Tu payload estructurado (to, value, abi, functionName, args)
+    ],
+  });
+
+  console.log("MINIKIT RAW RESULT", result);
+  setDebugResult(JSON.stringify(result, null, 2));
+
+} catch (error) {
+  console.error("ERROR EN TRANSACCIÓN:", error);
+  setDebugResult(JSON.stringify({ error: error.message }, null, 2));
+}
 
         // =========================
         // PARSE RESULT
