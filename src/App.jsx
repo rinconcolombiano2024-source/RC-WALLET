@@ -1914,7 +1914,7 @@ useEffect(() => {
         </div>
       </div>
       
-      {/* ========================================================
+           {/* ========================================================
          CONSOLE DEBUG OUTPUT (VISTA DE DEPURACIÓN ANTI-DESBORDAMIENTO)
       ======================================================== */}
       {debugResult && (
@@ -1937,7 +1937,7 @@ useEffect(() => {
               margin: 0, 
               fontFamily: "monospace", 
               whiteSpace: "pre-wrap", 
-              wordBreak: "break-all", // CORRECCIÓN MÓVIL: Fuerza el quiebre de hashes criptográficos largos
+              wordBreak: "break-all",
               overflowX: "auto" 
             }}
           >
@@ -1947,4 +1947,4 @@ useEffect(() => {
       )}
     </div>
   );
-} // Llave final de cierre del componente export export default function App()
+}
