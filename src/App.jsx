@@ -126,7 +126,7 @@ const ERC20_ABI = [
   "function transfer(address to, uint256 value) returns (bool)"
 ];
 // ========================================================================
-// APP (ESTADOS DE ALTA ROBUSTEZ - APERTURA UNIFICADA)
+// APP (ESTADOS DE ALTA ROBUSTEZ - APERTURA UNIFICADA CON INICIALIZACIÓN V3)
 // ========================================================================
 export default function App() {
   const mountedRef = useRef(true);
@@ -158,6 +158,23 @@ export default function App() {
   const [debugResult, setDebugResult] = useState("");
   const [lastTxResult, setLastTxResult] = useState(null);
   const [detectedProviders, setDetectedProviders] = useState([]);
+
+  // ========================================================================
+  // ENGINE INITIALIZATION (SOLUCCIÓN AL ERROR DE SDK AUSENTE)
+  // ========================================================================
+  useEffect(() => {
+    try {
+      // Forzamos la inyección del puente móvil de inmediato en el hardware del teléfono
+      if (typeof window !== "undefined" && typeof MiniKit !== "undefined" && MiniKit) {
+        if (typeof MiniKit.install === "function") {
+          MiniKit.install();
+          console.log("[WORLD SDK] MiniKit inicializado correctamente al arrancar el DOM.");
+        }
+      }
+    } catch (engineErr) {
+      console.warn("Fallo controlado en el motor de hardware MiniKit:", engineErr.message);
+    }
+  }, []); // Se ejecuta una sola vez al cargar la App para no duplicar procesos en memoria
 
   // Nota: Dejamos el componente App abierto para procesar los hooks en los siguientes bloques
 // ========================================================================
