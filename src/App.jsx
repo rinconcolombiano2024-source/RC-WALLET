@@ -934,7 +934,7 @@ const handleSend = async () => {
   }
 }; // Cierre exacto de la función handleSend
 // ========================================================================
-// INIT / AUTO RECONNECT (CORRECCIÓN: INICIALIZACIÓN OBLIGATORIA DE HARDWARE)
+// INIT / AUTO RECONNECT (CORRECCIÓN INTEGRAL COMPLETA: ANTI-BUCLE INFINITO)
 // ========================================================================
 useEffect(() => {
   mountedRef.current = true;
@@ -1011,7 +1011,7 @@ useEffect(() => {
   return () => {
     mountedRef.current = false;
   };
-}, [scanAllNetworks]);
+}, []); // CORRECCIÓN REALIZADA: Arreglo vacío [] para que corra solo una vez al abrir y no repita el bucle
 // ========================================================================
 // AUTO HIDE STATUS (ROBUSTEZ DE DEPENDENCIAS Y SINCRONIZACIÓN DE INTERFAZ)
 // ========================================================================
