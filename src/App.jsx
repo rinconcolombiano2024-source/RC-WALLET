@@ -873,14 +873,24 @@ const handleSend = async () => {
   }
 }; // Cierre definitivo y exacto de la función handleSend
 // ========================================================================
-// INIT / AUTO RECONNECT (MÁXIMA ROBUSTEZ SSR & CONTROL DE DEPENDENCIAS)
+// INIT / AUTO RECONNECT (CORRECCIÓN: INICIALIZACIÓN OBLIGATORIA DE HARDWARE)
 // ========================================================================
 useEffect(() => {
   mountedRef.current = true;
 
+  // ¡SOLUCIÓN DE ORO!: Inicializa el hardware y los puentes de Worldcoin en el teléfono
+  try {
+    if (typeof window !== "undefined" && typeof MiniKit !== "undefined" && MiniKit) {
+      MiniKit.install(); // Instala y activa los hilos de comunicación de MiniKit v3
+      console.log("[WORLD SDK] MiniKit inicializado con éxito en el dispositivo móvil.");
+    }
+  } catch (initErr) {
+    console.error("Fallo crítico controlado al instalar los puentes de MiniKit:", initErr);
+  }
+
   async function autoReconnect() {
     try {
-      // 1. Guardián de entorno de MiniKit
+      // 1. Guardián de entorno de MiniKit (Ahora sí encontrará la SDK instalada y lista)
       if (typeof MiniKit === "undefined" || !MiniKit || !MiniKit.isInstalled()) {
         setStatus("Por favor, abre la aplicación desde World App");
         return;
@@ -940,8 +950,7 @@ useEffect(() => {
   return () => {
     mountedRef.current = false;
   };
-}, [scanAllNetworks]); 
-
+}, [scanAllNetworks]);
 // ========================================================================
 // AUTO HIDE STATUS (ROBUSTEZ DE DEPENDENCIAS Y SINCRONIZACIÓN DE INTERFAZ)
 // ========================================================================
