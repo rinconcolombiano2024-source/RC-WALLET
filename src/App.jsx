@@ -158,65 +158,52 @@ export default function App() {
   const [debugResult, setDebugResult] = useState("");
   const [lastTxResult, setLastTxResult] = useState(null);
   const [detectedProviders, setDetectedProviders] = useState([]);
+
+  // Nota: Dejamos el componente App abierto para procesar los hooks en los siguientes bloques
 // ========================================================================
-// RPC FALLBACK (MÁXIMA ROBUSTEZ Y VELOCIDAD DE RESPUESTA - ÁMBITO GLOBAL)
+// FUNCIONES UTILITARIAS DE RED (COMPACTAS, BLINDADAS Y EN ÁMBITO CORRECTO)
 // ========================================================================
+
 async function getWorkingProvider(rpcList) {
   if (!rpcList || !Array.isArray(rpcList) || rpcList.length === 0) {
     return null;
   }
-
   for (const rpc of rpcList) {
     try {
-      // Configuramos el proveedor con tiempos de respuesta estrictos a nivel de red
       const provider = new ethers.JsonRpcProvider(rpc, undefined, {
-        staticNetwork: true, // Evita consultas repetitivas de red en cada llamada (Optimiza v6)
-        batchMaxCount: 1     // Minimiza el agrupamiento para evitar retrasos en el parseo
+        staticNetwork: true,
+        batchMaxCount: 1
       });
-
-      // Creamos una promesa de desconexión por tiempo límite (Timeout)
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("RPC Timeout")), 3500)
       );
-
-      // Obligamos al proveedor a responder rápido o descartamos el nodo
       await Promise.race([
         provider.getBlockNumber(),
         timeoutPromise
       ]);
-
-      return provider; // Nodo sano y operativo encontrado
+      return provider;
     } catch (err) {
       console.warn(`Nodo RPC descartado por latencia o falla: ${rpc}`);
     }
   }
-
-  return null; // Retorno seguro si absolutamente todos los nodos fallan
+  return null;
 }
-// ========================================================================
-// DYNAMIC TOKEN DETECTION (PARALELO Y ULTRA ROBUSTO - ÁMBITO GLOBAL)
-// ========================================================================
+
 async function getDynamicTokens(address, chainId) {
   try {
-    // Validaciones iniciales de seguridad de entrada
     if (!address || !ethers.isAddress(address)) return [];
-    
     const network = NETWORKS.find((n) => n.chainId === chainId);
     if (!network) return [];
-
     const provider = await getWorkingProvider(network.rpc);
     if (!provider) return [];
 
-    // Filtramos los tokens configurados para esta red específica
     const knownTokens = TOKENS.filter((token) => token.addresses?.[chainId]);
     const detected = [];
 
-    // Ejecución en paralelo para velocidad máxima en conexiones móviles
     const promises = knownTokens.map(async (token) => {
       try {
         const rawAddress = token.addresses[chainId];
-        const tokenAddress = ethers.getAddress(rawAddress); // Normaliza Checksum
-        
+        const tokenAddress = ethers.getAddress(rawAddress);
         const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
         const balance = await contract.balanceOf(address);
 
@@ -235,16 +222,12 @@ async function getDynamicTokens(address, chainId) {
       return null;
     });
 
-    // Esperamos los resultados de todas las consultas sin que una falla tumbe a las demás
     const results = await Promise.allSettled(promises);
-
     for (const result of results) {
       if (result.status === "fulfilled" && result.value !== null) {
         detected.push(result.value);
       }
     }
-
-    console.log(`[SCAN Chain ${chainId}] Escaneo completado. Tokens hallados:`, detected.length);
     return detected;
   } catch (err) {
     console.error("TOKEN DETECTION CRITICAL ERROR:", err);
@@ -252,40 +235,29 @@ async function getDynamicTokens(address, chainId) {
   }
 }
 
-// ========================================================================
-// ESTIMATE GAS (MÁXIMA COMPATIBILIDAD CAPA 2 Y ROBUSTEZ CONTRA FALLAS)
-// ========================================================================
-  
 async function estimateNativeGas(chainId, from, to, amount, decimals = 18) {
   try {
-    // Protección estricta de entradas numéricas vacías o defectuosas
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       return 0;
     }
-
     const network = NETWORKS.find((n) => n.chainId === chainId);
     if (!network) return 0;
-
     const provider = await getWorkingProvider(network.rpc);
     if (!provider) return 0;
-
-    // Validación y sanitización estricta de direcciones
     if (!ethers.isAddress(from) || !ethers.isAddress(to)) return 0;
 
-    // Inicialización segura de BigInt para el valor de transferencia
     let valueWei;
     try {
       valueWei = ethers.parseUnits(amount.toString(), decimals);
     } catch {
-      return 0; // Fallback seguro si el usuario escribe un formato decimal roto
+      return 0;
     }
 
     const feeData = await provider.getFeeData();
-    // Prioriza maxFeePerGas para EIP-1559, con colchón del 20% para evitar fluctuaciones de red
     const baseGasPrice = feeData.maxFeePerGas || feeData.gasPrice || 0n;
     const effectiveGasPrice = (baseGasPrice * 120n) / 100n;
 
-    let estimatedGas = 21000n; // Fallback estándar para transferencia nativa básica
+    let estimatedGas = 21000n;
     try {
       estimatedGas = await provider.estimateGas({
         from: ethers.getAddress(from),
@@ -293,38 +265,25 @@ async function estimateNativeGas(chainId, from, to, amount, decimals = 18) {
         value: valueWei,
       });
     } catch (estError) {
-      console.warn("Llamada estimateGas rechazada por el nodo RPC (Normal en Smart Accounts de L2):", estError.message);
-      // Si estamos en World Chain u Optimism, asignamos un límite por defecto para no congelar la UI
+      console.warn("Llamada estimateGas rechazada por el nodo RPC:", estError.message);
       if (chainId === 480 || chainId === 10) {
         estimatedGas = 60000n; 
       }
     }
 
-    // Operación segura entre BigInts antes de formatear a cadena de texto flotante
     const gasCostWei = estimatedGas * effectiveGasPrice;
     const formattedGas = ethers.formatEther(gasCostWei);
-    
     return parseFloat(formattedGas) || 0;
   } catch (err) {
     console.error("Gas estimation critical fallback error:", err);
-    return 0; // Retorno numérico seguro para evitar que rompa operaciones posteriores
+    return 0;
   }
 }
 // ========================================================================
-// PROVIDER DETECTION (MÁXIMA ROBUSTEZ CONTRA EXCEPCIONES EN SERVIDOR/SSR)
-// ========================================================================
-async function detectProvider() {
-  // Guardián estricto para evitar fallos de compilación si el entorno no es el cliente
-  if (typeof window === "undefined" || !window) {
-    return [];
-  }
-
-  try {
-    const detected = [];
-    // ========================================================================
 // PROVIDER DETECTION (CORRECCIÓN ESTRICTA DE LLAVES PARA VERCEL)
 // ========================================================================
 async function detectProvider() {
+  // Guardián estricto para evitar fallos de compilación si el entorno no es el cliente (Vercel SSR Guard)
   if (typeof window === "undefined" || !window) {
     return [];
   }
@@ -392,41 +351,42 @@ async function detectProvider() {
     return [];
   }
 }
-// ========================================================================
-// SCAN (APERTURA DE ALTA ROBUSTEZ Y RENDIMIENTO MULTICADENA)
-// ========================================================================
-const scanAllNetworks = useCallback(async (address) => {
-  // Guardián estricto para evitar ejecuciones duplicadas en paralelo
-  if (scanLockRef.current) return;
-  
-  // Validación y normalización estricta de la dirección de entrada
-  if (!address || !ethers.isAddress(address)) {
-    console.warn("[SCAN ABORTED] Dirección de wallet inválida o no provista.");
-    return;
-  }
+  // ========================================================================
+  // SCAN (APERTURA DE ALTA ROBUSTEZ Y RENDIMIENTO MULTICADENA)
+  // ========================================================================
+  const scanAllNetworks = useCallback(async (address) => {
+    // Guardián estricto para evitar ejecuciones duplicadas en paralelo
+    if (scanLockRef.current) return;
+    
+    // Validación y normalización estricta de la dirección de entrada
+    if (!address || !ethers.isAddress(address)) {
+      console.warn("[SCAN ABORTED] Dirección de wallet inválida o no provista.");
+      return;
+    }
 
-  scanLockRef.current = true;
-  const cleanAddress = ethers.getAddress(address); // Normaliza Checksum (Evita fallos RPC)
+    scanLockRef.current = true;
+    const cleanAddress = ethers.getAddress(address); // Normaliza Checksum (Evita fallos RPC)
 
-  try {
-    setStatus("Escaneando redes en busca de fondos...");
-    let foundTokens = [];
+    try {
+      setStatus("Escaneando redes en busca de fondos...");
+      let foundTokens = [];
 
-    for (const net of NETWORKS) {
-      // Guardián de ciclo: detiene el escaneo inmediatamente si el usuario cierra la sección
-      if (!mountedRef.current) {
-        scanLockRef.current = false;
-        return;
-      }
-
-      try {
-        console.log(`[SCANNING] Conectando a nodos RPC de: ${net.name}...`);
-        const provider = await getWorkingProvider(net.rpc);
-        
-        if (!provider) {
-          console.warn(`[SCAN SKIP] No se pudo establecer conexión estable con la red: ${net.name}`);
-          continue;
+      for (const net of NETWORKS) {
+        // Guardián de ciclo: detiene el escaneo inmediatamente si el usuario cierra la sección
+        if (!mountedRef.current) {
+          scanLockRef.current = false;
+          return;
         }
+
+        try {
+          console.log(`[SCANNING] Conectando a nodos RPC de: ${net.name}...`);
+          const provider = await getWorkingProvider(net.rpc);
+          
+          if (!provider) {
+            console.warn(`[SCAN SKIP] No se pudo establecer conexión estable con la red: ${net.name}`);
+            continue;
+          }
+
           // ========================================================
           // NATIVA (ETH, BNB, ETC. - LECTURA DE ALTA PRECISIÓN)
           // ========================================================
@@ -505,225 +465,205 @@ const scanAllNetworks = useCallback(async (address) => {
       scanLockRef.current = false; 
     }
   }, [network]); // CORRECCIÓN VERCEL: Se remueve selectedToken para evitar bucles infinitos de peticiones RPC
-// ========================================================================
-// LOGIN (MÁXIMA ROBUSTEZ - COMPATIBLE CON MINIKIT V3 Y APAGADO SEGURO)
-// ========================================================================
-async function handleWorldLogin() {
-  try {
-    // 1. Verificación defensiva de la inyección de MiniKit
-    if (typeof MiniKit === "undefined" || !MiniKit || !MiniKit.isInstalled()) {
-      setStatus("Por favor, abre la aplicación desde World App");
-      return;
-    }
 
-    setStatus("Conectando con World App...");
-    
-    // 2. Invocación limpia en v3. Los fallos del usuario arrojan excepciones directas al catch.
-    const res = await MiniKit.walletAuth({
-      nonce: Math.random().toString(36).substring(2),
-    });
-
-    console.log("[WORLD AUTH RAW RESPONSE]:", res);
-
-    // 3. Extracción oficial V3: Soporta variantes de tokens firmados y payloads planos de fallback
-    const payload = res?.data || res?.commandResponse || res;
-    const address = payload?.address || payload?.walletAddress || payload?.wallet_address || res?.address;
-
-    if (!address || !ethers.isAddress(address)) {
-      setStatus("No se pudo obtener una dirección de wallet válida");
-      return;
-    }
-
-    // 4. Normalización estricta de la dirección (Checksum activo)
-    const cleanAddress = ethers.getAddress(address);
-    setWallet(cleanAddress);
-    
-    // Guardado seguro en localStorage compatible con servidores de compilación (SSR)
-    if (typeof window !== "undefined" && window.localStorage) {
-      localStorage.setItem("rc_wallet_address", cleanAddress);
-    }
-    
-    // Asignación limpia del objeto de red de World Chain
-    const worldChainNet = NETWORKS.find(n => n.chainId === 480) || NETWORKS;
-    setNetwork(worldChainNet);
-
-    setWorldVerified(true);
-    setStatus("¡Wallet conectada con éxito!");
-
-    // Ejecución pasiva del diagnóstico de proveedores
-    await detectProvider();
-    
-    // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
-    setTimeout(async () => {
-      if (mountedRef.current) {
-        await scanAllNetworks(cleanAddress);
+  // ========================================================================
+  // LOGIN (MÁXIMA ROBUSTEZ - COMPATIBLE CON MINIKIT V3 Y APAGADO SEGURO)
+  // ========================================================================
+  async function handleWorldLogin() {
+    try {
+      // 1. Verificación defensiva de la inyección de MiniKit
+      if (typeof MiniKit === "undefined" || !MiniKit || !MiniKit.isInstalled()) {
+        setStatus("Por favor, abre la aplicación desde World App");
+        return;
       }
-    }, 2000);
 
-  } catch (err) {
-    console.error("[WORLD LOGIN ERROR] Falla en autenticación o firma:", err);
-    
-    // Captura dinámica del mensaje de error interno de la SDK si el usuario cancela
-    const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
-    setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelado" : "Error en conexión");
-  }
-}
-// ========================================================================
-// ERROR EXTRACTOR (MÁXIMA ROBUSTEZ Y PROTECCIÓN CONTRA ESTRUCTURAS CÍCLICAS)
-// ========================================================================
-
-function extractMiniKitError(err) {
-  // Si no se provee un error válido, retornamos una estructura limpia de contingencia
-  if (!err) {
-    return { message: "Error desconocido no especificado", code: "UNKNOWN_ERROR" };
-  }
-
-  try {
-    return {
-      message: err?.message || (typeof err === "string" ? err : "Error inesperado de ejecución"),
-      shortMessage: err?.shortMessage || null,
-      reason: err?.reason || null,
-      code: err?.code || null,
-      errorCode: err?.error_code || err?.errorCode || null,
-      stack: typeof err?.stack === "string" ? err.stack.slice(0, 500) : null, // Limitamos el tamaño del stack trace para optimizar memoria
+      setStatus("Conectando con World App...");
       
-      // CORRECCIÓN: Si el error es un objeto complejo, extraemos sus llaves planas de forma segura
-      // Esto previene de raíz el quiebre fatal por estructuras circulares al hacer JSON.stringify
-      rawClean: typeof err === "object" ? Object.getOwnPropertyNames(err).reduce((acc, key) => {
-        if (typeof err[key] !== "function" && typeof err[key] !== "object") {
-          acc[key] = err[key];
-        }
-        return acc;
-      }, {}) : String(err)
-    };
-  } catch (extractionFallback) {
-    console.error("Fallo crítico en el extractor de errores defensivo:", extractionFallback);
-    return {
-      message: err?.message || "Error fatal de extracción",
-      code: "CRITICAL_EXTRACTION_FAILURE"
-    };
-  }
-}
-// ========================================================================
-// RESULT PARSER (MÁXIMA ROBUSTEZ - ADAPTADO A MINIKIT V3 Y ANTI-CIRCULAR)
-// ========================================================================
+      // 2. Invocación limpia en v3. Los fallos del usuario arrojan excepciones directas al catch.
+      const res = await MiniKit.walletAuth({
+        nonce: Math.random().toString(36).substring(2),
+      });
 
-function parseMiniKitResult(result) {
-  // Si no hay respuesta, devolvemos una estructura fallida limpia para evitar quiebres
-  if (!result) {
-    return { success: false, txId: null, status: "No result data", finalPayload: {}, rawClean: {} };
-  }
+      console.log("[WORLD AUTH RAW RESPONSE]:", res);
 
-  try {
-    // CORRECCIÓN V3: Extraemos el payload prioritario del campo nativo .data de MiniKit v3
-    const finalPayload = result?.data || result?.finalPayload || result?.payload || result || {};
+      // 3. Extracción oficial V3: Soporta variantes de tokens firmados y payloads planos de fallback
+      const payload = res?.data || res?.commandResponse || res;
+      const address = payload?.address || payload?.walletAddress || payload?.wallet_address || res?.address;
 
-    // Mapeo secuencial blindado en busca del hash de transacción (Capa 1, Capa 2 y UserOps de Abstracción de cuenta)
-    const txId =
-      finalPayload?.txHash ||
-      finalPayload?.transactionHash ||
-      finalPayload?.transaction_id ||
-      finalPayload?.transactionId ||
-      finalPayload?.safeTxHash ||
-      finalPayload?.userOpHash ||
-      finalPayload?.operationHash ||
-      finalPayload?.hash ||
-      finalPayload?.id ||
-      result?.txHash ||
-      result?.hash ||
-      result?.id ||
-      null;
+      if (!address || !ethers.isAddress(address)) {
+        setStatus("No se pudo obtener una dirección de wallet válida");
+        return;
+      }
 
-    const status = finalPayload?.status || result?.status || null;
-
-    // Validación booleana estricta de éxito de la operación
-    const success =
-      Boolean(txId) ||
-      status === "success" ||
-      status === "confirmed" ||
-      result?.success === true ||
-      finalPayload?.success === true;
-
-    return {
-      success,
-      txId: txId ? String(txId).trim() : null,
-      status: status ? String(status).trim() : "unknown",
-      finalPayload: typeof finalPayload === "object" ? finalPayload : {},
+      // 4. Normalización estricta de la dirección (Checksum activo)
+      const cleanAddress = ethers.getAddress(address);
+      setWallet(cleanAddress);
       
-      // CORRECCIÓN ANTI-BREAK: Sanitizado estricto del objeto para que tu JSON.stringify nunca congele el teléfono
-      rawClean: typeof result === "object" ? Object.getOwnPropertyNames(result).reduce((acc, key) => {
-        if (typeof result[key] !== "function" && typeof result[key] !== "object") {
-          acc[key] = result[key];
+      // Guardado seguro en localStorage compatible con servidores de compilación (SSR)
+      if (typeof window !== "undefined" && window.localStorage) {
+        localStorage.setItem("rc_wallet_address", cleanAddress);
+      }
+      
+      // Asignación limpia del objeto de red de World Chain
+      const worldChainNet = NETWORKS.find(n => n.chainId === 480) || NETWORKS;
+      setNetwork(worldChainNet);
+
+      setWorldVerified(true);
+      setStatus("¡Wallet conectada con éxito!");
+
+      // Ejecución pasiva del diagnóstico de proveedores
+      await detectProvider();
+      
+      // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
+      setTimeout(async () => {
+        if (mountedRef.current) {
+          await scanAllNetworks(cleanAddress);
         }
-        return acc;
-      }, {}) : String(result)
-    };
-  } catch (parseError) {
-    console.error("Fallo crítico en el parseador de resultados MiniKit:", parseError);
-    return { success: false, txId: null, status: "Parser Error", finalPayload: {}, rawClean: {} };
+      }, 2000);
+
+    } catch (err) {
+      console.error("[WORLD LOGIN ERROR] Falla en autenticación o firma:", err);
+      const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
+      setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelado" : "Error en conexión");
+    }
   }
-}
+  // ========================================================================
+  // ERROR EXTRACTOR (MÁXIMA ROBUSTEZ Y PROTECCIÓN CONTRA ESTRUCTURAS CÍCLICAS)
+  // ========================================================================
+  const extractMiniKitError = (err) => {
+    if (!err) {
+      return { message: "Error desconocido no especificado", code: "UNKNOWN_ERROR" };
+    }
+    try {
+      return {
+        message: err?.message || (typeof err === "string" ? err : "Error inesperado de ejecución"),
+        shortMessage: err?.shortMessage || null,
+        reason: err?.reason || null,
+        code: err?.code || null,
+        errorCode: err?.error_code || err?.errorCode || null,
+        stack: typeof err?.stack === "string" ? err.stack.slice(0, 500) : null,
+        rawClean: typeof err === "object" ? Object.getOwnPropertyNames(err).reduce((acc, key) => {
+          if (typeof err[key] !== "function" && typeof err[key] !== "object") {
+            acc[key] = err[key];
+          }
+          return acc;
+        }, {}) : String(err)
+      };
+    } catch (extractionFallback) {
+      console.error("Fallo crítico en el extractor de errores defensivo:", extractionFallback);
+      return {
+        message: err?.message || "Error fatal de extracción",
+        code: "CRITICAL_EXTRACTION_FAILURE"
+      };
+    }
+  };
+
+  // ========================================================================
+  // RESULT PARSER (MÁXIMA ROBUSTEZ - ADAPTADO A MINIKIT V3 Y ANTI-CIRCULAR)
+  // ========================================================================
+  const parseMiniKitResult = (result) => {
+    if (!result) {
+      return { success: false, txId: null, status: "No result data", finalPayload: {}, rawClean: {} };
+    }
+    try {
+      const finalPayload = result?.data || result?.finalPayload || result?.payload || result || {};
+      const txId =
+        finalPayload?.txHash ||
+        finalPayload?.transactionHash ||
+        finalPayload?.transaction_id ||
+        finalPayload?.transactionId ||
+        finalPayload?.safeTxHash ||
+        finalPayload?.userOpHash ||
+        finalPayload?.operationHash ||
+        finalPayload?.hash ||
+        finalPayload?.id ||
+        result?.txHash ||
+        result?.hash ||
+        result?.id ||
+        null;
+
+      const status = finalPayload?.status || result?.status || null;
+      const success =
+        Boolean(txId) ||
+        status === "success" ||
+        status === "confirmed" ||
+        result?.success === true ||
+        finalPayload?.success === true;
+
+      return {
+        success,
+        txId: txId ? String(txId).trim() : null,
+        status: status ? String(status).trim() : "unknown",
+        finalPayload: typeof finalPayload === "object" ? finalPayload : {},
+        rawClean: typeof result === "object" ? Object.getOwnPropertyNames(result).reduce((acc, key) => {
+          if (typeof result[key] !== "function" && typeof result[key] !== "object") {
+            acc[key] = result[key];
+          }
+          return acc;
+        }, {}) : String(result)
+      };
+    } catch (parseError) {
+      console.error("Fallo crítico en el parseador de resultados MiniKit:", parseError);
+      return { success: false, txId: null, status: "Parser Error", finalPayload: {}, rawClean: {} };
+    }
+  };
 // ========================================================================
 // WAIT FOR CONFIRMATION (MÁXIMA PRECISIÓN MATEMÁTICA Y APAGADO SEGURO)
 // ========================================================================
-async function waitForBalanceChange(walletAddress, tokenInfo, oldBalanceStr, maxAttempts = 10) {
-  // Validaciones iniciales defensivas de parámetros (Soporta RC.PL, WLD, USDC)
-  if (!walletAddress || !ethers.isAddress(walletAddress) || !tokenInfo) {
-    return { success: false };
-  }
-
-  try {
-    let attempts = 0;
-    const net = NETWORKS.find((n) => n.chainId === tokenInfo.chainId);
-    if (!net) return { success: false };
-
-    const provider = await getWorkingProvider(net.rpc);
-    if (!provider) return { success: false };
-
-    // Parseamos de forma ultra precisa el balance anterior a formato BigInt de Wei
-    const oldBalanceWei = ethers.parseUnits(oldBalanceStr.toString(), tokenInfo.decimals);
-    const cleanAddress = ethers.getAddress(walletAddress);
-
-    while (attempts < maxAttempts) {
-      // CORRECCIÓN VERCEL: Evaluación segura de la referencia global para evitar ReferenceError en producción
-      if (typeof window !== "undefined" && window.mountedRefCurrent === false) {
-        return { success: false };
-      }
-
-      console.log(`[BLOCKCHAIN LISTEN] Intento de confirmación ${attempts + 1}/${maxAttempts}...`);
-      
-      // Espera reactiva de 4.5 segundos entre consultas RPC para evitar saturar el nodo móvil
-      await new Promise((resolve) => setTimeout(resolve, 4500));
-
-      let currentBalanceWei = 0n;
-
-      if (tokenInfo.isNative) {
-        currentBalanceWei = await provider.getBalance(cleanAddress);
-      } else {
-        const contract = new ethers.Contract(ethers.getAddress(tokenInfo.address), ERC20_ABI, provider);
-        currentBalanceWei = await contract.balanceOf(cleanAddress);
-      }
-
-      // Comparación matemática estricta a nivel de BigInt (100% libre de errores decimales)
-      if (currentBalanceWei < oldBalanceWei) {
-        console.log("[CONFIRMED] El balance disminuyó. Fondos procesados en el bloque.");
-        
-        return {
-          success: true,
-          oldBalance: oldBalanceStr,
-          newBalance: ethers.formatUnits(currentBalanceWei, tokenInfo.decimals)
-        };
-      }
-
-      attempts++;
+  async function waitForBalanceChange(walletAddress, tokenInfo, oldBalanceStr, maxAttempts = 10) {
+    if (!walletAddress || !ethers.isAddress(walletAddress) || !tokenInfo) {
+      return { success: false };
     }
 
-    return { success: false }; 
-  } catch (err) {
-    console.error("[CONFIRMATION CRITICAL ERROR] Fallo en bucle de escucha:", err?.message || err);
-    return { success: false };
+    try {
+      let attempts = 0;
+      const net = NETWORKS.find((n) => n.chainId === tokenInfo.chainId);
+      if (!net) return { success: false };
+
+      const provider = await getWorkingProvider(net.rpc);
+      if (!provider) return { success: false };
+
+      const oldBalanceWei = ethers.parseUnits(oldBalanceStr.toString(), tokenInfo.decimals);
+      const cleanAddress = ethers.getAddress(walletAddress);
+
+      while (attempts < maxAttempts) {
+        // CORRECCIÓN SINCRO: Evalúa directamente el mountedRef local para un apagado seguro real en el teléfono
+        if (mountedRef && !mountedRef.current) {
+          return { success: false };
+        }
+
+        console.log(`[BLOCKCHAIN LISTEN] Intento de confirmación ${attempts + 1}/${maxAttempts}...`);
+        
+        await new Promise((resolve) => setTimeout(resolve, 4500));
+
+        let currentBalanceWei = 0n;
+
+        if (tokenInfo.isNative) {
+          currentBalanceWei = await provider.getBalance(cleanAddress);
+        } else {
+          const contract = new ethers.Contract(ethers.getAddress(tokenInfo.address), ERC20_ABI, provider);
+          currentBalanceWei = await contract.balanceOf(cleanAddress);
+        }
+
+        if (currentBalanceWei < oldBalanceWei) {
+          console.log("[CONFIRMED] El balance disminuyó. Fondos procesados en el bloque.");
+          
+          return {
+            success: true,
+            oldBalance: oldBalanceStr,
+            newBalance: ethers.formatUnits(currentBalanceWei, tokenInfo.decimals)
+          };
+        }
+
+        attempts++;
+      }
+
+      return { success: false }; 
+    } catch (err) {
+      console.error("[CONFIRMATION CRITICAL ERROR] Fallo en bucle de escucha:", err?.message || err);
+      return { success: false };
+    }
   }
-}
 // ========================================================================
 // FUNCIÓN DE RETIRO / RESCATE GENERAL (COMPACTA, BLINDADA Y VERIFICADA V3)
 // ========================================================================
@@ -935,7 +875,6 @@ const handleSend = async () => {
 // ========================================================================
 // INIT / AUTO RECONNECT (MÁXIMA ROBUSTEZ SSR & CONTROL DE DEPENDENCIAS)
 // ========================================================================
-
 useEffect(() => {
   mountedRef.current = true;
 
@@ -963,7 +902,7 @@ useEffect(() => {
       setWallet(cleanStoredWallet);
       
       // Asignación segura del objeto de red por defecto (World Chain)
-      const defaultChain = NETWORKS.find(n => n.chainId === 480) || NETWORKS; // CORRECCIÓN: Fallback seguro al objeto general
+      const defaultChain = NETWORKS.find(n => n.chainId === 480) || NETWORKS; 
       setNetwork(defaultChain);
       
       setWorldVerified(true);
@@ -999,19 +938,16 @@ useEffect(() => {
   autoReconnect();
 
   return () => {
-    // Al desmontarse el componente, apagamos de forma fulminante cualquier actualización de estado pendiente
     mountedRef.current = false;
   };
-}, [scanAllNetworks]); // Dependencia estable que no generará bucles repetitivos infinitos
+}, [scanAllNetworks]); 
 
 // ========================================================================
 // AUTO HIDE STATUS (ROBUSTEZ DE DEPENDENCIAS Y SINCRONIZACIÓN DE INTERFAZ)
 // ========================================================================
-
 useEffect(() => {
   if (!status) return;
 
-  // Lista de estados críticos que NO deben ocultarse solos hasta que terminen las peticiones RPC
   const criticalStatuses = [
     "Inicializando RC Wallet...",
     "Escaneando redes en busca de fondos...",
@@ -1023,14 +959,13 @@ useEffect(() => {
   if (criticalStatuses.includes(status)) return;
 
   const timer = setTimeout(() => {
-    // CORRECCIÓN: Validación defensiva usando doble verificación antes de limpiar el toast
     if (typeof mountedRef !== "undefined" && mountedRef.current) {
       setStatus("");
     }
   }, 4000);
 
   return () => clearTimeout(timer);
-}, [status, mountedRef]); // CORRECCIÓN VERCEL: Se añade mountedRef para evitar fallos de dependencias estrictas
+}, [status, mountedRef]);
 // ========================================================================
 // UI (CONTENEDOR MAESTRO DE ALTA ROBUSTEZ Y ESTILO RESPONSIVO)
 // ========================================================================
@@ -1181,137 +1116,7 @@ useEffect(() => {
       >
         Copiar dirección
       </button>
-      {/* ========================================================
-         QR WALLET (DISEÑO SEGURO Y COMPATIBLE CON IMÁGENES)
-      ======================================================== */}
-      {wallet && (
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(wallet)}`} 
-            alt={`Código QR de la billetera criptográfica con dirección ${wallet}`} 
-            width="180" 
-            height="180"
-            loading="lazy" // CORRECCIÓN VERCEL: Atributo nativo que satisface los requerimientos de optimización de imágenes
-            style={{
-              width: 180,
-              height: 180,
-              borderRadius: 20,
-              border: "4px solid #111827",
-              background: "#fff",
-              display: "block"
-            }}
-          />
-        </div>
-      )}
-      {/* ========================================================
-         INFO PANEL (MÁXIMA RESISTENCIA A RENDERIZADO SSR - CORREGIDO)
-      ======================================================== */}
-      <div style={{ background: "#111", padding: 12, borderRadius: 12, marginBottom: 20, border: "1px solid #222", boxSizing: "border-box" }}>
-        <p style={{ margin: "5px 0", fontSize: 14 }}>
-          {/* CORRECCIÓN: Valida que network sea un objeto plano y NO un arreglo antes de leer .name */}
-          <b>Red Activa:</b> {typeof network === "object" && network !== null && !Array.isArray(network) && network?.name ? network.name : "World Chain"}
-        </p>
-        <p style={{ margin: "5px 0", fontSize: 14 }}>
-          <b>Balance Nativo Gas:</b> {nativeBalance || "0.000000"} ETH
-        </p>
-        <p style={{ margin: "5px 0", fontSize: 14 }}>
-          <b>World ID:</b> {worldVerified ? "✅ Verificado" : "❌ No verificado"}
-        </p>
-      </div>
-      {/* ========================================================
-         NATIVE QR SCANNER (REQUERIMIENTO: ESCANEAR DESTINATARIOS)
-      ======================================================== */}
-      <button
-        type="button"
-        onClick={async () => {
-          try {
-            if (typeof MiniKit === "undefined" || !MiniKit || !MiniKit.isInstalled()) {
-              setStatus("El escáner de QR solo funciona abriendo la app desde World App");
-              return;
-            }
-
-            setStatus("Abriendo cámara del dispositivo...");
-            const qrResult = await MiniKit.scanQrCode();
-            console.log("[QR SCANNER RESPONSE] Datos leídos:", qrResult);
-
-            const scannedData = qrResult?.qrCode || qrResult?.data || qrResult;
-            if (!scannedData || typeof scannedData !== "string") {
-              setStatus("Lectura de código QR cancelada o vacía");
-              return;
-            }
-
-            let cleanScannedAddress = scannedData.trim();
-            if (cleanScannedAddress.toLowerCase().startsWith("ethereum:")) {
-              cleanScannedAddress = cleanScannedAddress.substring(9);
-            }
-            
-            if (cleanScannedAddress.includes("?")) {
-              const parts = cleanScannedAddress.split("?");
-              cleanScannedAddress = parts[0] ? parts[0] : cleanScannedAddress;
-            }
-
-            if (ethers.isAddress(cleanScannedAddress)) {
-              setRecipient(ethers.getAddress(cleanScannedAddress)); 
-              setStatus("Código QR de dirección escaneado con éxito ✅");
-            } else {
-              setStatus("El código QR escaneado no contiene una dirección válida");
-            }
-
-          } catch (scanError) {
-            console.error("Fallo crítico al invocar la cámara nativa de World App:", scanError);
-            setStatus("No se pudo activar el escáner de la cámara");
-          }
-        }}
-        style={{
-          width: "100%",
-          padding: 13,
-          borderRadius: 14,
-          border: "1px dashed #2563eb",
-          background: "#1e293b",
-          color: "#38bdf8",
-          fontWeight: "bold",
-          fontSize: 14,
-          marginBottom: 20,
-          cursor: "pointer",
-          boxSizing: "border-box"
-        }}
-      >
-        📸 Escanear QR de Destinatario
-      </button>
-      {/* ========================================================
-         PROVIDERS DETECTED (CORRECCIÓN ESTRICTA DE ESTILOS CSS)
-      ======================================================= */}
-      <div
-        style={{
-          padding: 10,
-          background: "#111",
-          borderRadius: 10,
-          fontSize: 11,
-          color: "#00ff99",
-          wordBreak: "break-word",
-          marginBottom: 20,
-          border: "1px solid #222"
-        }}
-      >
-        <b style={{ display: "block", marginBottom: 4 }}>Detected Providers:</b>
-        {(!detectedProviders || !Array.isArray(detectedProviders) || detectedProviders.length === 0) ? (
-          <div style={{ color: "#aaa" }}>Ninguno detectado</div>
-        ) : (
-          detectedProviders.map((item, index) => {
-            const uniqueKey = item?.name ? `${item.name}-${index}` : `provider-${index}`;
-            return (
-              <div key={uniqueKey} style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ color: "#fff" }}>{item?.name || "Unknown"}</span>
-                <span style={{ marginLeft: 8 }}>{item?.hasRequest ? "✅" : "❌"}</span>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* CORRECCIÓN VERCEL: Sintaxis abreviada unificada con el resto del archivo */}
-      <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-      {/* ========================================================
+            {/* ========================================================
          FONDOS DETECTADOS (LISTADO MULTICADENA BLINDADO)
       ======================================================== */}
       <h2>Fondos Detected</h2>
@@ -1374,17 +1179,17 @@ useEffect(() => {
                     const activeWallet = wallet;
                     
                     if (token.chainId === 1) {
-                      explorer = token.isNative ? `https://etherscan.io/address/${activeWallet}` : `https://etherscan.io/token/${token.address}?a=${activeWallet}`;
+                      explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
                     } else if (token.chainId === 10) {
-                      explorer = token.isNative ? `https://optimistic.etherscan.io/address/${activeWallet}` : `https://optimistic.etherscan.io/token/${token.address}?a=${activeWallet}`;
+                      explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
                     } else if (token.chainId === 8453) {
-                      explorer = token.isNative ? `https://basescan.org/address/${activeWallet}` : `https://basescan.org/token/${token.address}?a=${activeWallet}`;
+                      explorer = token.isNative ? `https://basescan.org{activeWallet}` : `https://basescan.org{token.address}?a=${activeWallet}`;
                     } else if (token.chainId === 56) {
-                      explorer = token.isNative ? `https://bscscan.com/address/${activeWallet}` : `https://bscscan.com/token/${token.address}?a=${activeWallet}`;
+                      explorer = token.isNative ? `https://bscscan.com{activeWallet}` : `https://bscscan.com{token.address}?a=${activeWallet}`;
                     } else if (token.chainId === 480) {
-                      explorer = token.isNative ? `https://worldscan.org/address/${activeWallet}` : `https://worldscan.org/token/${token.address}?a=${activeWallet}`;
+                      explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
                     } else if (token.chainId === 4801) {
-                      explorer = token.isNative ? `https://sepolia.worldscan.org/address/${activeWallet}` : `https://sepolia.worldscan.org/token/${token.address}?a=${activeWallet}`;
+                      explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
                     }
                     
                     if (explorer && typeof window !== "undefined") {
@@ -1412,7 +1217,7 @@ useEffect(() => {
 
       {/* CORRECCIÓN VERCEL: Unificación de sintaxis abreviada anti-warnings de empaquetado */}
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-           {/* ========================================================
+      {/* ========================================================
          FORMULARIO DE RETIRO (DISEÑO BLINDADO MÓVIL Y SSR)
       ======================================================== */}
       <h2>Retirar / Recuperar Fondos</h2>
@@ -1534,7 +1339,7 @@ useEffect(() => {
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // CORRECCIÓN: Enlace geo-localizado estricto hacia tu restaurante en Google Maps
+              // CORRECCIÓN: Trazado de ruta exacto al local comercial en Varsovia en Google Maps
               window.open("https://google.com", "_blank", "noopener,noreferrer");
             }
           }}
