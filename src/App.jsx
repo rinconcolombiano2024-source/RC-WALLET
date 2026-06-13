@@ -1328,7 +1328,7 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-                {/* ========================================================
+                     {/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: GRÁFICAS DE ALTA ROBUSTEZ TRADINGVIEW)
       ======================================================== */}
       {showTokenModal && selectedToken && (
@@ -1347,44 +1347,6 @@ useEffect(() => {
             alignItems: "flex-end",
           }}
         >
-          {/* CONTROL ASÍNCRONO DE INYECCIÓN DEL SCRIPT DEL GRÁFICO */}
-          <span style={{ display: "none" }}>
-            {setTimeout(() => {
-              try {
-                const container = document.getElementById("tv-chart-container");
-                if (container && !container.hasChildNodes()) {
-                  const script = document.createElement("script");
-                  script.src = "https://tradingview.com";
-                  script.type = "text/javascript";
-                  script.async = true;
-                  script.onload = () => {
-                    if (typeof window !== "undefined" && window.TradingView) {
-                      new window.TradingView.widget({
-                        width: "100%",
-                        height: 240,
-                        symbol: activeChartSymbol || "BINANCE:WLDUSDT",
-                        interval: "60",
-                        timezone: "Etc/UTC",
-                        theme: "dark",
-                        style: "1",
-                        locale: "es",
-                        toolbar_bg: "#f1f3f6",
-                        enable_publishing: false,
-                        hide_side_toolbar: true,
-                        allow_symbol_change: false,
-                        container_id: "tv-chart-container",
-                        studies: []
-                      });
-                    }
-                  };
-                  document.head.appendChild(script);
-                }
-              } catch (tvErr) {
-                console.error("Fallo controlado en widget dinámico:", tvErr);
-              }
-            }, 100)}
-          </span>
-
           <div
             style={{
               width: "100%",
@@ -1416,9 +1378,8 @@ useEffect(() => {
               </button>
             </div>
 
-            {/* 📈 CONTENEDOR SEGURO DONDE SE RENDERIZAN LAS VELAS EN TIEMPO REAL */}
+            {/* 📈 GRÁFICA DE ALTA RESOLUCIÓN POR CDN VECTORIAL (INMUNE A BLOQUEOS DE WEBVIEW) */}
             <div 
-              id="tv-chart-container" 
               style={{ 
                 width: "100%", 
                 height: 240, 
@@ -1430,10 +1391,20 @@ useEffect(() => {
                 position: "relative"
               }}
             >
-              {/* Fallback de carga nítido si el script demora milisegundos en descargar */}
-              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#64748b", fontSize: 13 }}>
-                Cargando mercado analítico en vivo...
-              </div>
+              <img
+                src={`https://tradingview.com{encodeURIComponent(activeChartSymbol || "BINANCE:WLDUSDT")}.png?theme=dark&style=1&interval=60&v=${Math.random()}`}
+                alt="Gráfica de precios cripto en tiempo real"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "block",
+                  objectFit: "cover"
+                }}
+                onError={(e) => {
+                  // Fallback automático si un token personalizado (como RC.PL) no tiene par público indexado en Binance todavía
+                  e.target.src = `https://tradingview.com`;
+                }}
+              />
             </div>
 
             {/* BOTONES DE INTERCAMBIO COMERCIAL */}
