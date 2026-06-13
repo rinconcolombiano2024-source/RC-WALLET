@@ -794,8 +794,10 @@ const handleSend = async () => {
 
     console.log(`[MINIKIT EXECUTE] Transaccionando en la red: ${tokenInfo.chainId}`);
     
-    if (typeof MiniKit === "undefined" || !MiniKit || typeof MiniKit.sendTransaction !== "function") {
-      setStatus("Error: SDK de MiniKit no inicializada o ausente");
+    // CORRECCIÓN INTEGRAL V3: Se elimina la evaluación 'typeof MiniKit === "undefined"' que fallaba por minificación en producción
+    // Se lee de forma directa la instancia empaquetada y su método nativo de firmas
+    if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
+      setStatus("Error: Los servicios de World App no respondieron. Reintente.");
       setSending(false);
       return;
     }
