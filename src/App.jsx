@@ -1328,8 +1328,8 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-          {/* ========================================================
-         VENTANA EMERGENTE (MODAL MAESTRO: GRÁFICAS + COMPRA / VENTA RESPONSIVO)
+                {/* ========================================================
+         VENTANA EMERGENTE (MODAL MAESTRO: GRÁFICAS DE ALTA ROBUSTEZ TRADINGVIEW)
       ======================================================== */}
       {showTokenModal && selectedToken && (
         <div
@@ -1344,9 +1344,47 @@ useEffect(() => {
             zIndex: 10000,
             display: "flex",
             justifyContent: "center",
-            alignItems: "flex-end", // Efecto de panel deslizante desde abajo ideal para smartphones
+            alignItems: "flex-end",
           }}
         >
+          {/* CONTROL ASÍNCRONO DE INYECCIÓN DEL SCRIPT DEL GRÁFICO */}
+          <span style={{ display: "none" }}>
+            {setTimeout(() => {
+              try {
+                const container = document.getElementById("tv-chart-container");
+                if (container && !container.hasChildNodes()) {
+                  const script = document.createElement("script");
+                  script.src = "https://tradingview.com";
+                  script.type = "text/javascript";
+                  script.async = true;
+                  script.onload = () => {
+                    if (typeof window !== "undefined" && window.TradingView) {
+                      new window.TradingView.widget({
+                        width: "100%",
+                        height: 240,
+                        symbol: activeChartSymbol || "BINANCE:WLDUSDT",
+                        interval: "60",
+                        timezone: "Etc/UTC",
+                        theme: "dark",
+                        style: "1",
+                        locale: "es",
+                        toolbar_bg: "#f1f3f6",
+                        enable_publishing: false,
+                        hide_side_toolbar: true,
+                        allow_symbol_change: false,
+                        container_id: "tv-chart-container",
+                        studies: []
+                      });
+                    }
+                  };
+                  document.head.appendChild(script);
+                }
+              } catch (tvErr) {
+                console.error("Fallo controlado en widget dinámico:", tvErr);
+              }
+            }, 100)}
+          </span>
+
           <div
             style={{
               width: "100%",
@@ -1378,15 +1416,24 @@ useEffect(() => {
               </button>
             </div>
 
-            {/* 📈 VELAS EN TIEMPO REAL TRADINGVIEW CON INTERPOLACIÓN TOTALMENTE REPARADA */}
-            <div style={{ width: "100%", height: 240, borderRadius: 14, overflow: "hidden", marginBottom: 15, background: "#131722", border: "1px solid #1e293b" }}>
-              <iframe
-                title="Gráfica de Precios del Token Seleccionado"
-                src={`https://tradingview.com{encodeURIComponent(activeChartSymbol)}&interval=60&theme=dark&style=1&locale=es`}
-                style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
-                loading="lazy"
-                allowFullScreen
-              />
+            {/* 📈 CONTENEDOR SEGURO DONDE SE RENDERIZAN LAS VELAS EN TIEMPO REAL */}
+            <div 
+              id="tv-chart-container" 
+              style={{ 
+                width: "100%", 
+                height: 240, 
+                borderRadius: 14, 
+                overflow: "hidden", 
+                marginBottom: 15, 
+                background: "#131722", 
+                border: "1px solid #1e293b",
+                position: "relative"
+              }}
+            >
+              {/* Fallback de carga nítido si el script demora milisegundos en descargar */}
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#64748b", fontSize: 13 }}>
+                Cargando mercado analítico en vivo...
+              </div>
             </div>
 
             {/* BOTONES DE INTERCAMBIO COMERCIAL */}
@@ -1419,7 +1466,7 @@ useEffect(() => {
                   value={tradeAmount}
                   onChange={(e) => {
                     setTradeAmount(e.target.value);
-                    setSendAmount(e.target.value); // Sincroniza instantáneamente el motor criptográfico de retiro
+                    setSendAmount(e.target.value); 
                   }}
                   style={{ width: "100%", padding: 12, borderRadius: 10, background: "#0f172a", border: "1px solid #475569", color: "#fff", marginBottom: 12, boxSizing: "border-box" }}
                 />
@@ -1439,7 +1486,7 @@ useEffect(() => {
                 <button
                   type="button"
                   disabled={sending || !tradeAmount || !recipient}
-                  onClick={handleSend} // Dispara el lote multi-operación (Batch) blindado de MiniKit v3
+                  onClick={handleSend} 
                   style={{ width: "100%", padding: 14, borderRadius: 10, border: "none", background: "#2563eb", color: "#fff", fontWeight: "bold", cursor: "pointer" }}
                 >
                   {sending ? "Procesando firma en World App..." : `Confirmar ${tradeType === "BUY" ? "Compra" : "Venta"}`}
@@ -1451,6 +1498,7 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
+
 {/* ========================================================
          FORMULARIO DE RETIRO (DISEÑO BLINDADO MÓVIL Y SSR)
       ======================================================== */}
