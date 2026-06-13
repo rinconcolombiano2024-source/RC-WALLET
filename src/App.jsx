@@ -1325,7 +1325,7 @@ useEffect(() => {
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
 
-      {/* ========================================================
+           {/* ========================================================
          BANNER PUBLICITARIO: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
       <div
@@ -1348,8 +1348,9 @@ useEffect(() => {
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // CORRECCIÓN: Trazado de ruta exacto al local comercial en Varsovia en Google Maps
-              window.open("https://google.com", "_blank", "noopener,noreferrer");
+              // CORRECCIÓN: Enlace geo-localizado unificado con tu dirección y código postal oficial 04-081
+              const query = encodeURIComponent("Rincón Colombiano, Czapelska 33, 04-081 Warszawa, Poland");
+              window.open(`https://google.com{query}`, "_blank", "noopener,noreferrer");
             }
           }}
           style={{ 
@@ -1367,6 +1368,7 @@ useEffect(() => {
           📍 Czapelska 33, Varsovia (Abrir Mapa 🗺️)
         </div>
       </div>
+
 
       {/* ========================================================
          CONSOLE DEBUG OUTPUT (VISTA DE DEPURACIÓN ANTI-DESBORDAMIENTO)
