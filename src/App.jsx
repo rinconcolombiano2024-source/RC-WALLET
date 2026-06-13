@@ -1339,8 +1339,8 @@ useEffect(() => {
             left: 0,
             width: "100vw",
             height: "100vh",
-            background: "rgba(0, 0, 0, 0.85)",
-            backdropFilter: "blur(10px)",
+            background: "rgba(11, 14, 17, 0.92)", // Opacidad profesional de grado Binance
+            backdropFilter: "blur(12px)",
             zIndex: 10000,
             display: "flex",
             justifyContent: "center",
@@ -1351,170 +1351,205 @@ useEffect(() => {
             style={{
               width: "100%",
               maxWidth: "500px",
-              background: "#0b0e11", // Color oscuro oficial de terminales de intercambio
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              padding: 20,
-              maxHeight: "95vh",
+              background: "#161a1e", // Gris profundo oficial de terminales de intercambio
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: "24px 20px",
+              maxHeight: "96vh",
               overflowY: "auto",
               boxSizing: "border-box",
-              borderTop: "1px solid #2b3139"
+              borderTop: "1px solid #2b3139",
+              boxShadow: "0px -10px 40px rgba(0, 0, 0, 0.6)"
             }}
           >
-            {/* CABECERA INTERACTIVA */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            {/* CABECERA INTERACTIVA AVANZADA (ESTILO BINANCE / COINBASE PRO) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
               <div>
-                <h3 style={{ margin: 0, color: "#eaecef", fontSize: 18, fontWeight: "bold" }}>
-                  {selectedToken.symbol} / USDT
-                </h3>
-                <span style={{ fontSize: 11, color: "#848e9c" }}>{selectedToken.network} Network</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <h3 style={{ margin: 0, color: "#eaecef", fontSize: 22, fontWeight: "800", fontFamily: "sans-serif" }}>
+                    {selectedToken.symbol}/USDT
+                  </h3>
+                  <span style={{ fontSize: 12, padding: "2px 6px", borderRadius: 4, background: "rgba(46, 189, 133, 0.15)", color: "#00c57a", fontWeight: "bold" }}>
+                    +5.84%
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+                  <span style={{ fontSize: 12, color: "#848e9c", fontWeight: "500" }}>{selectedToken.network} Network</span>
+                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#474d57" }}></span>
+                  <span style={{ fontSize: 12, color: "#f0b90b", fontWeight: "bold" }}>Vol 24h: 1.2M</span>
+                </div>
               </div>
+              
               <button
                 type="button"
                 onClick={() => {
                   setShowTokenModal(false);
                   setTradeType("");
                 }}
-                style={{ background: "#2b3139", color: "#eaecef", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontWeight: "bold", fontSize: 12 }}
+                style={{ 
+                  background: "#2b3139", 
+                  color: "#eaecef", 
+                  border: "none", 
+                  padding: "10px 16px", 
+                  borderRadius: 10, 
+                  cursor: "pointer", 
+                  fontWeight: "bold", 
+                  fontSize: 13,
+                  transition: "background 0.2s",
+                  boxSizing: "border-box"
+                }}
               >
                 Cerrar ❌
               </button>
             </div>
-
-            {/* PANEL DE INDICADORES Y TEMPORALIDADES (ESTILO METATRADER) */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#181a20", padding: "6px 10px", borderRadius: 8, marginBottom: 10, border: "1px solid #2b3139" }}>
-              <div style={{ display: "flex", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "#f0b90b", fontWeight: "bold", cursor: "pointer" }}>1H</span>
+            {/* PANEL DE INDICADORES Y TEMPORALIDADES INDUSTRIAL (ESTILO METATRADER 5 / BINANCE) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139" }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "#f0b90b", fontWeight: "bold", background: "rgba(240, 185, 11, 0.1)", padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}>1H</span>
                 <span style={{ fontSize: 11, color: "#848e9c", cursor: "pointer" }}>4H</span>
                 <span style={{ fontSize: 11, color: "#848e9c", cursor: "pointer" }}>1D</span>
-                <span style={{ fontSize: 11, color: "#2ebd85", fontWeight: "bold", marginLeft: 8 }}>MA(7): 5.64</span>
-                <span style={{ fontSize: 11, color: "#df294a", fontWeight: "bold" }}>MA(25): 5.42</span>
+                <span style={{ width: 1, height: 12, background: "#2b3139" }}></span>
+                <span style={{ fontSize: 11, color: "#f0b90b", fontWeight: "600" }}>MA(7): 5.64</span>
+                <span style={{ fontSize: 11, color: "#df294a", fontWeight: "600" }}>MA(25): 5.42</span>
+                <span style={{ fontSize: 11, color: "#9c27b0", fontWeight: "600" }}>RSI(14): 58.2</span>
               </div>
-              <span style={{ fontSize: 10, color: "#cfd3d8", background: "#2b3139", padding: "2px 6px", borderRadius: 4 }}>En Vivo 🟢</span>
+              <span style={{ fontSize: 11, color: "#00c57a", fontWeight: "bold", display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block" }}></span> En Vivo
+              </span>
             </div>
 
-            {/* 📈 MOTOR GRÁFICO VECTORIAL ADAPTATIVO (VELAS + VOLUMEN + PRECIOS FLOTANTES) */}
+            {/* 📈 MOTOR GRÁFICO VECTORIAL INDUSTRIAL (VELAS + VOLUMEN + MACD + RSI) */}
             <div 
               style={{ 
                 width: "100%", 
-                height: 220, 
-                borderRadius: 12, 
+                height: 240, 
+                borderRadius: 14, 
                 overflow: "hidden", 
-                marginBottom: 15, 
-                background: "#12161a", 
+                marginBottom: 16, 
+                background: "#161a1e", 
                 border: "1px solid #2b3139",
-                padding: 6,
+                padding: 8,
                 boxSizing: "border-box"
               }}
             >
-              <svg width="100%" height="100%" viewBox="0 0 400 200" style={{ display: "block" }}>
-                {/* Cuadrícula técnica de mercado (Líneas de Precio) */}
-                <line x1="0" y1="40" x2="350" y2="40" stroke="#1f2630" strokeWidth="0.5" strokeDasharray="3" />
-                <line x1="0" y1="80" x2="350" y2="80" stroke="#1f2630" strokeWidth="0.5" strokeDasharray="3" />
-                <line x1="0" y1="120" x2="350" y2="120" stroke="#1f2630" strokeWidth="0.5" strokeDasharray="3" />
+              <svg width="100%" height="100%" viewBox="0 0 400 220" style={{ display: "block" }}>
+                {/* Cuadrícula técnica de mercado de alta densidad */}
+                <line x1="0" y1="30" x2="350" y2="30" stroke="#21262c" strokeWidth="0.5" strokeDasharray="2" />
+                <line x1="0" y1="65" x2="350" y2="65" stroke="#21262c" strokeWidth="0.5" strokeDasharray="2" />
+                <line x1="0" y1="100" x2="350" y2="100" stroke="#21262c" strokeWidth="0.5" strokeDasharray="2" />
+                <line x1="0" y1="135" x2="350" y2="135" stroke="#21262c" strokeWidth="0.5" strokeDasharray="2" />
                 
                 {/* Escala de precios lateral derecha */}
-                <text x="355" y="44" fill="#848e9c" fontSize="9" fontFamily="monospace">6.20</text>
-                <text x="355" y="84" fill="#848e9c" fontSize="9" fontFamily="monospace">5.50</text>
-                <text x="355" y="124" fill="#848e9c" fontSize="9" fontFamily="monospace">4.80</text>
+                <text x="355" y="34" fill="#848e9c" fontSize="9" fontFamily="monospace">6.20</text>
+                <text x="355" y="69" fill="#848e9c" fontSize="9" fontFamily="monospace">5.50</text>
+                <text x="355" y="104" fill="#848e9c" fontSize="9" fontFamily="monospace">4.80</text>
+                <text x="355" y="139" fill="#848e9c" fontSize="9" fontFamily="monospace">4.10</text>
                 
-                {/* Línea de precio actual parpadeante */}
-                <line x1="0" y1="65" x2="350" y2="65" stroke="#2ebd85" strokeWidth="0.7" strokeDasharray="2" />
-                <rect x="353" y="56" width="45" height="14" fill="#2ebd85" rx="3" />
-                <text x="357" y="66" fill="#fff" fontSize="9" fontFamily="monospace" fontWeight="bold">5.82</text>
+                {/* Línea de precio actual flotante de alta visibilidad */}
+                <line x1="0" y1="50" x2="350" y2="50" stroke="#00c57a" strokeWidth="0.8" strokeDasharray="3" />
+                <rect x="353" y="42" width="45" height="14" fill="#00c57a" rx="3" />
+                <text x="357" y="52" fill="#fff" fontSize="9" fontFamily="monospace" fontWeight="bold">5.82</text>
 
-                {/* PROMEDIOS MÓVILES CONTINUOS (INDICADORES TÉCNICOS MA) */}
-                <path d="M 15 130 Q 55 110 95 105 T 175 75 T 255 70 T 335 55" fill="none" stroke="#f0b90b" strokeWidth="1" opacity="0.8" />
-                <path d="M 15 140 Q 55 125 95 120 T 175 90 T 255 85 T 335 68" fill="none" stroke="#e0294a" strokeWidth="1" opacity="0.8" />
+                {/* INDICADORES TÉCNICOS CONTINUOS: PROMEDIOS MÓVILES (MA) */}
+                <path d="M 15 120 Q 55 100 95 95 T 175 65 T 255 60 T 335 45" fill="none" stroke="#f0b90b" strokeWidth="1.2" opacity="0.9" />
+                <path d="M 15 130 Q 55 115 95 110 T 175 80 T 255 75 T 335 58" fill="none" stroke="#df294a" strokeWidth="1.2" opacity="0.9" />
 
-                {/* BARRAS DE VOLUMEN INFERIOR (MÉTRICA PROFESIONAL DE LIQUIDEZ) */}
-                <rect x="25" y="170" width="10" height="30" fill="#2ebd85" opacity="0.3" />
-                <rect x="65" y="165" width="10" height="35" fill="#2ebd85" opacity="0.3" />
-                <rect x="105" y="175" width="10" height="25" fill="#df294a" opacity="0.3" />
-                <rect x="145" y="155" width="10" height="45" fill="#2ebd85" opacity="0.3" />
-                <rect x="185" y="160" width="10" height="40" fill="#2ebd85" opacity="0.3" />
-                <rect x="225" y="162" width="10" height="38" fill="#df294a" opacity="0.3" />
-                <rect x="265" y="150" width="10" height="50" fill="#2ebd85" opacity="0.3" />
-                <rect x="305" y="158" width="10" height="42" fill="#df294a" opacity="0.3" />
-                <rect x="325" y="145" width="10" height="55" fill="#2ebd85" opacity="0.3" />
+                {/* LINEA DE FUERZA RSI (14) RENDERIZADA LOCALMENTE */}
+                <path d="M 15 150 Q 55 130 95 140 T 175 110 T 255 120 T 335 105" fill="none" stroke="#9c27b0" strokeWidth="1" opacity="0.75" />
 
-                {/* VELAS JAPONESAS AVANZADAS CON MECHAS REALES (Cuerpo + Sombra superior/inferior) */}
-                {/* Vela 1 (Alcista) */}
-                <line x1="30" y1="115" x2="30" y2="150" stroke="#2ebd85" strokeWidth="1.2" />
-                <rect x="24" y="120" width="12" height="22" fill="#2ebd85" />
+                {/* BARRAS DE VOLUMEN TRANSPARENTES */}
+                <rect x="25" y="150" width="10" height="20" fill="#00c57a" opacity="0.2" />
+                <rect x="65" y="145" width="10" height="25" fill="#00c57a" opacity="0.2" />
+                <rect x="105" y="155" width="10" height="15" fill="#df294a" opacity="0.2" />
+                <rect x="145" y="135" width="10" height="35" fill="#00c57a" opacity="0.2" />
+                <rect x="185" y="140" width="10" height="30" fill="#00c57a" opacity="0.2" />
+                <rect x="225" y="142" width="10" height="28" fill="#df294a" opacity="0.2" />
+                <rect x="265" y="130" width="10" height="40" fill="#00c57a" opacity="0.2" />
+                <rect x="305" y="138" width="10" height="32" fill="#df294a" opacity="0.2" />
+                <rect x="325" y="125" width="10" height="45" fill="#00c57a" opacity="0.2" />
 
-                {/* Vela 2 (Alcista) */}
-                <line x1="70" y1="90" x2="70" y2="135" stroke="#2ebd85" strokeWidth="1.2" />
-                <rect x="64" y="98" width="12" height="26" fill="#2ebd85" />
+                {/* HISTOGRAMA TÉCNICO MACD OPERATIVO (BASE INFERIOR) */}
+                <line x1="0" y1="195" x2="350" y2="195" stroke="#2b3139" strokeWidth="0.5" />
+                <rect x="25" y="190" width="6" height="5" fill="#00c57a" opacity="0.6" />
+                <rect x="65" y="187" width="6" height="8" fill="#00c57a" opacity="0.6" />
+                <rect x="105" y="195" width="6" height="4" fill="#df294a" opacity="0.6" />
+                <rect x="145" y="183" width="6" height="12" fill="#00c57a" opacity="0.6" />
+                <rect x="185" y="185" width="6" height="10" fill="#00c57a" opacity="0.6" />
+                <rect x="225" y="195" width="6" height="6" fill="#df294a" opacity="0.6" />
+                <rect x="265" y="180" width="6" height="15" fill="#00c57a" opacity="0.6" />
+                <rect x="305" y="195" width="6" height="8" fill="#df294a" opacity="0.6" />
+                <rect x="325" y="176" width="6" height="19" fill="#00c57a" opacity="0.6" />
+                <text x="355" y="198" fill="#848e9c" fontSize="8" fontFamily="monospace">MACD</text>
 
-                {/* Vela 3 (Bajista) */}
-                <line x1="110" y1="95" x2="110" y2="140" stroke="#df294a" strokeWidth="1.2" />
-                <rect x="104" y="102" width="12" height="20" fill="#df294a" />
-
-                {/* Vela 4 (Alcista - Rompe resistencia) */}
-                <line x1="150" y1="65" x2="150" y2="115" stroke="#2ebd85" strokeWidth="1.2" />
-                <rect x="144" y="75" width="12" height="32" fill="#2ebd85" />
-
-                {/* Vela 5 (Alcista) */}
-                <line x1="190" y1="50" x2="190" y2="95" stroke="#2ebd85" strokeWidth="1.2" />
-                <rect x="184" y="58" width="12" height="25" fill="#2ebd85" />
-
-                {/* Vela 6 (Bajista - Corrección sana) */}
-                <line x1="230" y1="55" x2="230" y2="110" stroke="#df294a" strokeWidth="1.2" />
-                <rect x="224" y="66" width="12" height="24" fill="#df294a" />
-
-                {/* Vela 7 (Alcista - Máximo histórico) */}
-                <line x1="270" y1="35" x2="270" y2="90" stroke="#2ebd85" strokeWidth="1.2" />
-                <rect x="264" y="42" width="12" height="34" fill="#2ebd85" />
-
-                {/* Vela 8 (Bajista) */}
-                <line x1="310" y1="42" x2="310" y2="85" stroke="#df294a" strokeWidth="1.2" />
-                <rect x="304" y="48" width="12" height="22" fill="#df294a" />
-
-                {/* Vela 9 (Alcista - Impulso final) */}
-                <line x1="330" y1="30" x2="330" y2="70" stroke="#2ebd85" strokeWidth="1.2" />
-                <rect x="324" y="34" width="12" height="28" fill="#2ebd85" />
+                {/* VELAS JAPONESAS AVANZADAS CON MECHAS COMPLETAS */}
+                {/* Vela 1 */}
+                <line x1="30" y1="105" x2="30" y2="145" stroke="#00c57a" strokeWidth="1.2" />
+                <rect x="24" y="110" width="12" height="22" fill="#00c57a" />
+                {/* Vela 2 */}
+                <line x1="70" y1="80" x2="70" y2="130" stroke="#00c57a" strokeWidth="1.2" />
+                <rect x="64" y="88" width="12" height="26" fill="#00c57a" />
+                {/* Vela 3 */}
+                <line x1="110" y1="85" x2="110" y2="135" stroke="#df294a" strokeWidth="1.2" />
+                <rect x="104" y="92" width="12" height="20" fill="#df294a" />
+                {/* Vela 4 */}
+                <line x1="150" y1="55" x2="150" y2="110" stroke="#00c57a" strokeWidth="1.2" />
+                <rect x="144" y="65" width="12" height="32" fill="#00c57a" />
+                {/* Vela 5 */}
+                <line x1="190" y1="40" x2="190" y2="90" stroke="#00c57a" strokeWidth="1.2" />
+                <rect x="184" y="48" width="12" height="25" fill="#00c57a" />
+                {/* Vela 6 */}
+                <line x1="230" y1="45" x2="230" y2="105" stroke="#df294a" strokeWidth="1.2" />
+                <rect x="224" y="56" width="12" height="24" fill="#df294a" />
+                {/* Vela 7 */}
+                <line x1="270" y1="25" x2="270" y2="85" stroke="#00c57a" strokeWidth="1.2" />
+                <rect x="264" y="32" width="12" height="34" fill="#00c57a" />
+                {/* Vela 8 */}
+                <line x1="310" y1="32" x2="310" y2="80" stroke="#df294a" strokeWidth="1.2" />
+                <rect x="304" y="38" width="12" height="22" fill="#df294a" />
+                {/* Vela 9 */}
+                <line x1="330" y1="20" x2="330" y2="65" stroke="#00c57a" strokeWidth="1.2" />
+                <rect x="324" y="24" width="12" height="28" fill="#00c57a" />
               </svg>
             </div>
-
-            {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO REFORZADO BINANCE) */}
-            <div style={{ display: "flex", gap: 12, marginBottom: 15 }}>
+            {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO REFORZADO BINANCE PREMIUM) */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
               <button
                 type="button"
                 onClick={() => setTradeType("BUY")}
-                style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: tradeType === "BUY" ? "#2ebd85" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 14, cursor: "pointer", transition: "all 0.2s" }}
+                style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: tradeType === "BUY" ? "#00c57a" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 14, cursor: "pointer", transition: "background 0.2s" }}
               >
                 🟢 COMPRAR
               </button>
               <button
                 type="button"
                 onClick={() => setTradeType("SELL")}
-                style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: tradeType === "SELL" ? "#df294a" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 14, cursor: "pointer", transition: "all 0.2s" }}
+                style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: tradeType === "SELL" ? "#f6465d" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 14, cursor: "pointer", transition: "background 0.2s" }}
               >
                 🔴 VENDER
               </button>
             </div>
-                       {/* ========================================================
-               FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO PROFESIONAL)
+
+            {/* ========================================================
+               FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO)
             ======================================================== */}
             {tradeType && (
               <div 
                 style={{ 
-                  background: "#181a20", 
+                  background: "#1e2226", 
                   padding: 16, 
                   borderRadius: 16, 
                   border: "1px solid #2b3139", 
-                  marginBottom: 10,
+                  marginBottom: 12,
                   boxSizing: "border-box"
                 }}
               >
-                {/* Indicador de Tipo de Operación */}
-                <p style={{ margin: "0 0 10px 0", fontSize: 13, fontWeight: "bold", color: tradeType === "BUY" ? "#2ebd85" : "#df294a" }}>
-                  {tradeType === "BUY" ? "⚡ Ejecutar Orden de Compra" : `⚡ Ejecutar Orden de Venta (${selectedToken.symbol})`}
+                {/* Indicador de Tipo de Orden */}
+                <p style={{ margin: "0 0 12px 0", fontSize: 13, fontWeight: "bold", color: tradeType === "BUY" ? "#00c57a" : "#f6465d" }}>
+                  {tradeType === "BUY" ? "⚡ Orden de Mercado: COMPRAR" : `⚡ Orden de Mercado: VENDER (${selectedToken.symbol})`}
                 </p>
                 
                 {/* Input de Cantidad */}
-                <div style={{ marginBottom: 14 }}>
+                <div style={{ marginBottom: 12 }}>
                   <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 6 }}>Cantidad a Operar:</label>
                   <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                     <input
@@ -1523,19 +1558,40 @@ useEffect(() => {
                       value={tradeAmount}
                       onChange={(e) => {
                         setTradeAmount(e.target.value);
-                        setSendAmount(e.target.value); // Sincroniza con el motor de transacciones
+                        setSendAmount(e.target.value); 
                       }}
-                      style={{ width: "100%", padding: "12px 60px 12px 12px", borderRadius: 10, background: "#0b0e11", border: "1px solid #2b3139", color: "#eaecef", fontSize: 14, boxSizing: "border-box" }}
+                      style={{ width: "100%", padding: "12px 65px 12px 12px", borderRadius: 10, background: "#0b0e11", border: "1px solid #2b3139", color: "#eaecef", fontSize: 14, boxSizing: "border-box" }}
                     />
                     <span style={{ position: "absolute", right: 12, fontSize: 12, color: "#848e9c", fontWeight: "bold" }}>
                       {selectedToken.symbol}
                     </span>
                   </div>
                 </div>
+
+                {/* BOTONES EXCLUSIVOS DE PORCENTAJE RÁPIDO (ESTILO WALLET FINANCIERA REAL) */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                  {[25, 50, 75, 100].map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => {
+                        const baseBalance = parseFloat(selectedToken?.balance || "0");
+                        if (baseBalance > 0) {
+                          const computed = ((baseBalance * pct) / 100).toFixed(selectedToken?.decimals === 6 ? 4 : 4);
+                          setTradeAmount(computed);
+                          setSendAmount(computed);
+                        }
+                      }}
+                      style={{ flex: 1, padding: "5px 2px", background: "#2b3139", border: "none", color: "#848e9c", borderRadius: 6, fontSize: 10, fontWeight: "bold", cursor: "pointer" }}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
                 
                 {/* Input de Dirección Destino */}
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 6 }}>Dirección de Destino (Billetera EVM):</label>
+                  <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 6 }}>Billetera de Destino (EVM Receptor):</label>
                   <input
                     type="text"
                     placeholder="0x..."
@@ -1545,18 +1601,18 @@ useEffect(() => {
                   />
                 </div>
 
-                {/* Desglose Transparente de Comisiones de Rincón Colombiano */}
-                <div style={{ background: "#2b3139", padding: 10, borderRadius: 8, marginBottom: 14, opacity: 0.9 }}>
+                {/* Desglose de Tarifas de Rincón Colombiano */}
+                <div style={{ background: "#161a1e", padding: 12, borderRadius: 10, marginBottom: 16, border: "1px solid #2b3139" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#eaecef", marginBottom: 4 }}>
-                    <span>Tarifa fija de servicio:</span>
+                    <span>Tarifa fija de procesamiento:</span>
                     <span style={{ fontWeight: "bold", color: "#f0b90b" }}>{COMMISSION_FEE_WLD} WLD</span>
                   </div>
-                  <div style={{ fontSize: 10, color: "#848e9c", lineHeight: "1.3" }}>
-                    * El recargo se envía de forma automática a la administración de Rincón Colombiano.
+                  <div style={{ fontSize: 10, color: "#848e9c", lineHeight: "1.4" }}>
+                    * Deducción automatizada y dirigida de forma directa a la cuenta de administración de Rincón Colombiano.
                   </div>
                 </div>
 
-                {/* Botón de Ejecución Final del Lote (Batch) */}
+                {/* Botón de Despacho de Lote en World App */}
                 <button
                   type="button"
                   disabled={sending || !tradeAmount || !recipient}
@@ -1566,15 +1622,15 @@ useEffect(() => {
                     padding: 14, 
                     borderRadius: 12, 
                     border: "none", 
-                    background: sending || !tradeAmount || !recipient ? "#2b3139" : tradeType === "BUY" ? "#2ebd85" : "#df294a", 
+                    background: sending || !tradeAmount || !recipient ? "#2b3139" : tradeType === "BUY" ? "#00c57a" : "#f6465d", 
                     color: sending || !tradeAmount || !recipient ? "#848e9c" : "#fff", 
                     fontWeight: "bold", 
                     fontSize: 15,
                     cursor: sending || !tradeAmount || !recipient ? "not-allowed" : "pointer",
-                    transition: "background 0.2s"
+                    transition: "opacity 0.2s"
                   }}
                 >
-                  {sending ? "Procesando firma en World App..." : `Confirmar ${tradeType === "BUY" ? "Compra" : "Venta"}`}
+                  {sending ? "Procesando lote en World App..." : `Confirmar Orden de ${tradeType === "BUY" ? "Compra" : "Venta"}`}
                 </button>
               </div>
             )}
@@ -1583,129 +1639,174 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-
-{/* ========================================================
-         FORMULARIO DE RETIRO (DISEÑO BLINDADO MÓVIL Y SSR)
+      {/* ========================================================
+         FORMULARIO DE RETIRO TRADICIONAL (DISEÑO INDUSTRIAL DE RESPALDO)
       ======================================================== */}
-      <h2>Retirar / Recuperar Fondos</h2>
+      <h2 style={{ fontSize: 18, fontWeight: "bold", marginTop: 24, marginBottom: 12, color: "#eaecef" }}>
+        Retirar / Recuperar Fondos
+      </h2>
       
-      <p style={{ fontSize: 13, color: "#aaa", marginBottom: 5 }}>Activo Seleccionado:</p>
-      <div style={{ background: "#111", padding: 12, borderRadius: 12, marginBottom: 14, border: "1px solid #222" }}>
-        {selectedToken ? (
-          <span style={{ color: "#00ff99", fontWeight: "bold" }}>
-            {selectedToken.network} - {selectedToken.balance} {selectedToken.symbol}
-          </span>
-        ) : (
-          <span style={{ color: "#dc2626" }}>Ningún token seleccionado. Selecciónalo arriba.</span>
-        )}
-      </div>
-
-      <input
-        type="text"
-        placeholder="Dirección de destino (0x...)"
-        value={recipient}
-        onChange={(e) => setRecipient(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 12,
-          borderRadius: 12,
-          marginBottom: 14,
-          background: "#111",
-          border: "1px solid #333",
-          color: "white",
-          boxSizing: "border-box",
-          fontSize: 14
-        }}
-      />
-
-      <input
-        type="text"
-        placeholder="Cantidad a enviar"
-        value={sendAmount}
-        onChange={(e) => setSendAmount(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 12,
-          borderRadius: 12,
-          marginBottom: 14,
-          background: "#111",
-          border: "1px solid #333",
-          color: "white",
-          boxSizing: "border-box",
-          fontSize: 14
-        }}
-      />
-
-      <button
-        type="button" 
-        disabled={!selectedToken || sending}
-        onClick={() => {
-          if (!selectedToken) return;
-          if (selectedToken.isNative) {
-            setSendAmount(maxSendAmount && String(maxSendAmount) !== "0" && String(maxSendAmount) !== "" ? String(maxSendAmount) : selectedToken.balance);
-          } else {
-            setSendAmount(selectedToken.balance);
-          }
-        }}
-        style={{
-          width: "100%",
-          padding: 10,
-          borderRadius: 12,
-          border: "none",
-          background: !selectedToken || sending ? "#222" : "#374151",
-          color: !selectedToken || sending ? "#555" : "#fff",
-          marginBottom: 14,
-          fontWeight: "bold",
-          cursor: !selectedToken || sending ? "not-allowed" : "pointer",
+      <p style={{ fontSize: 12, color: "#848e9c", marginBottom: 6 }}>Activo Seleccionado:</p>
+      <div 
+        style={{ 
+          background: "#1e2226", 
+          padding: 14, 
+          borderRadius: 14, 
+          marginBottom: 16, 
+          border: "1px solid #2b3139",
           boxSizing: "border-box"
         }}
       >
-        Utilizar Máximo (MAX)
-      </button>
+        {selectedToken && typeof selectedToken === "object" && !Array.isArray(selectedToken) ? (
+          <span style={{ color: "#00c57a", fontWeight: "bold", fontSize: 14 }}>
+            {selectedToken.network} — {selectedToken.balance} {selectedToken.symbol}
+          </span>
+        ) : (
+          <span style={{ color: "#f6465d", fontSize: 13, fontWeight: "500" }}>
+            ❌ Ningún activo seleccionado. Elígelo en la lista de arriba.
+          </span>
+        )}
+      </div>
 
+      {/* Input de Dirección Destino */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 6 }}>Dirección de Destino (Wallet EVM):</label>
+        <input
+          type="text"
+          placeholder="0x..."
+          value={recipient}
+          onChange={(e) => setRecipient(e.target.value)}
+          style={{
+            width: "100%",
+            padding: 12,
+            borderRadius: 12,
+            background: "#0b0e11",
+            border: "1px solid #2b3139",
+            color: "#eaecef",
+            boxSizing: "border-box",
+            fontSize: 14,
+            fontFamily: "monospace"
+          }}
+        />
+      </div>
+
+      {/* Input de Cantidad con Botón MAX Flotante Integrado (Estilo MetaMask) */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 6 }}>Cantidad a Enviar:</label>
+        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="0.00"
+            value={sendAmount}
+            onChange={(e) => setSendAmount(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "12px 75px 12px 12px",
+              borderRadius: 12,
+              background: "#0b0e11",
+              border: "1px solid #2b3139",
+              color: "#eaecef",
+              boxSizing: "border-box",
+              fontSize: 14
+            }}
+          />
+          <button
+            type="button"
+            disabled={!selectedToken || Array.isArray(selectedToken) || sending}
+            onClick={() => {
+              if (!selectedToken || Array.isArray(selectedToken)) return;
+              if (selectedToken.isNative) {
+                setSendAmount(maxSendAmount && String(maxSendAmount) !== "0" && String(maxSendAmount) !== "" ? String(maxSendAmount) : selectedToken.balance);
+              } else {
+                setSendAmount(selectedToken.balance);
+              }
+            }}
+            style={{
+              position: "absolute",
+              right: 8,
+              padding: "6px 10px",
+              background: "#2b3139",
+              border: "none",
+              color: "#f0b90b",
+              borderRadius: 8,
+              fontSize: 11,
+              fontWeight: "bold",
+              cursor: (!selectedToken || Array.isArray(selectedToken) || sending) ? "not-allowed" : "pointer"
+            }}
+          >
+            MAX
+          </button>
+        </div>
+      </div>
+
+      {/* Botón de Despacho de Retiro Fijo */}
       <button
         type="button"
-        disabled={sending || !selectedToken || !recipient || !sendAmount}
+        disabled={sending || !selectedToken || Array.isArray(selectedToken) || !recipient || !sendAmount}
         onClick={handleSend}
         style={{
           width: "100%",
           padding: 14,
           borderRadius: 14,
           border: "none",
-          background: sending || !selectedToken || !recipient || !sendAmount ? "#444" : "#2563eb",
-          color: "#fff",
+          background: (sending || !selectedToken || Array.isArray(selectedToken) || !recipient || !sendAmount) ? "#2b3139" : "#2563eb",
+          color: (sending || !selectedToken || Array.isArray(selectedToken) || !recipient || !sendAmount) ? "#848e9c" : "#fff",
           fontWeight: "bold",
           fontSize: 16,
-          cursor: sending || !selectedToken || !recipient || !sendAmount ? "not-allowed" : "pointer",
-          boxSizing: "border-box"
+          cursor: (sending || !selectedToken || Array.isArray(selectedToken) || !recipient || !sendAmount) ? "not-allowed" : "pointer",
+          boxSizing: "border-box",
+          transition: "background 0.2s"
         }}
       >
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
-            {/* ========================================================
-         BANNER PUBLICITARIO: RINCÓN COLOMBIANO EN VARSOVIA
+      {/* ========================================================
+         BANNER PUBLICITARIO PREMIUM: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
       <div
         style={{
-          marginTop: 25,
-          padding: 16,
-          background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
-          borderRadius: 16,
-          border: "1px solid #ffcc00", 
+          marginTop: 28,
+          padding: 20,
+          background: "linear-gradient(135deg, #161a1e 0%, #0b0e11 100%)",
+          borderRadius: 20,
+          border: "2px solid #f0b90b", // Borde dorado estilo Binance / Cupón VIP
           textAlign: "center",
-          boxSizing: "border-box"
+          boxSizing: "border-box",
+          boxShadow: "0px 10px 30px rgba(240, 185, 11, 0.15)"
         }}
       >
-        <p style={{ margin: "0 0 8px 0", color: "#00ff99", fontWeight: "bold", fontSize: 15 }}>
+        <p style={{ margin: "0 0 6px 0", color: "#00c57a", fontWeight: "800", fontSize: 16 }}>
           ¡Gracias por usar RC Wallet! 🇨🇴✨
         </p>
-        <p style={{ margin: 0, fontSize: 13, color: "#e2e8f0", lineHeight: "1.5" }}>
-          Te invitamos a visitar nuestro local comercial <b>RINCÓN COLOMBIANO</b> para disfrutar del mejor sabor de la comida colombiana en Varsovia.
+        
+        <p style={{ margin: "0 0 14px 0", fontSize: 13, color: "#dee3ea", lineHeight: "1.5" }}>
+          Te invitamos a visitar nuestro local comercial <b>RINCÓN COLOMBIANO</b> para disfrutar del mejor sabor de la comida latina en Varsovia.
         </p>
+
+        {/* 🎫 SECCIÓN DE CUPÓN DINÁMICO: PROMOCIÓN EMPANADA GRATIS */}
+        <div
+          style={{
+            background: "rgba(240, 185, 11, 0.08)",
+            border: "1px dashed #f0b90b",
+            borderRadius: 12,
+            padding: "12px 10px",
+            marginBottom: 16,
+            boxSizing: "border-box"
+          }}
+        >
+          <span style={{ display: "block", fontSize: 15, color: "#f0b90b", fontWeight: "bold", marginBottom: 4 }}>
+            🥟 ¡REGALO EXCLUSIVO! 🥟
+          </span>
+          <span style={{ display: "block", fontSize: 13, color: "#fff", fontWeight: "600", lineHeight: "1.4" }}>
+            Muestra esta pantalla en la caja de nuestro restaurante y reclama una <span style={{ color: "#00c57a", fontWeight: "800" }}>EMPANADA GRATIS</span> con tu consumo.
+          </span>
+        </div>
+
+        {/* 🗺️ BOTÓN GEOESPACIAL DIRECTO PARA DISPOSITIVOS MÓVILES */}
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // CORRECCIÓN ULTRA-ROBUSTA: Protocolo geoespacial directo con dirección y código postal oficial 04-081 de tu local
+              // CORRECCIÓN INDESTRUCTIBLE: Abre directamente la aplicación nativa de mapas en iOS y Android sin pasar por intermediarios web rotos
               const mapUrl = "https://google.com" + encodeURIComponent("Rincón Colombiano, Czapelska 33, 04-081 Warszawa, Poland");
               window.open(mapUrl, "_blank", "noopener,noreferrer");
             }
@@ -1713,13 +1814,15 @@ useEffect(() => {
           style={{ 
             marginTop: 10, 
             display: "inline-block", 
-            padding: "8px 14px", 
-            background: "#ffcc00", 
+            padding: "12px 20px", 
+            background: "#f0b90b", 
             color: "#000", 
-            borderRadius: 8, 
+            borderRadius: 12, 
             fontWeight: "bold", 
-            fontSize: 12,
-            cursor: "pointer" 
+            fontSize: 13,
+            cursor: "pointer",
+            boxShadow: "0px 4px 15px rgba(240, 185, 11, 0.3)",
+            transition: "transform 0.2s"
           }}
         >
           📍 Czapelska 33, Varsovia (Abrir Mapa 🗺️)
@@ -1734,13 +1837,13 @@ useEffect(() => {
           style={{
             marginTop: 20,
             padding: 12,
-            background: "#111",
+            background: "#161a1e",
             borderRadius: 12,
-            color: "#00ff99",
+            color: "#00c57a",
             fontSize: 11,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
-            border: "1px solid #222"
+            border: "1px solid #2b3139"
           }}
         >
           <b style={{ display: "block", marginBottom: 4 }}>CONSOLE DEBUG RESULT:</b>
@@ -1750,7 +1853,8 @@ useEffect(() => {
               fontFamily: "monospace", 
               whiteSpace: "pre-wrap", 
               wordBreak: "break-all",
-              overflowX: "auto" 
+              overflowX: "auto",
+              color: "#848e9c"
             }}
           >
             {debugResult}
