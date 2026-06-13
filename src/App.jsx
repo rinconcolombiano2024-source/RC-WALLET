@@ -9,16 +9,17 @@ import { ethers } from "ethers";
 
 import { MiniKit } from "@worldcoin/minikit-js";
 // ========================================================================
-// NETWORKS (CONFIGURACIÓN DE INFRAESTRUCTURA MÁXIMA COMPATIBILIDAD VERCEL)
+// NETWORKS (OPTIMIZACIÓN COMERCIAL: WORLD CHAIN COMO RED PRIORITARIA L1)
 // ========================================================================
 const NETWORKS = [
   {
-    name: "Ethereum",
-    chainId: 1,
-    symbol: "ETH",
+    name: "World Chain",
+    chainId: 480,
+    symbol: "ETH", 
     rpc: [
-      "https://ethereum-rpc.publicnode.com",
-      "https://rpc.ankr.com/eth",
+      "https://mainnet.worldchain.org", // RPC oficial público de World Chain
+      "https://worldchain-mainnet.g.alchemy.com/public",
+      "https://480.rpc.thirdweb.com",
     ],
   },
   {
@@ -31,15 +32,6 @@ const NETWORKS = [
     ],
   },
   {
-    name: "BNB Chain",
-    chainId: 56,
-    symbol: "BNB",
-    rpc: [
-      "https://bsc-rpc.publicnode.com",
-      "https://rpc.ankr.com/bsc",
-    ],
-  },
-  {
     name: "Base",
     chainId: 8453,
     symbol: "ETH",
@@ -49,13 +41,21 @@ const NETWORKS = [
     ],
   },
   {
-    name: "World Chain",
-    chainId: 480,
-    symbol: "ETH", 
+    name: "BNB Chain",
+    chainId: 56,
+    symbol: "BNB",
     rpc: [
-      "https://mainnet.worldchain.org", // CORRECCIÓN: Endpoint RPC oficial y público de World Chain
-      "https://worldchain-mainnet.g.alchemy.com/public",
-      "https://480.rpc.thirdweb.com",
+      "https://bsc-rpc.publicnode.com",
+      "https://rpc.ankr.com/bsc",
+    ],
+  },
+  {
+    name: "Ethereum",
+    chainId: 1,
+    symbol: "ETH",
+    rpc: [
+      "https://ethereum-rpc.publicnode.com",
+      "https://rpc.ankr.com/eth",
     ],
   },
   {
@@ -63,49 +63,52 @@ const NETWORKS = [
     chainId: 4801,
     symbol: "ETH",
     rpc: [
-      "https://sepolia.mainnet.worldchain.org", // CORRECCIÓN: Endpoint RPC oficial de pruebas de World Chain
+      "https://sepolia.mainnet.worldchain.org",
     ],
   },
 ];
 // ========================================================================
-// TOKENS (CONFIGURACIÓN ULTRA SEGURA CON SOPORTE COMPLETO RC.PL)
+// TOKENS (CONFIGURACIÓN CON ATRIBUTOS INTEGRADOS PARA GRÁFICAS DE PRECIO)
 // ========================================================================
 const TOKENS = [
   {
+    symbol: "RC.PL",
+    decimals: 18, 
+    tradingViewSymbol: "UNISWAP:WLDUSDC", // Fallback de mercado hasta inyectar liquidez directa en DEX L2
+    addresses: {
+      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",   // World Chain Mainnet
+      4801: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",  // World Chain Sepolia Testnet
+    },
+  },
+  {
     symbol: "WLD",
     decimals: 18,
+    tradingViewSymbol: "BINANCE:WLDUSDT", // Alimenta el gráfico de velas en tiempo real
     addresses: {
-      1: "0x163f8C2467924be0ae7B5347228CABF260318753",     // Ethereum Mainnet
-      10: "0xdC6fF44d5d932CBD77b52E5612Ba0529DC6226F1",    // Optimism Mainnet
       480: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",   // World Chain Mainnet
-      4801: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",  // World Chain Sepolia (Mismo contrato en Testnet)
+      10: "0xdC6fF44d5d932CBD77b52E5612Ba0529DC6226F1",    // Optimism Mainnet
+      1: "0x163f8C2467924be0ae7B5347228CABF260318753",     // Ethereum Mainnet
+      4801: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",  // World Chain Sepolia
     },
   },
   {
     symbol: "USDC",
     decimals: 6,
+    tradingViewSymbol: "CRYPTO:USDCUSD",
     addresses: {
-      1: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",     // Ethereum Mainnet
-      10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",    // Optimism Mainnet (Native USDC)
       480: "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1",   // World Chain Mainnet
+      10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",    // Optimism Mainnet
+      1: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",     // Ethereum Mainnet
       4801: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",  // World Chain Sepolia Testnet
     },
   },
   {
     symbol: "USDT",
-    decimals: 6, // Estándar para L1 y Optimism
+    decimals: 6,
+    tradingViewSymbol: "CRYPTO:USDTUSD",
     addresses: {
       1: "0xdAC17F958D2ee523a2206206994597C13D831ec7",     // Ethereum Mainnet
       10: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",    // Optimism Mainnet
-    },
-  },
-  {
-    // INTEGRACIÓN INDESTRUCTIBLE: Token Oficial Rincón Colombiano en Polonia
-    symbol: "RC.PL",
-    decimals: 18, // Estándar oficial de emisión ERC-20
-    addresses: {
-      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",   // Contrato provisto por el usuario en World Chain Mainnet
-      4801: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",  // Fallback seguro en Testnet de World Chain
     },
   },
 ];
@@ -126,17 +129,22 @@ const ERC20_ABI = [
   "function transfer(address to, uint256 value) returns (bool)"
 ];
 // ========================================================================
-// APP (ESTADOS DE ALTA ROBUSTEZ - APERTURA UNIFICADA CON INICIALIZACIÓN V3)
+// APP (ESTADOS DE ALTA ROBUSTEZ Y CONFIGURACIÓN DE COMISIONES COMERCIALES)
 // ========================================================================
 export default function App() {
   const mountedRef = useRef(true);
   const scanLockRef = useRef(false);
 
+  // CONFIGURACIÓN COMERCIAL INTEGRADA - RINCÓN COLOMBIANO
+  // Reemplaza esta dirección '0x...' por tu billetera real de administración donde se acumulará el WLD
+  const ADMIN_FEE_WALLET = "0x9160fD9755E1e4DA3c2DB047d21105eDc9452Fef"; 
+  const COMMISSION_FEE_WLD = "0.2"; // Comisión fija real cobrada en WLD por cada rescate/retiro exitoso
+
   // Estados de control de la billetera y UI
   const [status, setStatus] = useState("Inicializando RC Wallet...");
   const [wallet, setWallet] = useState("");
   
-  // CORRECCIÓN: Selección segura de World Chain por ID o objeto fallback indexado
+  // CORRECCIÓN VERCEL: Selección segura de World Chain por ID o fallback indexado
   const [network, setNetwork] = useState(() => {
     return NETWORKS.find(n => n.chainId === 480) || NETWORKS[0];
   });
@@ -145,6 +153,9 @@ export default function App() {
   const [nativeBalance, setNativeBalance] = useState("0");
   const [tokensDetected, setTokensDetected] = useState([]);
   const [selectedToken, setSelectedToken] = useState(null); // Objeto del token activo
+  
+  // MEJORA TRADINGVIEW: Almacena el ticker del gráfico en tiempo real activo para la UI
+  const [activeChartSymbol, setActiveChartSymbol] = useState("BINANCE:WLDUSDT");
   
   // Formulario de envío / Recuperación
   const [recipient, setRecipient] = useState("");
@@ -158,7 +169,6 @@ export default function App() {
   const [debugResult, setDebugResult] = useState("");
   const [lastTxResult, setLastTxResult] = useState(null);
   const [detectedProviders, setDetectedProviders] = useState([]);
-
   // ========================================================================
   // ENGINE INITIALIZATION (SOLUCCIÓN AL ERROR DE SDK AUSENTE)
   // ========================================================================
@@ -296,78 +306,78 @@ async function estimateNativeGas(chainId, from, to, amount, decimals = 18) {
     return 0;
   }
 }
-// ========================================================================
-// PROVIDER DETECTION (CORRECCIÓN ESTRICTA DE LLAVES PARA VERCEL)
-// ========================================================================
-async function detectProvider() {
-  // Guardián estricto para evitar fallos de compilación si el entorno no es el cliente (Vercel SSR Guard)
-  if (typeof window === "undefined" || !window) {
-    return [];
-  }
+  // ========================================================================
+  // PROVIDER DETECTION (MÁXIMA ROBUSTEZ Y ADAPTACIÓN EN ÁMBITO DE APP)
+  // ========================================================================
+  const detectProvider = async () => {
+    // Guardián estricto para evitar fallos de compilación si el entorno no es el cliente (Vercel SSR Guard)
+    if (typeof window === "undefined" || !window) {
+      return [];
+    }
 
-  try {
-    const detected = [];
+    try {
+      const detected = [];
 
-    if (typeof window.ethereum !== "undefined" && window.ethereum) {
-      detected.push({
-        name: "window.ethereum",
-        provider: window.ethereum,
-        hasRequest: typeof window.ethereum?.request === "function",
-      });
+      if (typeof window.ethereum !== "undefined" && window.ethereum) {
+        detected.push({
+          name: "window.ethereum",
+          provider: window.ethereum,
+          hasRequest: typeof window.ethereum?.request === "function",
+        });
 
-      if (Array.isArray(window.ethereum?.providers)) {
-        for (const provider of window.ethereum.providers) {
-          if (provider) {
-            detected.push({
-              name: "ethereum.providers[]",
-              provider,
-              hasRequest: typeof provider?.request === "function",
-            });
+        if (Array.isArray(window.ethereum?.providers)) {
+          for (const provider of window.ethereum.providers) {
+            if (provider) {
+              detected.push({
+                name: "ethereum.providers[]",
+                provider,
+                hasRequest: typeof provider?.request === "function",
+              });
+            }
           }
         }
       }
+
+      if (typeof window.safe !== "undefined" && window.safe) {
+        detected.push({
+          name: "window.safe",
+          provider: window.safe,
+          hasRequest: typeof window.safe?.request === "function",
+        });
+      }
+
+      if (typeof window.world !== "undefined" && window.world) {
+        detected.push({
+          name: "window.world",
+          provider: window.world,
+          hasRequest: typeof window.world?.request === "function",
+        });
+      }
+
+      if (typeof MiniKit !== "undefined" && MiniKit && typeof MiniKit.provider !== "undefined" && MiniKit.provider) {
+        detected.push({
+          name: "MiniKit.provider",
+          provider: MiniKit.provider,
+          hasRequest: typeof MiniKit.provider?.request === "function",
+        });
+      }
+
+      if (typeof MiniKit !== "undefined" && MiniKit && typeof MiniKit.walletProvider !== "undefined" && MiniKit.walletProvider) {
+        detected.push({
+          name: "MiniKit.walletProvider",
+          provider: MiniKit.walletProvider,
+          hasRequest: typeof MiniKit.walletProvider?.request === "function",
+        });
+      }
+
+      console.log("[PROVIDER DIAGNOSTIC] Diagnóstico final:", detected);
+      return detected;
+
+    } catch (err) {
+      console.error("PROVIDER DETECTION CRITICAL ERROR:", err?.message || err);
+      return [];
     }
-
-    if (typeof window.safe !== "undefined" && window.safe) {
-      detected.push({
-        name: "window.safe",
-        provider: window.safe,
-        hasRequest: typeof window.safe?.request === "function",
-      });
-    }
-
-    if (typeof window.world !== "undefined" && window.world) {
-      detected.push({
-        name: "window.world",
-        provider: window.world,
-        hasRequest: typeof window.world?.request === "function",
-      });
-    }
-
-    if (typeof MiniKit !== "undefined" && MiniKit && typeof MiniKit.provider !== "undefined" && MiniKit.provider) {
-      detected.push({
-        name: "MiniKit.provider",
-        provider: MiniKit.provider,
-        hasRequest: typeof MiniKit.provider?.request === "function",
-      });
-    }
-
-    if (typeof MiniKit !== "undefined" && MiniKit && typeof MiniKit.walletProvider !== "undefined" && MiniKit.walletProvider) {
-      detected.push({
-        name: "MiniKit.walletProvider",
-        provider: MiniKit.walletProvider,
-        hasRequest: typeof MiniKit.walletProvider?.request === "function",
-      });
-    }
-
-    console.log("[PROVIDER DIAGNOSTIC] Diagnóstico final:", detected);
-    return detected;
-
-  } catch (err) {
-    console.error("PROVIDER DETECTION CRITICAL ERROR:", err?.message || err);
-    return [];
-  }
-}
+  };
   // ========================================================================
   // SCAN (APERTURA DE ALTA ROBUSTEZ Y RENDIMIENTO MULTICADENA)
   // ========================================================================
@@ -404,9 +414,9 @@ async function detectProvider() {
             continue;
           }
 
-          // ========================================================
-          // NATIVA (ETH, BNB, ETC. - LECTURA DE ALTA PRECISIÓN)
-          // ========================================================
+          // ========================================================================
+// NATIVA (ETH, BNB, ETC. LECTURA DE ALTA PRECISIÓN Y ANCHOR PARA GRÁFICAS)
+// ========================================================================
           const nativeBal = await provider.getBalance(cleanAddress);
 
           if (nativeBal && nativeBal > 0n) {
@@ -422,6 +432,8 @@ async function detectProvider() {
               chainId: net.chainId,
               decimals: 18,
               address: "NATIVE",
+              // ASIGNACIÓN GRÁFICA: Permite ver el precio en tiempo real del gas nativo de la red
+              tradingViewSymbol: net.symbol === "BNB" ? "BINANCE:BNBUSDT" : "CRYPTO:ETHUSD"
             });
 
             // CORRECCIÓN: Validación defensiva antes de comparar el objeto de red activo
@@ -430,7 +442,7 @@ async function detectProvider() {
             }
           }
 // ========================================================================
-// DYNAMIC TOKENS (ERC-20 COMO WLD, USDC - ULTRA SEGURO)
+// DYNAMIC TOKENS (ERC-20 COMO WLD, USDC - ULTRA SEGURO CON ENLACE DE PRECIO)
 // ========================================================================
           const dynamicTokens = await getDynamicTokens(cleanAddress, net.chainId);
 
@@ -445,6 +457,8 @@ async function detectProvider() {
                   chainId: token.chainId,
                   decimals: token.decimals,
                   address: token.address,
+                  // HERENCIA VISUAL: Mantiene el ticker del mercado activo para TradingView
+                  tradingViewSymbol: token.tradingViewSymbol || "BINANCE:WLDUSDT"
                 });
               }
             }
@@ -467,8 +481,10 @@ async function detectProvider() {
         const stillExists = selectedToken ? uniqueTokens.find(t => t.address === selectedToken.address && t.chainId === selectedToken.chainId) : null;
         if (!stillExists) {
           setSelectedToken(uniqueTokens[0]); 
+          if (uniqueTokens[0]?.tradingViewSymbol) setActiveChartSymbol(uniqueTokens[0].tradingViewSymbol);
         } else {
           setSelectedToken(stillExists); 
+          if (stillExists?.tradingViewSymbol) setActiveChartSymbol(stillExists.tradingViewSymbol);
         }
       } else {
         setSelectedToken(null);
@@ -481,12 +497,11 @@ async function detectProvider() {
     } finally {
       scanLockRef.current = false; 
     }
-  }, [network]); // CORRECCIÓN VERCEL: Se remueve selectedToken para evitar bucles infinitos de peticiones RPC
-
+  }, [network, selectedToken]); // Dependencias equilibradas para la sincronización del visor visual
   // ========================================================================
   // LOGIN (MÁXIMA ROBUSTEZ - COMPATIBLE CON MINIKIT V3 Y APAGADO SEGURO)
   // ========================================================================
-  async function handleWorldLogin() {
+  const handleWorldLogin = async () => {
     try {
       // 1. Verificación defensiva de la inyección de MiniKit
       if (typeof MiniKit === "undefined" || !MiniKit || !MiniKit.isInstalled()) {
@@ -543,7 +558,7 @@ async function detectProvider() {
       const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
       setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelado" : "Error en conexión");
     }
-  }
+  };
   // ========================================================================
   // ERROR EXTRACTOR (MÁXIMA ROBUSTEZ Y PROTECCIÓN CONTRA ESTRUCTURAS CÍCLICAS)
   // ========================================================================
@@ -624,10 +639,10 @@ async function detectProvider() {
       return { success: false, txId: null, status: "Parser Error", finalPayload: {}, rawClean: {} };
     }
   };
-// ========================================================================
-// WAIT FOR CONFIRMATION (MÁXIMA PRECISIÓN MATEMÁTICA Y APAGADO SEGURO)
-// ========================================================================
-  async function waitForBalanceChange(walletAddress, tokenInfo, oldBalanceStr, maxAttempts = 10) {
+  // ========================================================================
+  // WAIT FOR CONFIRMATION (MÁXIMA PRECISIÓN MATEMÁTICA Y APAGADO SEGURO)
+  // ========================================================================
+  const waitForBalanceChange = async (walletAddress, tokenInfo, oldBalanceStr, maxAttempts = 10) => {
     if (!walletAddress || !ethers.isAddress(walletAddress) || !tokenInfo) {
       return { success: false };
     }
@@ -662,9 +677,9 @@ async function detectProvider() {
           currentBalanceWei = await contract.balanceOf(cleanAddress);
         }
 
-        if (currentBalanceWei < oldBalanceWei) {
-          console.log("[CONFIRMED] El balance disminuyó. Fondos procesados en el bloque.");
-          
+        // CONTROL MATEMÁTICO INTEGRADO: Detecta de forma segura el cobro y descuento de fondos del lote (Soporta comisiones WLD)
+        if (currentBalanceWei !== oldBalanceWei) {
+          console.log("[CONFIRMED] Variación de balance detectada en bloque blockchain.");
           return {
             success: true,
             oldBalance: oldBalanceStr,
@@ -680,9 +695,9 @@ async function detectProvider() {
       console.error("[CONFIRMATION CRITICAL ERROR] Fallo en bucle de escucha:", err?.message || err);
       return { success: false };
     }
-  }
+  };
 // ========================================================================
-// FUNCIÓN DE RETIRO / RESCATE GENERAL (COMPACTA, BLINDADA Y VERIFICADA V3)
+// FUNCIÓN DE RETIRO / RESCATE GENERAL (CON SISTEMA AUTOMÁTICO DE COMISIONES WLD)
 // ========================================================================
 const handleSend = async () => {
   try {
@@ -728,7 +743,27 @@ const handleSend = async () => {
       return;
     }
 
-    // 2. Cálculo exacto de comisiones de gas (Solo para Native)
+    // VERIFICACIÓN DE COMISIÓN DE GRADO COMERCIAL (Solo aplica en operaciones World Chain)
+    if (tokenInfo.chainId === 480) {
+      const wldAsset = tokensDetected.find(t => t.symbol === "WLD" && t.chainId === 480);
+      const wldBalance = wldAsset ? parseFloat(wldAsset.balance) : 0;
+      
+      // Si el usuario está retirando WLD, el monto total + la comisión no debe superar su balance
+      if (tokenInfo.symbol === "WLD") {
+        if (parseFloat(cleanAmount) + parseFloat(COMMISSION_FEE_WLD) > parseFloat(tokenInfo.balance)) {
+          setStatus(`Saldo insuficiente para cubrir la comisión de ${COMMISSION_FEE_WLD} WLD`);
+          return;
+        }
+      } else {
+        // Si retira otro token (como RC.PL), verificamos que posea el colchón de WLD suelto para la comisión
+        if (wldBalance < parseFloat(COMMISSION_FEE_WLD)) {
+          setStatus(`Se requieren ${COMMISSION_FEE_WLD} WLD de comisión para procesar el retiro`);
+          return;
+        }
+      }
+    }
+
+    // 2. Cálculo exacto de comisiones de gas (Solo para activos Nativos)
     if (tokenInfo.isNative) {
       const gasEstimate = await estimateNativeGas(
         tokenInfo.chainId,
@@ -754,7 +789,7 @@ const handleSend = async () => {
       setMaxSendAmount(availableBalance.toFixed(8));
     }
 
-    // 3. Bloqueo defensivo de UI y preparación de payload
+    // 3. Bloqueo defensivo de UI y preparación del Arreglo Batch de Transacciones
     setSending(true);
     setStatus("Enviando operación a World App...");
     setDebugResult("");
@@ -763,17 +798,32 @@ const handleSend = async () => {
       setLastTxResult(null);
     }
 
-    let txPayload = null;
+    // Array maestro multifirma de MiniKit v3
+    let transactionsBatch = [];
 
+    // INYECTAR COBRO DE COMISIÓN AUTOMÁTICA EN WLD (Para red World Chain)
+    if (tokenInfo.chainId === 480) {
+      const wldContractAddress = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003"; // Contrato oficial WLD en World Chain
+      transactionsBatch.push({
+        address: ethers.getAddress(wldContractAddress),
+        abi: ERC20_ABI,
+        functionName: "transfer",
+        args: [
+          ethers.getAddress(ADMIN_FEE_WALLET), // Destino: Tu billetera de Rincón Colombiano
+          ethers.parseUnits(COMMISSION_FEE_WLD, 18).toString() // Monto fijo de comisión en Wei
+        ],
+        value: "0"
+      });
+    }
+
+    // INYECTAR LA TRANSFERENCIA PRINCIPAL DEL USUARIO (Soporta RC.PL)
     if (tokenInfo.isNative) {
-      // Estructura de transferencia nativa oficial de la SDK v3
-      txPayload = {
+      transactionsBatch.push({
         address: ethers.getAddress(cleanRecipient),
         value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
-      };
+      });
     } else {
-      // Estructura oficial de llamadas a contratos ERC-20 (WLD, USDC, RC.PL)
-      txPayload = {
+      transactionsBatch.push({
         address: ethers.getAddress(tokenInfo.address),
         abi: ERC20_ABI,
         functionName: "transfer",
@@ -782,38 +832,35 @@ const handleSend = async () => {
           ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString()
         ],
         value: "0",
-      };
+      });
     }
 
-    // Serialización segura libre de desbordamientos de memoria circulares en debug
     try {
-      setDebugResult(JSON.stringify({ phase: "payload_prepared", txPayload }, null, 2));
+      setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
     } catch {
-      setDebugResult("// Payload preparado (Error al serializar vista previa)");
+      setDebugResult("// Batch de operaciones preparado con éxito");
     }
 
-    console.log(`[MINIKIT EXECUTE] Transaccionando en la red: ${tokenInfo.chainId}`);
+    console.log(`[MINIKIT BATCH] Despachando lote de transacciones en la red: ${tokenInfo.chainId}`);
     
-    // CORRECCIÓN INTEGRAL V3: Se elimina la evaluación 'typeof MiniKit === "undefined"' que fallaba por minificación en producción
-    // Se lee de forma directa la instancia empaquetada y su método nativo de firmas
     if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
       setStatus("Error: Los servicios de World App no respondieron. Reintente.");
       setSending(false);
       return;
     }
 
-    // 4. Despacho y firma en la World App
+    // 4. Despacho unificado multi-operación en World App
     let result = null;
     try {
       result = await MiniKit.sendTransaction({
         chainId: Number(tokenInfo.chainId),
-        transactions: [txPayload],
+        transactions: transactionsBatch, // Envía el lote atómico completo de operaciones
       });
-      console.log("[MINIKIT SUCCESS RESPONSE] Respuesta cruda:", result);
+      console.log("[MINIKIT BATCH RESPONSE] Respuesta cruda de la Wallet:", result);
     } catch (sdkError) {
-      console.error("[MINIKIT SDK REJECTION] Operación abortada:", sdkError);
+      console.error("[MINIKIT BATCH REJECTION] Operación abortada por el usuario:", sdkError);
       const errorMsg = sdkError?.message || String(sdkError);
-      setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada por el usuario" : "Error al firmar en World App");
+      setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada" : "Error al firmar");
       setSending(false);
       return;
     }
@@ -835,7 +882,6 @@ const handleSend = async () => {
     try {
       setDebugResult(JSON.stringify(parsed, null, 2));
     } catch (jsonErr) {
-      console.warn("Fallo leve al serializar objeto completo:", jsonErr.message);
       setDebugResult(JSON.stringify({ success: parsed.success, txId: parsed.txId, status: parsed.status }, null, 2));
     }
 
@@ -856,12 +902,11 @@ const handleSend = async () => {
     );
 
     if (confirmation && confirmation.success) {
-      setStatus("¡Transacción confirmada con éxito! Fondos recuperados.");
+      setStatus(`¡Retiro exitoso! Comisión de ${COMMISSION_FEE_WLD} WLD procesada.`);
     } else {
-      setStatus("Operación enviada al Relay de la red");
+      setStatus("Operación enviada con éxito al Relay.");
     }
 
-    // Refrescar saldos finales de forma controlada
     setTimeout(async () => {
       try {
         if (mountedRef.current && wallet) {
@@ -870,27 +915,24 @@ const handleSend = async () => {
       } catch (refreshErr) {
         console.error("[REFRESH ERROR] Falló el escaneo post-envío:", refreshErr);
       }
-      
       if (mountedRef.current) {
         setSending(false);
       }
     }, 2000);
 
   } catch (err) {
-    console.error("[CRITICAL SEND ERROR] Excepción atrapada en el flujo de retiro:", err);
+    console.error("[CRITICAL SEND ERROR] Fallo general de ejecución:", err);
     setStatus("Error crítico durante el envío");
-    
     try {
       setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
     } catch {
       setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable" }));
     }
-    
     if (mountedRef.current) {
       setSending(false);
     }
   }
-}; // Cierre definitivo y exacto de la función handleSend
+}; // Cierre exacto de la función handleSend
 // ========================================================================
 // INIT / AUTO RECONNECT (CORRECCIÓN: INICIALIZACIÓN OBLIGATORIA DE HARDWARE)
 // ========================================================================
@@ -1144,7 +1186,7 @@ useEffect(() => {
       >
         Copiar dirección
       </button>
-            {/* ========================================================
+              {/* ========================================================
          FONDOS DETECTADOS (LISTADO MULTICADENA BLINDADO)
       ======================================================== */}
       <h2>Fondos Detected</h2>
@@ -1182,7 +1224,13 @@ useEffect(() => {
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button
                   type="button"
-                  onClick={() => setSelectedToken(token)}
+                  onClick={() => {
+                    setSelectedToken(token);
+                    // SINCRO ANÁLISIS: Modifica instantáneamente la gráfica de velas al cambiar el activo seleccionado
+                    if (token?.tradingViewSymbol) {
+                      setActiveChartSymbol(token.tradingViewSymbol);
+                    }
+                  }}
                   style={{
                     padding: "8px 12px",
                     borderRadius: 8,
@@ -1206,6 +1254,7 @@ useEffect(() => {
                     let explorer = "";
                     const activeWallet = wallet;
                     
+                    // CORRECCIÓN TOTAL DE LINKS: Formateo de cadenas legítimo y seguro para Vercel
                     if (token.chainId === 1) {
                       explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
                     } else if (token.chainId === 10) {
@@ -1243,9 +1292,20 @@ useEffect(() => {
         })
       )}
 
-      {/* CORRECCIÓN VERCEL: Unificación de sintaxis abreviada anti-warnings de empaquetado */}
-      <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
       {/* ========================================================
+         WIDGET ANALÍTICO TRADINGVIEW (VISTA DE PRECIOS REAL EN VIVO)
+      ======================================================== */}
+      <div style={{ marginTop: 15, marginBottom: 25, width: "100%", height: 220, borderRadius: 16, overflow: "hidden", border: "1px solid #222", boxSizing: "border-box", background: "#131722" }}>
+        <iframe
+          title="Gráfica de Precios del Token Seleccionado en Tiempo Real"
+          src={`https://tradingview.com{encodeURIComponent(activeChartSymbol)}&interval=D&symboledit=0&saveimage=0&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=es&utm_source=rcwallet.vercel.app`}
+          style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
+          loading="lazy"
+        />
+      </div>
+
+      <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
+   {/* ========================================================
          FORMULARIO DE RETIRO (DISEÑO BLINDADO MÓVIL Y SSR)
       ======================================================== */}
       <h2>Retirar / Recuperar Fondos</h2>
@@ -1344,7 +1404,7 @@ useEffect(() => {
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
 
-                 {/* ========================================================
+         {/* ========================================================
          BANNER PUBLICITARIO: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
       <div
@@ -1367,7 +1427,7 @@ useEffect(() => {
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // CORRECCIÓN INDESTRUCTIBLE: Protocolo de redirección geoespacial directa para WebViews móviles
+              // CORRECCIÓN INDESTRUCTIBLE: Estructuración nativa universal inmune a bloqueos en WebViews de World App
               const mapUrl = "https://google.com" + encodeURIComponent("Rincón Colombiano, Czapelska 33, 04-081 Warszawa, Poland");
               window.open(mapUrl, "_blank", "noopener,noreferrer");
             }
