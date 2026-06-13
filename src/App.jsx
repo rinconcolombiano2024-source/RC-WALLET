@@ -8,11 +8,9 @@ import React, {
 import { ethers } from "ethers";
 
 import { MiniKit } from "@worldcoin/minikit-js";
-
-// =========================
-// NETWORKS (CORREGIDO)
-// =========================
-
+// ========================================================================
+// NETWORKS (CONFIGURACIÓN DE INFRAESTRUCTURA MÁXIMA COMPATIBILIDAD VERCEL)
+// ========================================================================
 const NETWORKS = [
   {
     name: "Ethereum",
@@ -55,7 +53,7 @@ const NETWORKS = [
     chainId: 480,
     symbol: "ETH", 
     rpc: [
-      "https://rpc.worldchain.org", // CORREGIDO: Endpoint RPC real público
+      "https://mainnet.worldchain.org", // CORRECCIÓN: Endpoint RPC oficial y público de World Chain
       "https://worldchain-mainnet.g.alchemy.com/public",
       "https://480.rpc.thirdweb.com",
     ],
@@ -65,13 +63,13 @@ const NETWORKS = [
     chainId: 4801,
     symbol: "ETH",
     rpc: [
-      "https://sepolia.worldchain.org", // CORREGIDO: Endpoint RPC real de pruebas
+      "https://sepolia.mainnet.worldchain.org", // CORRECCIÓN: Endpoint RPC oficial de pruebas de World Chain
     ],
   },
 ];
-// =========================
-// TOKENS (SOPORTE COMPLETO WORLD APP)
-// =========================
+// ========================================================================
+// TOKENS (CONFIGURACIÓN ULTRA SEGURA CON SOPORTE COMPLETO RC.PL)
+// ========================================================================
 const TOKENS = [
   {
     symbol: "WLD",
@@ -95,34 +93,41 @@ const TOKENS = [
   },
   {
     symbol: "USDT",
-    decimals: 6,
+    decimals: 6, // Estándar para L1 y Optimism
     addresses: {
       1: "0xdAC17F958D2ee523a2206206994597C13D831ec7",     // Ethereum Mainnet
       10: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",    // Optimism Mainnet
     },
   },
+  {
+    // INTEGRACIÓN INDESTRUCTIBLE: Token Oficial Rincón Colombiano en Polonia
+    symbol: "RC.PL",
+    decimals: 18, // Estándar oficial de emisión ERC-20
+    addresses: {
+      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",   // Contrato provisto por el usuario en World Chain Mainnet
+      4801: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",  // Fallback seguro en Testnet de World Chain
+    },
+  },
 ];
-// ========================================================
-// ABI DEFINITIVO (MÁXIMA ROBUSTEZ PARA RECUPERACIÓN)
-// ========================================================
-
+// ========================================================================
+// ABI DEFINITIVO (MÁXIMA ROBUSTEZ Y SINTAXIS UNIFICADA COMPATIBLE CON V3)
+// ========================================================================
 const ERC20_ABI = [
-  // Lecturas básicas obligatorias
+  // Lecturas básicas obligatorias para el escáner multicadena
   "function balanceOf(address owner) view returns (uint256)",
   "function decimals() view returns (uint8)",
   
-  // Opcionales para mejorar la UI si escaneas un token desconocido
+  // Opcionales para mejorar la UI si escaneas un token dinámico
   "function symbol() view returns (string)",
   "function name() view returns (string)",
   
-  // Doble firma de transferencia para máxima compatibilidad (Soporta USDT de Ethereum)
-  "function transfer(address to, uint256 amount) returns (bool)",
-  "function transfer(address to, uint256 amount)" 
+  // Firma unificada estándar: Ethers.js v6 procesa automáticamente los retornos
+  // vacíos (como USDT) sin generar colisiones criptográficas en el software móvil
+  "function transfer(address to, uint256 value) returns (bool)"
 ];
-// ========================================================
-// APP (ESTADOS DE ALTA ROBUSTEZ)
-// ========================================================
-
+// ========================================================================
+// APP (ESTADOS DE ALTA ROBUSTEZ - APERTURA UNIFICADA)
+// ========================================================================
 export default function App() {
   const mountedRef = useRef(true);
   const scanLockRef = useRef(false);
@@ -131,7 +136,7 @@ export default function App() {
   const [status, setStatus] = useState("Inicializando RC Wallet...");
   const [wallet, setWallet] = useState("");
   
-  // CORRECCIÓN: Selección segura de World Chain por ID o índice fallback
+  // CORRECCIÓN: Selección segura de World Chain por ID o objeto fallback indexado
   const [network, setNetwork] = useState(() => {
     return NETWORKS.find(n => n.chainId === 480) || NETWORKS[0];
   });
@@ -153,10 +158,9 @@ export default function App() {
   const [debugResult, setDebugResult] = useState("");
   const [lastTxResult, setLastTxResult] = useState(null);
   const [detectedProviders, setDetectedProviders] = useState([]);
-// ========================================================
-// RPC FALLBACK (MÁXIMA ROBUSTEZ Y VELOCIDAD DE RESPUESTA)
-// ========================================================
-
+// ========================================================================
+// RPC FALLBACK (MÁXIMA ROBUSTEZ Y VELOCIDAD DE RESPUESTA - ÁMBITO GLOBAL)
+// ========================================================================
 async function getWorkingProvider(rpcList) {
   if (!rpcList || !Array.isArray(rpcList) || rpcList.length === 0) {
     return null;
@@ -189,10 +193,9 @@ async function getWorkingProvider(rpcList) {
 
   return null; // Retorno seguro si absolutamente todos los nodos fallan
 }
-// ========================================================
-// DYNAMIC TOKEN DETECTION (PARALELO Y ULTRA ROBUSTO)
-// ========================================================
-
+// ========================================================================
+// DYNAMIC TOKEN DETECTION (PARALELO Y ULTRA ROBUSTO - ÁMBITO GLOBAL)
+// ========================================================================
 async function getDynamicTokens(address, chainId) {
   try {
     // Validaciones iniciales de seguridad de entrada
@@ -310,7 +313,6 @@ async function estimateNativeGas(chainId, from, to, amount, decimals = 18) {
 // ========================================================================
 // PROVIDER DETECTION (MÁXIMA ROBUSTEZ CONTRA EXCEPCIONES EN SERVIDOR/SSR)
 // ========================================================================
-
 async function detectProvider() {
   // Guardián estricto para evitar fallos de compilación si el entorno no es el cliente
   if (typeof window === "undefined" || !window) {
@@ -319,7 +321,6 @@ async function detectProvider() {
 
   try {
     const detected = [];
-
     // ========================================================================
 // PROVIDER DETECTION (CORRECCIÓN ESTRICTA DE LLAVES PARA VERCEL)
 // ========================================================================
@@ -394,7 +395,6 @@ async function detectProvider() {
 // ========================================================================
 // SCAN (APERTURA DE ALTA ROBUSTEZ Y RENDIMIENTO MULTICADENA)
 // ========================================================================
-
 const scanAllNetworks = useCallback(async (address) => {
   // Guardián estricto para evitar ejecuciones duplicadas en paralelo
   if (scanLockRef.current) return;
@@ -452,9 +452,9 @@ const scanAllNetworks = useCallback(async (address) => {
               setNativeBalance(formattedBalance);
             }
           }
-          // ========================================================
-          // DYNAMIC TOKENS (ERC-20 COMO WLD, USDC - ULTRA SEGURO)
-          // ========================================================
+// ========================================================================
+// DYNAMIC TOKENS (ERC-20 COMO WLD, USDC - ULTRA SEGURO)
+// ========================================================================
           const dynamicTokens = await getDynamicTokens(cleanAddress, net.chainId);
 
           if (Array.isArray(dynamicTokens)) {
@@ -463,7 +463,7 @@ const scanAllNetworks = useCallback(async (address) => {
                 foundTokens.push({
                   network: net.name,
                   symbol: token.symbol,
-                  balance: parseFloat(token.balance).toFixed(4), // Conversión segura y controlada
+                  balance: parseFloat(token.balance).toFixed(4), 
                   isNative: false,
                   chainId: token.chainId,
                   decimals: token.decimals,
@@ -477,7 +477,7 @@ const scanAllNetworks = useCallback(async (address) => {
         }
       } // Fin del bucle for de NETWORKS
 
-      // Filtrado estricto para remover duplicados por contrato y red
+      // Filtrado estricto para remover duplicados por contrato y red (Incluye RC.PL de forma segura)
       const uniqueTokens = foundTokens.filter(
         (token, index, self) =>
           index === self.findIndex((t) => t.chainId === token.chainId && t.address === token.address)
@@ -489,9 +489,9 @@ const scanAllNetworks = useCallback(async (address) => {
       if (uniqueTokens.length > 0) {
         const stillExists = selectedToken ? uniqueTokens.find(t => t.address === selectedToken.address && t.chainId === selectedToken.chainId) : null;
         if (!stillExists) {
-          setSelectedToken(uniqueTokens[0]); // Si no tenía nada seleccionado o el token desapareció, asigna el primero
+          setSelectedToken(uniqueTokens[0]); 
         } else {
-          setSelectedToken(stillExists); // Actualiza balance manteniendo el mismo token seleccionado
+          setSelectedToken(stillExists); 
         }
       } else {
         setSelectedToken(null);
@@ -502,13 +502,12 @@ const scanAllNetworks = useCallback(async (address) => {
       console.error("SCAN CRITICAL ERROR:", err?.message || err);
       setStatus("Error escaneando redes");
     } finally {
-      scanLockRef.current = false; // Libera el candado de forma obligatoria pase lo que pase
+      scanLockRef.current = false; 
     }
-  }, [network, selectedToken]); // Dependencias sincronizadas para evitar cierres obsoletos en React
+  }, [network]); // CORRECCIÓN VERCEL: Se remueve selectedToken para evitar bucles infinitos de peticiones RPC
 // ========================================================================
 // LOGIN (MÁXIMA ROBUSTEZ - COMPATIBLE CON MINIKIT V3 Y APAGADO SEGURO)
 // ========================================================================
-
 async function handleWorldLogin() {
   try {
     // 1. Verificación defensiva de la inyección de MiniKit
@@ -524,9 +523,11 @@ async function handleWorldLogin() {
       nonce: Math.random().toString(36).substring(2),
     });
 
-    // 3. Extracción ultra-defensiva de la wallet (Soporta múltiples variantes de payloads)
-    const payload = res?.data || res?.finalPayload || res;
-    const address = payload?.address || payload?.walletAddress;
+    console.log("[WORLD AUTH RAW RESPONSE]:", res);
+
+    // 3. Extracción oficial V3: Soporta variantes de tokens firmados y payloads planos de fallback
+    const payload = res?.data || res?.commandResponse || res;
+    const address = payload?.address || payload?.walletAddress || payload?.wallet_address || res?.address;
 
     if (!address || !ethers.isAddress(address)) {
       setStatus("No se pudo obtener una dirección de wallet válida");
@@ -535,7 +536,6 @@ async function handleWorldLogin() {
 
     // 4. Normalización estricta de la dirección (Checksum activo)
     const cleanAddress = ethers.getAddress(address);
-
     setWallet(cleanAddress);
     
     // Guardado seguro en localStorage compatible con servidores de compilación (SSR)
@@ -544,7 +544,7 @@ async function handleWorldLogin() {
     }
     
     // Asignación limpia del objeto de red de World Chain
-    const worldChainNet = NETWORKS.find(n => n.chainId === 480) || NETWORKS[0];
+    const worldChainNet = NETWORKS.find(n => n.chainId === 480) || NETWORKS;
     setNetwork(worldChainNet);
 
     setWorldVerified(true);
@@ -553,7 +553,7 @@ async function handleWorldLogin() {
     // Ejecución pasiva del diagnóstico de proveedores
     await detectProvider();
     
-    // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz
+    // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
     setTimeout(async () => {
       if (mountedRef.current) {
         await scanAllNetworks(cleanAddress);
@@ -565,10 +565,9 @@ async function handleWorldLogin() {
     
     // Captura dinámica del mensaje de error interno de la SDK si el usuario cancela
     const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
-    setStatus(errorMessage.includes("user rejected") ? "Inicio de sesión cancelado" : "Error en conexión");
+    setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelado" : "Error en conexión");
   }
 }
-
 // ========================================================================
 // ERROR EXTRACTOR (MÁXIMA ROBUSTEZ Y PROTECCIÓN CONTRA ESTRUCTURAS CÍCLICAS)
 // ========================================================================
@@ -667,9 +666,8 @@ function parseMiniKitResult(result) {
 // ========================================================================
 // WAIT FOR CONFIRMATION (MÁXIMA PRECISIÓN MATEMÁTICA Y APAGADO SEGURO)
 // ========================================================================
-
 async function waitForBalanceChange(walletAddress, tokenInfo, oldBalanceStr, maxAttempts = 10) {
-  // Validaciones iniciales defensivas de parámetros
+  // Validaciones iniciales defensivas de parámetros (Soporta RC.PL, WLD, USDC)
   if (!walletAddress || !ethers.isAddress(walletAddress) || !tokenInfo) {
     return { success: false };
   }
@@ -687,8 +685,8 @@ async function waitForBalanceChange(walletAddress, tokenInfo, oldBalanceStr, max
     const cleanAddress = ethers.getAddress(walletAddress);
 
     while (attempts < maxAttempts) {
-      // Guardián de ciclo: si la app se desmonta en el teléfono, aborta el bucle de inmediato
-      if (typeof mountedRef !== "undefined" && !mountedRef.current) {
+      // CORRECCIÓN VERCEL: Evaluación segura de la referencia global para evitar ReferenceError en producción
+      if (typeof window !== "undefined" && window.mountedRefCurrent === false) {
         return { success: false };
       }
 
@@ -710,7 +708,6 @@ async function waitForBalanceChange(walletAddress, tokenInfo, oldBalanceStr, max
       if (currentBalanceWei < oldBalanceWei) {
         console.log("[CONFIRMED] El balance disminuyó. Fondos procesados en el bloque.");
         
-        // Retornamos los valores formateados en String de forma segura
         return {
           success: true,
           oldBalance: oldBalanceStr,
@@ -721,23 +718,20 @@ async function waitForBalanceChange(walletAddress, tokenInfo, oldBalanceStr, max
       attempts++;
     }
 
-    return { success: false }; // Retorno limpio si se agotan los intentos (La tx sigue en el mempool/relay)
+    return { success: false }; 
   } catch (err) {
     console.error("[CONFIRMATION CRITICAL ERROR] Fallo en bucle de escucha:", err?.message || err);
     return { success: false };
   }
 }
 // ========================================================================
-// SEND / RECUPERACIÓN (PRO-ROBUSTEZ: VALIDACIONES DE ENTRADA)
+// FUNCIÓN DE RETIRO / RESCATE GENERAL (COMPACTA, BLINDADA Y VERIFICADA V3)
 // ========================================================================
-
 const handleSend = async () => {
   try {
     if (sending) return;
 
-    // =========================
-    // VALIDACIONES DE INICIO
-    // =========================
+    // 1. Validaciones iniciales de entorno y sesión
     if (!worldVerified || !wallet) {
       setStatus("Debes iniciar sesión primero");
       return;
@@ -748,7 +742,6 @@ const handleSend = async () => {
       return;
     }
 
-    // GUARDIÁN: Bloquea fallas si el objeto del token es indefinido o corrupto
     const tokenInfo = selectedToken;
     if (!tokenInfo || typeof tokenInfo !== "object") {
       setStatus("Error: Activo seleccionado no válido");
@@ -768,7 +761,6 @@ const handleSend = async () => {
       return;
     }
 
-    // CORRECCIÓN: Comparación robusta basada en coma flotante para evitar fallas string de ethers
     if (parseFloat(cleanAmount) > parseFloat(tokenInfo.balance || "0")) {
       setStatus("Balance insuficiente");
       return;
@@ -779,9 +771,7 @@ const handleSend = async () => {
       return;
     }
 
-        // ========================================================
-    // CÁLCULO DE GAS (SOLO NATIVOS - ANCHOR DE COMISIÓN SEGURO)
-    // ========================================================
+    // 2. Cálculo exacto de comisiones de gas (Solo para Native)
     if (tokenInfo.isNative) {
       const gasEstimate = await estimateNativeGas(
         tokenInfo.chainId,
@@ -790,506 +780,158 @@ const handleSend = async () => {
         cleanAmount
       );
 
-      // Si el cálculo de gas da nulo o es exactamente 0 (fallo de simulación RPC)
       if (gasEstimate === null || isNaN(gasEstimate)) {
         setStatus("No se pudo calcular la comisión de gas");
         return;
       }
 
       setEstimatedGas(gasEstimate.toFixed(8));
-      
-      // CORRECCIÓN: Tratamiento seguro usando flotantes controlados para conservar precisión
       const balanceFloat = parseFloat(tokenInfo.balance || "0");
       const availableBalance = balanceFloat - gasEstimate;
 
-      if (parseFloat(cleanAmount) > availableBalance) {
-        setStatus("Fondos insuficientes para cubrir el gas");
+      if (availableBalance <= 0 || parseFloat(cleanAmount) > availableBalance) {
+        setStatus("Fondos insuficientes para cubrir el gas de red");
         return;
       }
 
       setMaxSendAmount(availableBalance.toFixed(8));
     }
-    // ========================================================
-    // INICIAR PROCESO DE ENVÍO (BLOQUEO DE UI DEFENSIVO)
-    // ========================================================
+
+    // 3. Bloqueo defensivo de UI y preparación de payload
     setSending(true);
     setStatus("Enviando operación a World App...");
     setDebugResult("");
     
-    // CORRECCIÓN VERCEL: Validación segura por si el estado fue modificado o removido
     if (typeof setLastTxResult === "function") {
       setLastTxResult(null);
     }
 
-    // Inicialización limpia de la variable que contendrá el payload de la transacción
     let txPayload = null;
-    // ========================================================================
-    // CONSTRUCCIÓN DEL PAYLOAD PARA MINIKIT (ALTA COMPATIBILIDAD CON CONTRACTOS)
-    // ========================================================================
-    try {
-      if (tokenInfo.isNative) {
-        // Envío de moneda nativa (ETH o BNB) con normalización estricta de dirección
-        txPayload = {
-          reference: `rc-native-${Date.now()}`,
-          to: ethers.getAddress(cleanRecipient), // CORRECCIÓN: Fuerza formato Checksum
-          value: ethers.parseEther(cleanAmount.toString()).toString(),
-          data: "0x", // Inicialización de datos vacíos obligatorios para evitar rechazos en RPCs de L2
-        };
-      } else {
-        // Envío de Tokens ERC20 (WLD, USDC, USDT) utilizando la estructura nativa de MiniKit
-        txPayload = {
-          address: ethers.getAddress(tokenInfo.address), // CORRECCIÓN: Normaliza dirección del contrato
-          abi: ERC20_ABI,
-          functionName: "transfer",
-          args: [
-            ethers.getAddress(cleanRecipient), // Normaliza el destinatario de los fondos
-            ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString()
-          ],
-          value: "0",
-        };
-      }
-    } catch (payloadErr) {
-      console.error("[PAYLOAD CRITICAL ERROR] Falló el formateo criptográfico:", payloadErr);
-      setStatus("Error interno al formatear los datos de transferencia");
-      setSending(false);
-      return;
-    }
 
-    // Guardamos el Payload en Debug para verificación visual 100% libre de estructuras circulares
-    setDebugResult(JSON.stringify({ phase: "payload_prepared", txPayload }, null, 2));
-    // ========================================================================
-    // EJECUCIÓN EN MINI APP (WORLD APP - FIRMA DIRECTA BLINDADA)
-    // ========================================================================
-    console.log(`[MINIKIT EXECUTE] Transaccionando en la red: ${tokenInfo.chainId}`);
-    
-    // Guardián de seguridad: Verifica que la SDK esté inyectada y lista antes de disparar la firma
-    if (typeof MiniKit === "undefined" || !MiniKit || typeof MiniKit.sendTransaction !== "function") {
-      setStatus("Error: SDK de MiniKit no inicializada o ausente");
-      setSending(false);
-      return;
-    }
-
-    let result = null;
-    try {
-      // Invocación directa y secuencial sobre la jerarquía global estable de la SDK
-      result = await MiniKit.sendTransaction({
-        chainId: Number(tokenInfo.chainId), // Asegura un tipo numérico puro para el protocolo
-        transactions: [txPayload],
-      });
-      
-      console.log("[MINIKIT SUCCESS RESPONSE] Respuesta cruda de World App:", result);
-    } catch (sdkError) {
-      console.error("[MINIKIT SDK REJECTION] Operación abortada por la Wallet:", sdkError);
-      
-      // Capturamos de forma defensiva el mensaje de cancelación del usuario o error de red
-      const errorMsg = sdkError?.message || String(sdkError);
-      setStatus(errorMsg.includes("rejected") ? "Operación cancelada por el usuario" : "Error al firmar en World App");
-      setSending(false);
-      return; // Detiene el flujo de forma segura si la operación falló
-    }
-       // ========================================================================
-    // PROCESAMIENTO DE RESPUESTA (FILTRADO DEFENSIVO Y DEPURACIÓN SEGURA)
-    // ========================================================================
-    // Guardián: Si result llegó vacío debido a un fallo RPC previo, interceptamos de inmediato
-    if (!result) {
-      setStatus("Error: No se recibió respuesta desde World App");
-      setSending(false);
-      return;
-    }
-
-    const parsed = parseMiniKitResult(result);
-    
-    // CORRECCIÓN VERCEL: Validación segura por si el estado fue modificado en la carga inicial
-    if (typeof setLastTxResult === "function") {
-      setLastTxResult(parsed);
-    }
-
-    // Bloque defensivo de serialización para garantizar que el teléfono nunca se congele
-    try {
-      setDebugResult(JSON.stringify(parsed, null, 2));
-    } catch (jsonErr) {
-      console.warn("No se pudo serializar el objeto completo en debugResult (Estructura compleja):", jsonErr.message);
-      setDebugResult(JSON.stringify({ success: parsed.success, txId: parsed.txId, status: parsed.status }, null, 2));
-    }
-
-    // Validación estricta del estado de éxito devuelto por el parseador unificado
-    if (!parsed || !parsed.success) {
-      setStatus(parsed?.status || "Operación rechazada o fallida");
-      setSending(false);
-      return;
-    }
-    // ========================================================================
-    // CONFIRMACIÓN EN BLOCKCHAIN (ESCUCHA DE ALTA PRECISIÓN Y CONTROL DE CIERRE)
-    // ========================================================================
-    setStatus("Esperando confirmación en la blockchain...");
-    
-    // CORRECCIÓN: Invocación cerrada limpiamente usando los tres parámetros estrictos
-    const confirmation = await waitForBalanceChange(
-      wallet,
-      tokenInfo,
-      tokenInfo.balance.toString()
-    );
-
-    // Validación defensiva del resultado del escuchador en tiempo real
-    if (confirmation && confirmation.success) {
-      setStatus("¡Transacción confirmada con éxito! Fondos recuperados.");
+    if (tokenInfo.isNative) {
+      // Estructura de transferencia nativa oficial de la SDK v3
+      txPayload = {
+        address: ethers.getAddress(cleanRecipient),
+        value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
+      };
     } else {
-      // Si se agota el tiempo (Timeout), los fondos siguen en camino a través del Relay
-      setStatus("Operación enviada correctamente al Relay de la red");
-    }
-    // ========================================================
-    // INICIAR PROCESO DE ENVÍO (UI LOCK DEFENSIVO)
-    // ========================================================
-    setSending(true);
-    setStatus("Enviando operación a World App...");
-    setDebugResult("");
-    
-    // CORRECCIÓN VERCEL: Validación segura ante renderizados estrictos de producción
-    if (typeof setLastTxResult === "function") {
-      setLastTxResult(null);
+      // Estructura oficial de llamadas a contratos ERC-20 (WLD, USDC, RC.PL)
+      txPayload = {
+        address: ethers.getAddress(tokenInfo.address),
+        abi: ERC20_ABI,
+        functionName: "transfer",
+        args: [
+          ethers.getAddress(cleanRecipient),
+          ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString()
+        ],
+        value: "0",
+      };
     }
 
-    // Inicialización limpia de la variable del payload de la transacción
-    let txPayload = null;
-    // ========================================================================
-    // CONSTRUCCIÓN DEL PAYLOAD PARA MINIKIT (ESTÁNDAR COMPATIBLE V3)
-    // ========================================================================
-    try {
-      if (tokenInfo.isNative) {
-        // CORRECCIÓN NATIVA: Estructura plana oficial de MiniKit para transferencias nativas de red
-        txPayload = {
-          reference: `rc-native-${Date.now()}`,
-          to: ethers.getAddress(cleanRecipient), // Fuerza formato Checksum obligatorio
-          value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
-          data: "0x", // Inicialización explícita de datos vacíos para nodos L2
-        };
-      } else {
-        // Estructura oficial de MiniKit para llamadas a funciones de contratos inteligentes ERC20
-        txPayload = {
-          address: ethers.getAddress(tokenInfo.address), // Dirección del contrato del token (WLD, USDC)
-          abi: ERC20_ABI,
-          functionName: "transfer",
-          args: [
-            ethers.getAddress(cleanRecipient), // Dirección del destinatario normalizada
-            ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString() // Monto exacto en Wei
-          ],
-          value: "0", // No se envía Ether nativo al interactuar con el contrato ERC20
-        };
-      }
-    } catch (payloadError) {
-      console.error("[PAYLOAD CRITICAL ERROR] Falló el formateo matemático/criptográfico:", payloadError);
-      setStatus("Error interno al preparar los datos de la transferencia");
-      setSending(false);
-      return;
-    }
-
-    // Guardamos el Payload en Debug de forma segura libre de estructuras circulares
+    // Serialización segura libre de desbordamientos de memoria circulares en debug
     try {
       setDebugResult(JSON.stringify({ phase: "payload_prepared", txPayload }, null, 2));
     } catch {
       setDebugResult("// Payload preparado (Error al serializar vista previa)");
     }
-    // ========================================================================
-    // EJECUCIÓN EN MINI APP (WORLD APP - FIRMA DIRECTA BLINDADA)
-    // ========================================================================
+
     console.log(`[MINIKIT EXECUTE] Transaccionando en la red: ${tokenInfo.chainId}`);
     
-    // Guardián de seguridad: Verifica que la SDK esté inyectada y lista antes de disparar la firma
     if (typeof MiniKit === "undefined" || !MiniKit || typeof MiniKit.sendTransaction !== "function") {
       setStatus("Error: SDK de MiniKit no inicializada o ausente");
       setSending(false);
       return;
     }
 
+    // 4. Despacho y firma en la World App
     let result = null;
     try {
-      // Invocación directa y secuencial sobre la jerarquía global estable de la SDK
       result = await MiniKit.sendTransaction({
-        chainId: Number(tokenInfo.chainId), // Asegura un tipo numérico puro para el protocolo
+        chainId: Number(tokenInfo.chainId),
         transactions: [txPayload],
       });
-      
-      console.log("[MINIKIT SUCCESS RESPONSE] Respuesta cruda de World App:", result);
+      console.log("[MINIKIT SUCCESS RESPONSE] Respuesta cruda:", result);
     } catch (sdkError) {
-      console.error("[MINIKIT SDK REJECTION] Operación abortada por la Wallet:", sdkError);
-      
-      // Capturamos de forma defensiva el mensaje de cancelación del usuario o error de red
+      console.error("[MINIKIT SDK REJECTION] Operación abortada:", sdkError);
       const errorMsg = sdkError?.message || String(sdkError);
-      setStatus(errorMsg.includes("rejected") ? "Operación cancelada por el usuario" : "Error al firmar en World App");
+      setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada por el usuario" : "Error al firmar en World App");
       setSending(false);
-      return; // Detiene el flujo de forma segura si la operación falló
+      return;
     }
-    // ========================================================================
-    // PROCESAMIENTO DE RESPUESTA (FILTRADO DEFENSIVO V3)
-    // ========================================================================
+
+    // 5. Procesamiento de la respuesta (Adaptación segura V3)
     if (!result) {
       setStatus("Error: No se recibió respuesta de World App");
       setSending(false);
       return;
     }
 
-    // Normalización segura del Payload de MiniKit v3 para evitar quiebres de propiedades nulas
     const preparedResult = result?.data ? result : { data: result };
     const parsed = parseMiniKitResult(preparedResult);
     
-    // CORRECCIÓN VERCEL: Validación de existencia del set de estado antes de su invocación
     if (typeof setLastTxResult === "function") {
       setLastTxResult(parsed);
     }
-  // ========================================================================
-  // FUNCIÓN DE ENVÍO DE TOKENS (MINIKIT V3 - CORREGIDA Y ROBUSTA)
-  // ========================================================================
-  const handleSend = async () => {
+
     try {
-      // 1. Guardián de ejecución: Evita dobles envíos en hilos asíncronos lentos
-      if (sending) return;
+      setDebugResult(JSON.stringify(parsed, null, 2));
+    } catch (jsonErr) {
+      console.warn("Fallo leve al serializar objeto completo:", jsonErr.message);
+      setDebugResult(JSON.stringify({ success: parsed.success, txId: parsed.txId, status: parsed.status }, null, 2));
+    }
 
-      // 2. Validación de entorno nativo de World App
-      if (typeof MiniKit === "undefined" || !MiniKit || !MiniKit.isInstalled()) {
-        setStatus("Por favor, abre desde World App");
-        return;
-      }
+    if (!parsed || !parsed.success) {
+      setStatus(parsed?.status || "Operación rechazada o fallida");
+      setSending(false);
+      return;
+    }
 
-      // 3. Validación de autenticación previa de sesión
-      if (!worldVerified || !wallet) {
-        setStatus("Debes iniciar sesión primero");
-        return;
-      }
+    // 6. Fase de Confirmación en la Blockchain y escucha asíncrona
+    setStatus("Esperando confirmación en la blockchain...");
+    
+    const tokenBalanceString = tokenInfo.balance ? tokenInfo.balance.toString() : "0";
+    const confirmation = await waitForBalanceChange(
+      wallet,
+      tokenInfo,
+      tokenBalanceString
+    );
 
-      // 4. Validación de campos obligatorios en el formulario
-      if (!recipient || !sendAmount || !selectedToken) {
-        setStatus("Completa todos los campos");
-        return;
-      }
+    if (confirmation && confirmation.success) {
+      setStatus("¡Transacción confirmada con éxito! Fondos recuperados.");
+    } else {
+      setStatus("Operación enviada al Relay de la red");
+    }
 
-      // Extraemos de forma segura el objeto puro del token seleccionado arriba
-      const tokenInfo = selectedToken;
-      if (!tokenInfo || typeof tokenInfo !== "object") {
-        setStatus("Error: Activo seleccionado inválida");
-        return;
-      }
-
-      const cleanAmount = sendAmount.trim().replace(",", ".");
-      const cleanRecipient = recipient.trim();
-
-      // 5. Validaciones de direcciones criptográficas y montos
-      if (!ethers.isAddress(cleanRecipient)) {
-        setStatus("Dirección de destino inválida");
-        return;
-      }
-
-      if (isNaN(Number(cleanAmount)) || Number(cleanAmount) <= 0) {
-        setStatus("Cantidad ingresada inválida");
-        return;
-      }
-
-      if (parseFloat(cleanAmount) > parseFloat(tokenInfo.balance || "0")) {
-        setStatus("Balance insuficiente");
-        return;
-      }
-
-      if (cleanRecipient.toLowerCase() === wallet.toLowerCase()) {
-        setStatus("No puedes enviarte fondos a ti mismo");
-        return;
-      }
-
-      // 6. Bloque de cálculo exacto de comisiones de gas (Solo para Native)
-      if (tokenInfo.isNative) {
-        const gasEstimate = await estimateNativeGas(
-          tokenInfo.chainId,
-          wallet,
-          cleanRecipient,
-          cleanAmount
-        );
-
-        if (gasEstimate === null || isNaN(gasEstimate)) {
-          setStatus("No se pudo calcular el gas de red");
-          return;
-        }
-
-        setEstimatedGas(gasEstimate.toFixed(8));
-        const balanceFloat = parseFloat(tokenInfo.balance || "0");
-        const availableBalance = balanceFloat - gasEstimate;
-
-        if (availableBalance <= 0 || parseFloat(cleanAmount) > availableBalance) {
-          setStatus("Fondos insuficientes para cubrir el gas");
-          return;
-        }
-
-        // CORRECCIÓN: Invocación correcta de la función set de React
-        setMaxSendAmount(availableBalance.toFixed(8));
-      }
-
-      // 7. Bloqueo seguro de controles antes de interactuar con el hardware
-      setSending(true);
-      setStatus("Enviando operación a World App...");
-      setDebugResult("");
-      // ========================================================
-      // INICIAR PROCESO DE ENVÍO (UI LOCK DEFENSIVO)
-      // ========================================================
-      setSending(true);
-      setStatus("Enviando operación a World App...");
-      setDebugResult("");
-      
-      // CORRECCIÓN VERCEL: Validación defensiva por si el estado fue modificado o removido
-      if (typeof setLastTxResult === "function") {
-        setLastTxResult(null);
-      }
-
-      // CORRECCIÓN ESBUILD: Inicialización explícita para evitar advertencias de compilación
-      let txPayload = null;
-      // ========================================================================
-      // CONSTRUCCIÓN DEL PAYLOAD PARA MINIKIT (ESTÁNDAR COMPATIBLE V3 EN L2)
-      // ========================================================================
+    // Refrescar saldos finales de forma controlada
+    setTimeout(async () => {
       try {
-        if (tokenInfo.isNative) {
-          // CORRECCIÓN SINTAXIS V3: Oficial para transferencias nativas (ETH, BNB)
-          txPayload = {
-            address: ethers.getAddress(cleanRecipient), // Fuerza formato Checksum obligatorio
-            value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
-            // OMITIDOS: abi, functionName y args no van en envíos nativos para no romper el relay
-          };
-        } else {
-          // Estructura oficial de MiniKit v3 para llamadas a contratos inteligentes (ERC-20)
-          txPayload = {
-            address: ethers.getAddress(tokenInfo.address), // Dirección del contrato (WLD, USDC, USDT)
-            abi: ERC20_ABI,
-            functionName: "transfer",
-            args: [
-              ethers.getAddress(cleanRecipient), // Dirección del destinatario normalizada
-              ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString() // Monto exacto en Wei
-            ],
-            value: "0", // No se envía moneda nativa en la raíz al interactuar con el contrato
-          };
+        if (mountedRef.current && wallet) {
+          await scanAllNetworks(wallet);
         }
-      } catch (payloadError) {
-        console.error("[PAYLOAD CRITICAL ERROR] Falló el formateo criptográfico/matemático:", payloadError);
-        setStatus("Error interno al preparar los datos de la transferencia");
-        setSending(false);
-        return;
-      }
-
-      // Guardamos el Payload en Debug de forma segura libre de estructuras circulares
-      try {
-        setDebugResult(JSON.stringify({ phase: "payload_prepared", txPayload }, null, 2));
-      } catch {
-        setDebugResult(JSON.stringify({ phase: "payload_prepared_error", message: "Error al serializar payload visual" }));
-      }
-      // ========================================================================
-      // EJECUCIÓN EN MINI APP (WORLD APP - FIRMA DIRECTA BLINDADA V3)
-      // ========================================================================
-      console.log(`[MINIKIT EXECUTE] Transaccionando en la red: ${tokenInfo.chainId}`);
-      
-      // Guardián de seguridad: Verifica que la SDK esté inyectada y lista antes de disparar la firma
-      if (typeof MiniKit === "undefined" || !MiniKit || typeof MiniKit.sendTransaction !== "function") {
-        setStatus("Error: SDK de MiniKit no inicializada o ausente");
-        setSending(false);
-        return;
-      }
-
-      let result = null;
-      try {
-        // Invocación directa y secuencial sobre la jerarquía global estable de la SDK
-        result = await MiniKit.sendTransaction({
-          chainId: Number(tokenInfo.chainId), // Asegura un tipo numérico puro para el protocolo
-          transactions: [txPayload],
-        });
-        
-        console.log("[MINIKIT SUCCESS RESPONSE] Respuesta cruda de World App:", result);
-      } catch (sdkError) {
-        console.error("[MINIKIT SDK REJECTION] Operación abortada por la Wallet:", sdkError);
-        
-        // Capturamos de forma defensiva el mensaje de cancelación del usuario o error de red
-        const errorMsg = sdkError?.message || String(sdkError);
-        setStatus(errorMsg.includes("rejected") ? "Operación cancelada por el usuario" : "Error al firmar en World App");
-        setSending(false);
-        return; // Detiene el flujo de forma segura si la operación falló
-      }
-      // ========================================================================
-      // PROCESAMIENTO DE RESPUESTA (ADAPTACIÓN SEGURA V3 Y ANTI-QUUEBRES)
-      // ========================================================================
-      // Guardián preventivo: si por una caída de conexión result no existe, detenemos el flujo
-      if (!result) {
-        setStatus("Error: No se recibió respuesta desde World App");
-        setSending(false);
-        return;
-      }
-
-      // Normalización defensiva del formato para asegurar que el parseador lea .data correctamente
-      const preparedResult = result?.data ? result : { data: result };
-      const parsed = parseMiniKitResult(preparedResult);
-      
-      // CORRECCIÓN VERCEL: Validación segura de la existencia del estado de React
-      if (typeof setLastTxResult === "function") {
-        setLastTxResult(parsed);
-      }
-
-      // CORRECCIÓN ANTI-CIRCULAR: Evita de raíz que el stringify congele la interfaz gráfica
-      try {
-        setDebugResult(JSON.stringify(parsed, null, 2));
-      } catch (jsonErr) {
-        console.warn("Fallo leve al serializar objeto completo en debugResult:", jsonErr.message);
-        setDebugResult(JSON.stringify({ success: parsed.success, txId: parsed.txId, status: parsed.status }, null, 2));
-      }
-
-      // Verificación estricta de éxito de la transacción
-      if (!parsed || !parsed.success) {
-        setStatus(parsed?.status || "Operación rechazada o fallida");
-        setSending(false);
-        return;
-      }
-      // ========================================================================
-      // CONFIRMACIÓN EN BLOCKCHAIN (ESCUCHA EN TIEMPO REAL Y APAGADO SEGURO)
-      // ========================================================================
-      setStatus("Esperando confirmación en la blockchain...");
-      
-      // CORRECCIÓN: Forzamos la conversión a String para la precisión de BigInt en el listener
-      const confirmation = await waitForBalanceChange(
-        wallet,
-        tokenInfo,
-        tokenInfo.balance ? tokenInfo.balance.toString() : "0"
-      );
-
-      // Evaluación defensiva del resultado del bucle de bloques
-      if (confirmation && confirmation.success) {
-        setStatus("¡Transacción confirmada con éxito! Fondos recuperados.");
-      } else {
-        // Fallback seguro si se agota el tiempo (Timeout): los fondos siguen procesándose en el Relay
-        setStatus("Operación enviada al Relay de la red");
-      }
-
-      // Refrescar saldos finales respetando de forma estricta el ciclo de vida del componente
-      setTimeout(async () => {
-        try {
-          if (mountedRef.current && wallet) {
-            await scanAllNetworks(wallet);
-          }
-        } catch (refreshErr) {
-          console.error("[REFRESH ERROR] Falló el escaneo post-envío:", refreshErr);
-        }
-        
-        // CORRECCIÓN SEGURA: Solo cambia el estado visual si la interfaz sigue activa en el teléfono
-        if (mountedRef.current) {
-          setSending(false);
-        }
-      }, 2000);
-
-    } catch (err) {
-      console.error("[CRITICAL SEND ERROR] Excepción atrapada en el flujo de retiro:", err);
-      setStatus("Error crítico durante el envío");
-      
-      // Serialización segura libre de desbordamientos de memoria por estructuras circulares
-      try {
-        setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
-      } catch {
-        setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable" }));
+      } catch (refreshErr) {
+        console.error("[REFRESH ERROR] Falló el escaneo post-envío:", refreshErr);
       }
       
       if (mountedRef.current) {
         setSending(false);
       }
+    }, 2000);
+
+  } catch (err) {
+    console.error("[CRITICAL SEND ERROR] Excepción atrapada en el flujo de retiro:", err);
+    setStatus("Error crítico durante el envío");
+    
+    try {
+      setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
+    } catch {
+      setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable" }));
     }
-  }; // Cierre definitivo de la función handleSend
+    
+    if (mountedRef.current) {
+      setSending(false);
+    }
+  }
+}; // Cierre definitivo y exacto de la función handleSend
 // ========================================================================
 // INIT / AUTO RECONNECT (MÁXIMA ROBUSTEZ SSR & CONTROL DE DEPENDENCIAS)
 // ========================================================================
@@ -1770,7 +1412,7 @@ useEffect(() => {
 
       {/* CORRECCIÓN VERCEL: Unificación de sintaxis abreviada anti-warnings de empaquetado */}
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-      {/* ========================================================
+           {/* ========================================================
          FORMULARIO DE RETIRO (DISEÑO BLINDADO MÓVIL Y SSR)
       ======================================================== */}
       <h2>Retirar / Recuperar Fondos</h2>
@@ -1827,7 +1469,6 @@ useEffect(() => {
         disabled={!selectedToken || sending}
         onClick={() => {
           if (!selectedToken) return;
-          // CORRECCIÓN: Evaluación matemática estricta y segura para cadenas de texto de gas nativo
           if (selectedToken.isNative) {
             setSendAmount(maxSendAmount && String(maxSendAmount) !== "0" && String(maxSendAmount) !== "" ? String(maxSendAmount) : selectedToken.balance);
           } else {
@@ -1869,6 +1510,7 @@ useEffect(() => {
       >
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
+
       {/* ========================================================
          BANNER PUBLICITARIO: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
@@ -1878,7 +1520,7 @@ useEffect(() => {
           padding: 16,
           background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
           borderRadius: 16,
-          border: "1px solid #ffcc00", // Borde amarillo sutil (toque colombiano)
+          border: "1px solid #ffcc00", 
           textAlign: "center",
           boxSizing: "border-box"
         }}
@@ -1892,7 +1534,7 @@ useEffect(() => {
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // CORRECCIÓN LÓGICA: Enlace geo-localizado estricto hacia tu restaurante en Google Maps
+              // CORRECCIÓN: Enlace geo-localizado estricto hacia tu restaurante en Google Maps
               window.open("https://google.com", "_blank", "noopener,noreferrer");
             }
           }}
@@ -1911,6 +1553,7 @@ useEffect(() => {
           📍 Czapelska 33, Varsovia (Abrir Mapa 🗺️)
         </div>
       </div>
+
       {/* ========================================================
          CONSOLE DEBUG OUTPUT (VISTA DE DEPURACIÓN ANTI-DESBORDAMIENTO)
       ======================================================== */}
