@@ -1328,7 +1328,7 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-      {/* ========================================================
+          {/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: GRÁFICAS + COMPRA / VENTA RESPONSIVO)
       ======================================================== */}
       {showTokenModal && selectedToken && (
@@ -1382,9 +1382,10 @@ useEffect(() => {
             <div style={{ width: "100%", height: 240, borderRadius: 14, overflow: "hidden", marginBottom: 15, background: "#131722", border: "1px solid #1e293b" }}>
               <iframe
                 title="Gráfica de Precios del Token Seleccionado"
-                src={`https://tradingview.com{encodeURIComponent(activeChartSymbol)}&interval=H&theme=dark&style=1&locale=es`}
+                src={`https://tradingview.com{encodeURIComponent(activeChartSymbol)}&interval=60&theme=dark&style=1&locale=es`}
                 style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
                 loading="lazy"
+                allowFullScreen
               />
             </div>
 
@@ -1450,7 +1451,7 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-   {/* ========================================================
+{/* ========================================================
          FORMULARIO DE RETIRO (DISEÑO BLINDADO MÓVIL Y SSR)
       ======================================================== */}
       <h2>Retirar / Recuperar Fondos</h2>
