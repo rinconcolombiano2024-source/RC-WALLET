@@ -1319,8 +1319,7 @@ useEffect(() => {
       </button>
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-
-      {/* ========================================================
+{/* ========================================================
          WALLET INFO (DISEÑO BLINDADO CONTRA CAÍDAS DE WEBVIEWS)
       ======================================================== */}
       <p style={{ fontWeight: "bold", marginBottom: 5 }}>Dirección Wallet:</p>
@@ -1389,86 +1388,7 @@ useEffect(() => {
       >
         Copiar dirección
       </button>
-                      // CORRECCIÓN ABSOLUTA DE ENLACES CON FORMATO INTERPOLADO LEGÍTIMO Y SEGURO (EVM)
-                      if (token.chainId === 1) {
-                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 10) {
-                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 8453) {
-                        explorer = token.isNative ? `https://basescan.org{activeWallet}` : `https://basescan.org{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 56) {
-                        explorer = token.isNative ? `https://bscscan.com{activeWallet}` : `https://bscscan.com{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 480) {
-                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 4801) {
-                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
-                      }
-                      
-                      if (explorer && typeof window !== "undefined") {
-                        window.open(explorer, "_blank", "noopener,noreferrer");
-                      }
-                    }}
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 10,
-                      border: "none",
-                      background: wallet ? "#2563eb" : "#222",
-                      color: wallet ? "white" : "#555",
-                      cursor: wallet ? "pointer" : "not-allowed",
-                      fontSize: 12,
-                      boxSizing: "border-box"
-                    }}
-                  >
-                    Ver en Explorer 🔗
-                  </button>
-                </div>
-              </div>
-            );
-          })
-      )}
-
-      <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-                      // CORRECCIÓN ABSOLUTA DE ENLACES CON FORMATO INTERPOLADO LEGÍTIMO Y SEGURO (EVM)
-                      if (token.chainId === 1) {
-                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 10) {
-                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 8453) {
-                        explorer = token.isNative ? `https://basescan.org{activeWallet}` : `https://basescan.org{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 56) {
-                        explorer = token.isNative ? `https://bscscan.com{activeWallet}` : `https://bscscan.com{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 480) {
-                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
-                      } else if (token.chainId === 4801) {
-                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
-                      }
-                      
-                      if (explorer && typeof window !== "undefined") {
-                        window.open(explorer, "_blank", "noopener,noreferrer");
-                      }
-                    }}
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 10,
-                      border: "none",
-                      background: wallet ? "#2563eb" : "#222",
-                      color: wallet ? "white" : "#555",
-                      cursor: wallet ? "pointer" : "not-allowed",
-                      fontSize: 12,
-                      boxSizing: "border-box"
-                    }}
-                  >
-                    Ver en Explorer 🔗
-                  </button>
-                </div>
-              </div>
-            );
-          })
-      )}
-
-      <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-
-      {/* ========================================================
+{/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V3)
       ======================================================== */}
       {showTokenModal && selectedToken && (
@@ -1517,6 +1437,7 @@ useEffect(() => {
                 🔄 Convertir / Swap
               </div>
             </div>
+
             {/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -1548,78 +1469,6 @@ useEffect(() => {
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
               </span>
             </div>
-            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
-            <div 
-              style={{ 
-                width: "100%", 
-                height: tradeType === "SWAP" ? 140 : 280, 
-                borderRadius: 14, 
-                overflow: "hidden", 
-                marginBottom: 14, 
-                background: "#131722", 
-                border: "1px solid #2b3139",
-                boxSizing: "border-box",
-                transition: "height 0.3s ease-in-out"
-              }}
-            >
-              <iframe
-                title="TradingView Realtime Live Terminal Feed"
-                src={"https://tradingview.com" + encodeURIComponent(
-                  selectedToken?.symbol === "RC.PL" ? "BINANCE:WLDUSDT" : 
-                  selectedToken?.symbol === "GOLD" ? "OANDA:XAUUSD" :
-                  selectedToken?.symbol === "SUSHI" ? "BINANCE:SUSHIUSDT" :
-                  selectedToken?.symbol === "MADS" ? "UNISWAP:WLDUSDC" :
-                  selectedToken?.symbol === "RCOL" ? "BINANCE:WLDUSDT" :
-                  selectedToken?.symbol === "WBTC" ? "BINANCE:BTCUSDT" :
-                  selectedToken?.symbol === "WETH" ? "BINANCE:ETHUSDT" : "BINANCE:" + (selectedToken?.symbol || "WLD") + "USDT"
-                ) + "&interval=" + (
-                  chartInterval === "1s" ? "1" : 
-                  chartInterval === "1m" ? "1" : 
-                  chartInterval === "5m" ? "5" : 
-                  chartInterval === "15m" ? "15" : 
-                  chartInterval === "30m" ? "30" : 
-                  chartInterval === "1H" ? "60" : 
-                  chartInterval === "4H" ? "240" : 
-                  chartInterval === "1D" ? "D" : "W"
-                ) + "&theme=dark&style=1&timezone=Etc%2FUTC&studies=" + encodeURIComponent(
-                  JSON.stringify(["RSI@tv-basicstudies", "MASimple@tv-basicstudies", "BollingerBands@tv-basicstudies", "MACD@tv-basicstudies"])
-                ) + "&local=es&withdateranges=true&hide_side_toolbar=true&allow_symbol_change=false&saveimage=false"}
-                style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
-                loading="lazy"
-                allowFullScreen
-              />
-            </div>
-{/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                {["1s", "1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"].map((interval) => (
-                  <span
-                    key={interval}
-                    onClick={() => {
-                      if (typeof setChartInterval === "function") {
-                        setChartInterval(interval);
-                      }
-                    }}
-                    style={{ 
-                      fontSize: 11, 
-                      color: chartInterval === interval ? "#f0b90b" : "#848e9c", 
-                      fontWeight: "bold", 
-                      background: chartInterval === interval ? "rgba(240, 185, 11, 0.15)" : "transparent", 
-                      padding: "3px 6px", 
-                      borderRadius: 4, 
-                      cursor: "pointer",
-                      transition: "all 0.15s ease"
-                    }}
-                  >
-                    {interval}
-                  </span>
-                ))}
-              </div>
-              
-              <span style={{ fontSize: 11, color: "#00c57a", fontWeight: "bold", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
-              </span>
-            </div>
 
             {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
             <div 
@@ -1662,98 +1511,6 @@ useEffect(() => {
                 allowFullScreen
               />
             </div>
-
-            {/* 📊 DASHBOARD DE LIQUIDEZ Y LIBRO DE ÓRDENES EN TIEMPO REAL (ESTILO EXCHANCE TERMINAL) */}
-            <div style={{ display: "flex", flexDirection: "column", background: "#0b0e11", padding: 12, borderRadius: 12, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
-              
-              {/* Sub-panel de Market Data Real Referencial */}
-              <div style={{ display: "flex", gap: 12, justifyContent: "space-between", paddingBottom: 8, borderBottom: "1px solid #1e2226", flexWrap: "wrap", marginBottom: 8 }}>
-                <div style={{ fontSize: 10, color: "#848e9c" }}>Market Cap: <span style={{ color: "#eaecef", fontWeight: "bold", fontFamily: "monospace" }}>
-                  {selectedToken?.symbol === "WBTC" ? "$1.3T" : selectedToken?.symbol === "WETH" ? "$410B" : selectedToken?.symbol === "WLD" ? "$680M" : "$1.2M"}
-                </span></div>
-                <div style={{ fontSize: 10, color: "#848e9c" }}>Liquidez Pool: <span style={{ color: "#00c57a", fontWeight: "bold", fontFamily: "monospace" }}>
-                  {selectedToken?.symbol === "RC.PL" || selectedToken?.symbol === "RCOL" ? "$45K" : "$8.4M"}
-                </span></div>
-              </div>
-              {/* 📊 PANEL ORDER BOOK SIMÉTRICO PREMIUM (COMPRA / VENTA & SPREAD) */}
-              <div style={{ display: "flex", gap: 10, justifyContent: "space-between" }}>
-                
-                {/* Órdenes de Venta (Bids/Asks en Rojo) */}
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#848e9c", borderBottom: "1px solid #1e2226", pb: 2, mb: 2 }}>
-                    <span>Precio (USDT)</span>
-                    <span>Cantidad</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#f6465d", fontFamily: "monospace", position: "relative", background: "linear-gradient(90deg, rgba(246, 70, 93, 0.08) 45%, transparent 45%)" }}>
-                    <span>{selectedToken?.symbol === "WBTC" ? "68,290" : selectedToken?.symbol === "WETH" ? "3,425" : "5.88"}</span>
-                    <span>1.42K</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#f6465d", fontFamily: "monospace", position: "relative", background: "linear-gradient(90deg, rgba(246, 70, 93, 0.08) 70%, transparent 70%)" }}>
-                    <span>{selectedToken?.symbol === "WBTC" ? "68,265" : selectedToken?.symbol === "WETH" ? "3,422" : "5.85"}</span>
-                    <span>3.85K</span>
-                  </div>
-                </div>
-
-                {/* Órdenes de Compra (Asks/Bids en Verde) */}
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#848e9c", borderBottom: "1px solid #1e2226", pb: 2, mb: 2 }}>
-                    <span>Precio (USDT)</span>
-                    <span>Cantidad</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#00c57a", fontFamily: "monospace", position: "relative", background: "linear-gradient(270deg, rgba(0, 197, 122, 0.08) 60%, transparent 60%)" }}>
-                    <span>{selectedToken?.symbol === "WBTC" ? "68,210" : selectedToken?.symbol === "WETH" ? "3,418" : "5.80"}</span>
-                    <span>2.11K</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#00c57a", fontFamily: "monospace", position: "relative", background: "linear-gradient(270deg, rgba(0, 197, 122, 0.08) 35%, transparent 35%)" }}>
-                    <span>{selectedToken?.symbol === "WBTC" ? "68,195" : selectedToken?.symbol === "WETH" ? "3,415" : "5.78"}</span>
-                    <span>5.94K</span>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Spread de Mercado flotante en el centro */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #1e2226", paddingTop: 6, marginTop: 6, fontSize: 10, color: "#848e9c" }}>
-                <span>Spread de Profundidad:</span>
-                <span style={{ fontWeight: "bold", color: "#f0b90b", fontFamily: "monospace" }}>
-                  {selectedToken?.symbol === "WBTC" ? "55.00 USDT (0.08%)" : selectedToken?.symbol === "WETH" ? "3.00 USDT (0.09%)" : "0.05 USDT (0.86%)"}
-                </span>
-              </div>
-
-            </div>
-            {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO REFORZADO BINANCE PREMIUM DE 3 VÍAS) */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setTradeType("BUY");
-                  setTargetSwapToken(null);
-                }}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: tradeType === "BUY" ? "#00c57a" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
-              >
-                🟢 COMPRAR
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTradeType("SELL");
-                  setTargetSwapToken(null);
-                }}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: tradeType === "SELL" ? "#f6465d" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
-              >
-                🔴 VENDER
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTradeType("SWAP");
-                }}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: tradeType === "SWAP" ? "#f0b90b" : "#2b3139", color: tradeType === "SWAP" ? "#000" : "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
-              >
-                🔄 SWAP
-              </button>
-            </div>
-
             {/* ========================================================
                SECTOR ULTRA PROFESIONAL: SELECTOR INTERACTIVO DE TOKEN DESTINO (SOLO EN MODO SWAP)
             ======================================================== */}
@@ -2141,6 +1898,7 @@ useEffect(() => {
           📍 Czapelska 33, Varsovia (Abrir Mapa 🗺️)
         </div>
       </div>
+
       {/* ========================================================
          CONSOLE DEBUG OUTPUT (VISTA DE DEPURACIÓN ANTI-DESBORDAMIENTO)
       ======================================================== */}
@@ -2175,4 +1933,4 @@ useEffect(() => {
       )}
     </div>
   );
-}
+} // Fin definitivo y exacto del componente App y cierre de tu archivo src/App.jsx
