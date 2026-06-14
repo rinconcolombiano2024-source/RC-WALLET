@@ -112,6 +112,22 @@ const TOKENS = [
     },
   },
   {
+    symbol: "pufETH", // ⚡ INTEGRACIÓN: Token de Puffer Finance / Puf en World Chain
+    decimals: 18,
+    tradingViewSymbol: "UNISWAP:PUFETHWETH",
+    addresses: {
+      480: "0x4E352cF164E64Cca47f487e6616035f49eE46E6c",   // Dirección del contrato oficial
+    },
+  },
+  {
+    symbol: "ANI", // ⚡ INTEGRACIÓN: Token oficial de AniWallet en World Chain
+    decimals: 18,
+    tradingViewSymbol: "MEXC:ANIUSDT",
+    addresses: {
+      480: "0x6BcFEbFF53A37053Df3407e3E4CDCD60831631FF",   // Dirección de contrato de simulación/red real de Mini App
+    },
+  },
+  {
     symbol: "WBTC",
     decimals: 8,
     tradingViewSymbol: "BINANCE:BTCUSDT", // Visualización de la gráfica de Bitcoin
