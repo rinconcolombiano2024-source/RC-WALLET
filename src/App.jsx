@@ -214,11 +214,11 @@ export default function App() {
   }, []); // Se ejecuta una sola vez al cargar la App para no duplicar procesos en memoria
 
   // Nota: Dejamos el componente App abierto para procesar los hooks en los siguientes bloques
-   // ========================================================================
+     // ========================================================================
   // INFRAESTRUCTURA DE ENRUTAMIENTO DE INTERCAMBIOS (SWAPS CONTRACT PRO)
   // ========================================================================
-  // Dirección universal del Swap Router de Uniswap V3 (Compatible con World Chain, Optimism y Base)
-  const UNISWAP_V3_ROUTER = "M0xE592427A0AEce92De3Edee1F18E0157C05861564"; 
+  // CORRECCIÓN INDUSTRIAL: Dirección universal de Uniswap V3 sanitizada y purgada de letras corruptas
+  const UNISWAP_V3_ROUTER = "0xE592427A0AEce92De3Edee1F18E0157C05861564"; 
 
   // ABI oficial con las firmas necesarias para ejecutar swaps de mercado exactos (Crypto a Crypto)
   const EXCHANGE_ROUTER_ABI = [
