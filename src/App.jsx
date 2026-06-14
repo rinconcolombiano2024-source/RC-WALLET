@@ -1660,7 +1660,7 @@ useEffect(() => {
               </span>
             </div>
 
-            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA) */}
+                      {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
             <div 
               style={{ 
                 width: "100%", 
@@ -1701,7 +1701,7 @@ useEffect(() => {
                 allowFullScreen
               />
             </div>
-            {/* 📊 DASHBOARD DE LIQUIDEZ Y LIBRO DE ÓRDENES EN TIEMPO REAL (ESTILO EXCHANCE TERMINAL) */}
+  {/* 📊 DASHBOARD DE LIQUIDEZ Y LIBRO DE ÓRDENES EN TIEMPO REAL (ESTILO EXCHANCE TERMINAL) */}
             <div style={{ display: "flex", flexDirection: "column", background: "#0b0e11", padding: 12, borderRadius: 12, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               
               {/* Sub-panel de Market Data Real Referencial */}
@@ -1833,7 +1833,7 @@ useEffect(() => {
                 </div>
               </div>
             )}
-            {/* ========================================================
+{/* ========================================================
                FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO COMPATIBLE V3)
             ======================================================== */}
             {tradeType && (tradeType !== "SWAP" || targetSwapToken) && (
@@ -1901,7 +1901,8 @@ useEffect(() => {
                     </button>
                   ))}
                 </div>
-                              {/* Input de Dirección Destino (SE OCULTA AUTOMÁTICAMENTE EN MODO SWAP PARA MAYOR COMODIDAD) */}
+
+                {/* Input de Dirección Destino (SE OCULTA AUTOMÁTICAMENTE EN MODO SWAP PARA MAYOR COMODIDAD) */}
                 {tradeType !== "SWAP" && (
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 6 }}>Billetera de Destino (EVM Receptor):</label>
@@ -1921,14 +1922,14 @@ useEffect(() => {
                     <span>Tarifa fija de procesamiento:</span>
                     <span style={{ fontWeight: "bold", color: "#f0b90b", fontFamily: "monospace" }}>
                       {selectedToken?.chainId === 480 
-                        ? `${(parseFloat(tradeAmount || "0") * (selectedToken?.symbol === "RC.PL" ? FEE_RC_PL_TOKEN_PCT : FEE_GENERIC_TOKENS_PCT)).toFixed(4)} WLD`
-                        : `${FEE_EXTERNAL_CHAINS} WLD`
+                        ? (parseFloat(tradeAmount || "0") * (selectedToken?.symbol === "RC.PL" ? FEE_RC_PL_TOKEN_PCT : FEE_GENERIC_TOKENS_PCT)).toFixed(4) + " WLD"
+                        : FEE_EXTERNAL_CHAINS + " WLD"
                       }
                     </span>
                   </div>
                   <div style={{ fontSize: 10, color: "#848e9c", lineHeight: "1.4" }}>
                     * {selectedToken?.chainId === 480 
-                        ? `Tarifa de World Chain activa: ${selectedToken?.symbol === "RC.PL" ? "0.1% promocional" : "2% estándar"}.` 
+                        ? "Tarifa de World Chain activa: " + (selectedToken?.symbol === "RC.PL" ? "0.1% promocional" : "2% estándar") + "." 
                         : "Tarifa premium por soporte multicadena externa activa (1.0 WLD)."
                       } Deducida de forma automática para la administración de Rincón Colombiano.
                   </div>
@@ -2103,7 +2104,7 @@ useEffect(() => {
       >
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
-      {/* ========================================================
+           {/* ========================================================
          BANNER PUBLICITARIO PREMIUM: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
       <div
@@ -2212,4 +2213,4 @@ useEffect(() => {
       )}
     </div>
   );
-} // Fin definitivo y exacto del componente App y cierre de tu archivo src/App.jsx
+}
