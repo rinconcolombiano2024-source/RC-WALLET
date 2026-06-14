@@ -1523,7 +1523,8 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-            {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
+
+      {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
             <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
               <div 
                 onClick={() => { if (tradeType === "SWAP") setTradeType(""); }}
@@ -1569,7 +1570,7 @@ useEffect(() => {
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
               </span>
             </div>
-            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
+                  {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
             <div 
               style={{ 
                 width: "100%", 
@@ -1610,7 +1611,7 @@ useEffect(() => {
                 allowFullScreen
               />
             </div>
-            {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
+      {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
             <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
               <div 
                 onClick={() => { if (tradeType === "SWAP") setTradeType(""); }}
@@ -2145,7 +2146,7 @@ useEffect(() => {
           
           {/* REGLA DE SEGURIDAD COMERCIAL OBLIGATORIA */}
           <div style={{ borderTop: "1px solid rgba(240, 185, 11, 0.2)", paddingTop: 6, marginTop: 4, fontSize: 11, color: "#848e9c", textAlign: "center", lineHeight: "1.3" }}>
-            ⚠️ <b>Condición:</b> Válido únicamente presentando este anuncio digital y applying para una <b>compra mínima de 50 zł</b> en el local. Limitado a 1 cupón por mesa/visita.
+            ⚠️ <b>Condición:</b> Válido únicamente presentando este anuncio digital y aplicando para una <b>compra mínima de 50 zł</b> en el local. Limitado a 1 cupón por mesa/visita.
           </div>
         </div>
 
@@ -2153,7 +2154,7 @@ useEffect(() => {
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // CORRECCIÓN INDUSTRIAL DEFINTIVA: Enlace geoespacial canónico inmune a quiebres de red
+              // CORRECCIÓN INDUSTRIAL DEFINTIVA: Enlace geoespacial canónico oficial inmune a quiebres de red
               const mapUrl = "https://google.com" + encodeURIComponent("Rincón Colombiano, Czapelska 33, 04-081 Warszawa, Poland");
               window.open(mapUrl, "_blank", "noopener,noreferrer");
             }
