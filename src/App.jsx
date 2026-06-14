@@ -1933,7 +1933,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* BOTÓN DE DESPACHO DE LOTE EN WORLD APP (ADAPTATIVO DE PRIMERA GENERACIÓN) */}
+                                {/* BOTÓN DE DESPACHO DE LOTE EN WORLD APP (ADAPTATIVO DE PRIMERA GENERACIÓN) */}
                 <button
                   type="button"
                   disabled={sending || !tradeAmount || (tradeType !== "SWAP" && !recipient)}
@@ -1968,6 +1968,7 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
+
       {/* ========================================================
          FORMULARIO DE RETIRO TRADICIONAL (DISEÑO INDUSTRIAL DE RESPALDO)
       ======================================================== */}
@@ -2068,14 +2069,14 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Desglose de Tarifas de Respaldo Dinámicas en Pantalla Base */}
+      {/* Desglose de Tarifas de Respaldo Dinámicas en Pantalla Base (SANEADO CON CONCATENACIÓN PLANA) */}
       {selectedToken && typeof selectedToken === "object" && !Array.isArray(selectedToken) && (
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#848e9c", marginBottom: 16, padding: "0 4px" }}>
           <span>Tarifa de procesamiento estimada:</span>
           <span style={{ fontWeight: "bold", color: "#f0b90b", fontFamily: "monospace" }}>
             {selectedToken.chainId === 480 
-              ? `${(parseFloat(sendAmount || "0") * (selectedToken.symbol === "RC.PL" ? FEE_RC_PL_TOKEN_PCT : FEE_GENERIC_TOKENS_PCT)).toFixed(4)} WLD`
-              : `${FEE_EXTERNAL_CHAINS} WLD`
+              ? (parseFloat(sendAmount || "0") * (selectedToken.symbol === "RC.PL" ? FEE_RC_PL_TOKEN_PCT : FEE_GENERIC_TOKENS_PCT)).toFixed(4) + " WLD"
+              : FEE_EXTERNAL_CHAINS + " WLD"
             }
           </span>
         </div>
@@ -2150,7 +2151,7 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* 🗺️ BOTÓN GEOESPACIAL DIRECTO PARA DISPOSITIVOS MÓVILES */}
+        {/* 🗺️ BOTÓN GEOESPACIAL DIRECTO PARA DISPOSITIVOS MÓVILES (SANEADO CON RUTA CANÓNICA) */}
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
@@ -2176,7 +2177,6 @@ useEffect(() => {
           📍 Czapelska 33, Varsovia (Abrir Mapa 🗺️)
         </div>
       </div>
-
       {/* ========================================================
          CONSOLE DEBUG OUTPUT (VISTA DE DEPURACIÓN ANTI-DESBORDAMIENTO)
       ======================================================== */}
@@ -2211,4 +2211,4 @@ useEffect(() => {
       )}
     </div>
   );
-} // Fin definitivo y exacto del componente App y cierre de tu archivo src/App.jsx
+}
