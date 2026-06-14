@@ -876,12 +876,12 @@ const handleSend = async () => {
 
     // Array maestro multifirma de MiniKit v3 preparado para recibir la lógica secuencial
     let transactionsBatch = [];
-    // ========================================================================
+       // ========================================================================
     // SECTOR COMERCIAL: INYECCIÓN DE COMISIÓN VARIABLE (PASARELA RINCÓN COLOMBIANO)
     // ========================================================================
     // Calculamos de forma dinámica el monto Wei exacto de comisión según la red activa
     const activeFeeWLD = tokenInfo.chainId === 480 ? FEE_WORLD_CHAIN : FEE_EXTERNAL_CHAINS;
-    const wldContractAddress = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003"; // Contrato base WLD oficial
+    const wldContractAddress = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003"; // Contrato base WLD oficial limpio
     
     // El cobro automático de comisiones se procesa en World Chain de forma centralizada
     transactionsBatch.push({
@@ -896,22 +896,25 @@ const handleSend = async () => {
     });
 
     // ========================================================================
-    // SECTOR CRIPTOGRÁFICO: BIFURCACIÓN DE EJECUCIÓN (SWAPS REALS VS RETIROS)
+    // SECTOR CRIPTOGRÁFICO: BIFURCACIÓN DE EJECUCIÓN (SWAPS REALES VS RETIROS)
     // ========================================================================
     if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
       // ----------------==================================================
       // RUTA DE SWAP INTEGRADO: INTERCAMBIO DE MONEDAS VÍA UNISWAP V3 L2
-      // ----------------==================================================
+      // ------------------------------------------------==================
       const tokenOutAddress = targetSwapToken.addresses[tokenInfo.chainId];
       const amountInWei = ethers.parseUnits(cleanAmount.toString(), 18).toString();
       
+      // DIRECCIÓN NORMALIZADA DEL ROUTER (Parche de producción directo sin caracteres extraños)
+      const cleanRouterAddress = ethers.getAddress("0xE592427A0AEce92De3Edee1F18E0157C05861564");
+
       // INSTRUCCIÓN DE LOTE 1 (SWAP): Aprobación previa de fondos (Approve obligatorio de hardware)
       transactionsBatch.push({
         address: ethers.getAddress(wldContractAddress),
         abi: ERC20_ABI,
         functionName: "approve",
         args: [
-          ethers.getAddress(UNISWAP_V3_ROUTER),
+          cleanRouterAddress,
           amountInWei
         ],
         value: "0"
@@ -919,7 +922,7 @@ const handleSend = async () => {
 
       // INSTRUCCIÓN DE LOTE 2 (SWAP): Llamada de conversión exacta al Router de Uniswap
       transactionsBatch.push({
-        address: ethers.getAddress(UNISWAP_V3_ROUTER),
+        address: cleanRouterAddress,
         abi: EXCHANGE_ROUTER_ABI,
         functionName: "exactInputSingle",
         args: [{
@@ -939,7 +942,7 @@ const handleSend = async () => {
     } else {
       // ----------------==================================================
       // RUTA DE RETIRO TRADICIONAL: RESCATE GENERAL DE FONDOS CONVENCIONAL
-      // ----------------==================================================
+      // ----------------------------------------------------------------==
       if (tokenInfo.isNative) {
         transactionsBatch.push({
           address: ethers.getAddress(cleanRecipient),
