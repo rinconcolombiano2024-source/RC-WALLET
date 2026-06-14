@@ -1389,101 +1389,45 @@ useEffect(() => {
       >
         Copiar dirección
       </button>
-      {/* ========================================================
-         BUSCADOR Y LISTADO DE FONDOS (INTERFAZ DE WALLET REAL CON MODALES)
-      ======================================================== */}
-      <h2 style={{ fontSize: 18, fontWeight: "bold", marginBottom: 12, color: "#eaecef" }}>Fondos Detected</h2>
-      
-      {/* CUADRO DE BÚSQUEDA DINÁMICO DE PRIMERA GENERACIÓN */}
-      <input
-        type="text"
-        placeholder="🔍 Buscar activo por símbolo (WLD, RC.PL, USDC...)"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 12,
-          borderRadius: 12,
-          marginBottom: 16,
-          background: "#1e2226", // Fondo oscuro integrado con la estética Pro
-          border: "1px solid #2b3139",
-          color: "white",
-          fontSize: 14,
-          boxSizing: "border-box"
-        }}
-      />
-
-      {(!tokensDetected || !Array.isArray(tokensDetected) || tokensDetected.length === 0) ? (
-        <p style={{ color: "#848e9c", fontSize: 13 }}>No se detectaron fondos atascados.</p>
-      ) : (
-        tokensDetected
-          .filter(token => token?.symbol?.toLowerCase().includes(searchQuery.toLowerCase())) // FILTRO INTERACTIVO EN CALIENTE
-          .map((token, index) => {
-            const tokenUniqueKey = `${token?.chainId || index}-${token?.address || "native"}`;
-            
-            const isSelected = selectedToken && 
-                               typeof selectedToken === "object" && 
-                               selectedToken.address === token.address && 
-                               selectedToken.chainId === token.chainId;
-
-            return (
-              <div
-                key={tokenUniqueKey}
-                style={{
-                  border: isSelected ? "2px solid #00c57a" : "1px solid #2b3139",
-                  padding: 14,
-                  borderRadius: 14,
-                  marginBottom: 12,
-                  background: isSelected ? "#161a1e" : "#0b0e11",
-                  boxSizing: "border-box",
-                  boxShadow: isSelected ? "0px 4px 15px rgba(0, 197, 122, 0.1)" : "none"
-                }}
-              >
-                <p style={{ margin: "0 0 5px 0", color: "#38bdf8", fontWeight: "bold", fontSize: 12 }}>{token?.network || "Desconocida"}</p>
-                <p style={{ margin: "0 0 5px 0", fontSize: 19, fontWeight: "bold", color: "#eaecef" }}>
-                  {token?.balance || "0.00"} {token?.symbol || ""}
-                </p>
-                <p style={{ margin: "0 0 12px 0", fontSize: 11, color: "#848e9c" }}>
-                  Tipo: {token?.isNative ? "Moneda Nativa (Gas)" : "Contrato Inteligente ERC-20"}
-                </p>
-
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedToken(token);
-                      // SINCRO COMPLETA: Asigna el ticker y abre la ventana modal de intercambio comercial
-                      if (token?.tradingViewSymbol) {
-                        setActiveChartSymbol(token.tradingViewSymbol);
+                      // CORRECCIÓN ABSOLUTA DE ENLACES CON FORMATO INTERPOLADO LEGÍTIMO Y SEGURO (EVM)
+                      if (token.chainId === 1) {
+                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 10) {
+                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 8453) {
+                        explorer = token.isNative ? `https://basescan.org{activeWallet}` : `https://basescan.org{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 56) {
+                        explorer = token.isNative ? `https://bscscan.com{activeWallet}` : `https://bscscan.com{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 480) {
+                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 4801) {
+                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
                       }
-                      setTradeType(""); 
-                      setChartInterval("1H"); // Inicializa por defecto en la temporalidad estándar de una hora
-                      setShowTokenModal(true); // ¡ABRE LA TERMINAL INTERACTIVA EN TU CELULAR!
+                      
+                      if (explorer && typeof window !== "undefined") {
+                        window.open(explorer, "_blank", "noopener,noreferrer");
+                      }
                     }}
                     style={{
                       padding: "10px 14px",
                       borderRadius: 10,
                       border: "none",
-                      background: isSelected ? "#00c57a" : "#2b3139",
-                      color: "white",
-                      cursor: "pointer",
-                      fontWeight: "bold",
+                      background: wallet ? "#2563eb" : "#222",
+                      color: wallet ? "white" : "#555",
+                      cursor: wallet ? "pointer" : "not-allowed",
                       fontSize: 12,
-                      boxSizing: "border-box",
-                      transition: "background 0.2s"
+                      boxSizing: "border-box"
                     }}
                   >
-                    {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar"}
+                    Ver en Explorer 🔗
                   </button>
+                </div>
+              </div>
+            );
+          })
+      )}
 
-                  <button
-                    type="button"
-                    disabled={!wallet}
-                    onClick={() => {
-                      if (!wallet) return;
-                      let explorer = "";
-                      const activeWallet = wallet;
-                      
+      <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
                       // CORRECCIÓN ABSOLUTA DE ENLACES CON FORMATO INTERPOLADO LEGÍTIMO Y SEGURO (EVM)
                       if (token.chainId === 1) {
                         explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
@@ -1524,7 +1468,41 @@ useEffect(() => {
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
 
-      {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
+      {/* ========================================================
+         VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V3)
+      ======================================================== */}
+      {showTokenModal && selectedToken && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(11, 14, 17, 0.94)", // Opacidad de contraste premium para aislar la terminal
+            backdropFilter: "blur(14px)",
+            zIndex: 10000,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-end", // Efecto deslizante nativo desde abajo ideal para smartphones
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "500px",
+              background: "#161a1e", // Gris profundo oficial de terminales de intercambio
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: "24px 20px",
+              maxHeight: "96vh",
+              overflowY: "auto",
+              boxSizing: "border-box",
+              borderTop: "1px solid #2b3139",
+              boxShadow: "0px -10px 40px rgba(0, 0, 0, 0.7)"
+            }}
+          >
+            {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
             <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
               <div 
                 onClick={() => { if (tradeType === "SWAP") setTradeType(""); }}
@@ -1533,7 +1511,7 @@ useEffect(() => {
                 📊 Gráfica e Indicadores
               </div>
               <div 
-                onClick={() => { setTradeType("SWAP"); }}
+                onClick={() => setTradeType("SWAP")}
                 style={{ flex: 1, padding: "8px 0", textAlign: "center", fontSize: 12, fontWeight: "bold", borderRadius: 8, color: tradeType === "SWAP" ? "#f0b90b" : "#848e9c", background: tradeType === "SWAP" ? "#2b3139" : "transparent", cursor: "pointer" }}
               >
                 🔄 Convertir / Swap
@@ -1570,7 +1548,7 @@ useEffect(() => {
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
               </span>
             </div>
-                  {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
+            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
             <div 
               style={{ 
                 width: "100%", 
@@ -1611,22 +1589,7 @@ useEffect(() => {
                 allowFullScreen
               />
             </div>
-      {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
-            <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
-              <div 
-                onClick={() => { if (tradeType === "SWAP") setTradeType(""); }}
-                style={{ flex: 1, padding: "8px 0", textAlign: "center", fontSize: 12, fontWeight: "bold", borderRadius: 8, color: tradeType !== "SWAP" ? "#fff" : "#848e9c", background: tradeType !== "SWAP" ? "#2b3139" : "transparent", cursor: "pointer" }}
-              >
-                📊 Gráfica e Indicadores
-              </div>
-              <div 
-                onClick={() => setTradeType("SWAP")}
-                style={{ flex: 1, padding: "8px 0", textAlign: "center", fontSize: 12, fontWeight: "bold", borderRadius: 8, color: tradeType === "SWAP" ? "#f0b90b" : "#848e9c", background: tradeType === "SWAP" ? "#2b3139" : "transparent", cursor: "pointer" }}
-              >
-                🔄 Convertir / Swap
-              </div>
-            </div>
-            {/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
+{/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 {["1s", "1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"].map((interval) => (
@@ -1699,7 +1662,8 @@ useEffect(() => {
                 allowFullScreen
               />
             </div>
-  {/* 📊 DASHBOARD DE LIQUIDEZ Y LIBRO DE ÓRDENES EN TIEMPO REAL (ESTILO EXCHANCE TERMINAL) */}
+
+            {/* 📊 DASHBOARD DE LIQUIDEZ Y LIBRO DE ÓRDENES EN TIEMPO REAL (ESTILO EXCHANCE TERMINAL) */}
             <div style={{ display: "flex", flexDirection: "column", background: "#0b0e11", padding: 12, borderRadius: 12, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               
               {/* Sub-panel de Market Data Real Referencial */}
@@ -1711,7 +1675,6 @@ useEffect(() => {
                   {selectedToken?.symbol === "RC.PL" || selectedToken?.symbol === "RCOL" ? "$45K" : "$8.4M"}
                 </span></div>
               </div>
-
               {/* 📊 PANEL ORDER BOOK SIMÉTRICO PREMIUM (COMPRA / VENTA & SPREAD) */}
               <div style={{ display: "flex", gap: 10, justifyContent: "space-between" }}>
                 
@@ -1879,7 +1842,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                      {/* BOTONES EXCLUSIVOS DE PORCENTAJE RÁPIDO (ESTILO TERMINAL PROFESIONAL) */}
+                {/* BOTONES EXCLUSIVOS DE PORCENTAJE RÁPIDO (ESTILO TERMINAL PROFESIONAL) */}
                 <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
                   {[25, 50, 75, 100].map((pct) => (
                     <button
@@ -1933,7 +1896,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                                {/* BOTÓN DE DESPACHO DE LOTE EN WORLD APP (ADAPTATIVO DE PRIMERA GENERACIÓN) */}
+                {/* BOTÓN DE DESPACHO DE LOTE EN WORLD APP (ADAPTATIVO DE PRIMERA GENERACIÓN) */}
                 <button
                   type="button"
                   disabled={sending || !tradeAmount || (tradeType !== "SWAP" && !recipient)}
@@ -1963,12 +1926,13 @@ useEffect(() => {
                 </button>
               </div>
             )}
+
+            {/* AQUÍ SE CONSERVAN LAS ESTRUCTURAS MAESTRAS DEL MODAL FLOTANTE ABIERTO AL INICIO */}
           </div>
         </div>
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-
       {/* ========================================================
          FORMULARIO DE RETIRO TRADICIONAL (DISEÑO INDUSTRIAL DE RESPALDO)
       ======================================================== */}
