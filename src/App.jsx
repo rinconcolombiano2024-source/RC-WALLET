@@ -1878,7 +1878,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* BOTONES EXCLUSIVOS DE PORCENTAJE RÁPIDO (ESTILO TERMINAL PROFESIONAL) */}
+                      {/* BOTONES EXCLUSIVOS DE PORCENTAJE RÁPIDO (ESTILO TERMINAL PROFESIONAL) */}
                 <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
                   {[25, 50, 75, 100].map((pct) => (
                     <button
@@ -2145,7 +2145,7 @@ useEffect(() => {
           
           {/* REGLA DE SEGURIDAD COMERCIAL OBLIGATORIA */}
           <div style={{ borderTop: "1px solid rgba(240, 185, 11, 0.2)", paddingTop: 6, marginTop: 4, fontSize: 11, color: "#848e9c", textAlign: "center", lineHeight: "1.3" }}>
-            ⚠️ <b>Condición:</b> Válido únicamente presentando este anuncio digital y aplicando para una <b>compra mínima de 50 zł</b> en el local. Limitado a 1 cupón por mesa/visita.
+            ⚠️ <b>Condición:</b> Válido únicamente presentando este anuncio digital y applying para una <b>compra mínima de 50 zł</b> en el local. Limitado a 1 cupón por mesa/visita.
           </div>
         </div>
 
@@ -2210,4 +2210,4 @@ useEffect(() => {
       )}
     </div>
   );
-}
+} // Fin definitivo y exacto del componente App y cierre de tu archivo src/App.jsx
