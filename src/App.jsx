@@ -74,75 +74,75 @@ const TOKENS = [
   {
     symbol: "RC.PL",
     decimals: 18, 
-    tradingViewSymbol: "UNISWAP:WLDUSDC", // Ticker de simulación técnica
+    tradingViewSymbol: "UNISWAP:WLDUSDC",
     addresses: {
-      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",   // World Chain Mainnet
-      4801: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",  // World Chain Sepolia Testnet
-    },
+      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",
+      4801: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8"
+    }
   },
   {
     symbol: "WLD",
     decimals: 18,
-    tradingViewSymbol: "BINANCE:WLDUSDT", // Gráfica de velas en tiempo real
+    tradingViewSymbol: "BINANCE:WLDUSDT",
     addresses: {
-      480: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",   // World Chain Mainnet
-      10: "0xdC6fF44d5d932CBD77b52E5612Ba0529DC6226F1",    // Optimism Mainnet
-      1: "0x163f8C2467924be0ae7B5347228CABF260318753",     // Ethereum Mainnet
-      4801: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",  // World Chain Sepolia
-    },
+      480: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
+      10: "0xdC6fF44d5d932CBD77b52E5612Ba0529DC6226F1",
+      1: "0x163f8C2467924be0ae7B5347228CABF260318753",
+      4801: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003"
+    }
   },
   {
     symbol: "USDC",
     decimals: 6,
     tradingViewSymbol: "CRYPTO:USDCUSD",
     addresses: {
-      480: "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1",   // World Chain Mainnet
-      10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",    // Optimism Mainnet
-      1: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",     // Ethereum Mainnet
-      4801: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",  // World Chain Sepolia Testnet
-    },
+      480: "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1",
+      10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      1: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      4801: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88"
+    }
   },
   {
     symbol: "USDT",
     decimals: 6,
     tradingViewSymbol: "CRYPTO:USDTUSD",
     addresses: {
-      1: "0xdAC17F958D2ee523a2206206994597C13D831ec7",     // Ethereum Mainnet
-      10: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",    // Optimism Mainnet
-    },
+      1: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      10: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58"
+    }
   },
   {
-    symbol: "pufETH", // ⚡ INTEGRACIÓN: Token de Puffer Finance / Puf en World Chain
+    symbol: "pufETH",
     decimals: 18,
     tradingViewSymbol: "UNISWAP:PUFETHWETH",
     addresses: {
-      480: "0x4E352cF164E64Cca47f487e6616035f49eE46E6c",   // Dirección del contrato oficial
-    },
+      480: "0x4E352cF164E64Cca47f487e6616035f49eE46E6c"
+    }
   },
   {
-    symbol: "ANI", // ⚡ INTEGRACIÓN: Token oficial de AniWallet en World Chain
+    symbol: "ANI",
     decimals: 18,
     tradingViewSymbol: "MEXC:ANIUSDT",
     addresses: {
-      480: "0x6BcFEbFF53A37053Df3407e3E4CDCD60831631FF",   // Dirección de contrato de simulación/red real de Mini App
-    },
+      480: "0x6BcFEbFF53A37053Df3407e3E4CDCD60831631FF"
+    }
   },
   {
     symbol: "WBTC",
     decimals: 8,
-    tradingViewSymbol: "BINANCE:BTCUSDT", // Visualización de la gráfica de Bitcoin
+    tradingViewSymbol: "BINANCE:BTCUSDT",
     addresses: {
-      480: "0x03C7054bcb39f7b2e5B2c7AcB37583e32D70Cfa3",   // Contrato Oficial de Bitcoin envuelto en World Chain
-    },
+      480: "0x03C7054bcb39f7b2e5B2c7AcB37583e32D70Cfa3"
+    }
   },
   {
     symbol: "WETH",
     decimals: 18,
-    tradingViewSymbol: "BINANCE:ETHUSDT", // Visualización de la gráfica de Ethereum
+    tradingViewSymbol: "BINANCE:ETHUSDT",
     addresses: {
-      480: "0x4200000000000000000000000000000000000006",   // Contrato Oficial de Ethereum envuelto en World Chain
-    },
-  },
+      480: "0x4200000000000000000000000000000000000006"
+    }
+  }
 ];
 // ========================================================================
 // ABI DEFINITIVO (MÁXIMA ROBUSTEZ Y SINTAXIS UNIFICADA COMPATIBLE CON V3)
