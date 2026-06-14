@@ -1538,10 +1538,9 @@ useEffect(() => {
                 🔄 Convertir / Swap
               </div>
             </div>
-
             {/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
-              <div style={{ display: "flex", gap: 8, Alignment: "center", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 {["1s", "1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"].map((interval) => (
                   <span
                     key={interval}
@@ -1570,8 +1569,7 @@ useEffect(() => {
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
               </span>
             </div>
-
-            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA) */}
+            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
             <div 
               style={{ 
                 width: "100%", 
@@ -1594,7 +1592,7 @@ useEffect(() => {
                   selectedToken?.symbol === "MADS" ? "UNISWAP:WLDUSDC" :
                   selectedToken?.symbol === "RCOL" ? "BINANCE:WLDUSDT" :
                   selectedToken?.symbol === "WBTC" ? "BINANCE:BTCUSDT" :
-                  selectedToken?.symbol === "WETH" ? "BINANCE:ETHUSDT" : "BINANCE:" + selectedToken?.symbol + "USDT"
+                  selectedToken?.symbol === "WETH" ? "BINANCE:ETHUSDT" : "BINANCE:" + (selectedToken?.symbol || "WLD") + "USDT"
                 ) + "&interval=" + (
                   chartInterval === "1s" ? "1" : 
                   chartInterval === "1m" ? "1" : 
@@ -1621,13 +1619,12 @@ useEffect(() => {
                 📊 Gráfica e Indicadores
               </div>
               <div 
-                onClick={() => { Redirection: tradeType === "SWAP"; setTradeType("SWAP"); }}
+                onClick={() => setTradeType("SWAP")}
                 style={{ flex: 1, padding: "8px 0", textAlign: "center", fontSize: 12, fontWeight: "bold", borderRadius: 8, color: tradeType === "SWAP" ? "#f0b90b" : "#848e9c", background: tradeType === "SWAP" ? "#2b3139" : "transparent", cursor: "pointer" }}
               >
                 🔄 Convertir / Swap
               </div>
             </div>
-
             {/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -1660,7 +1657,7 @@ useEffect(() => {
               </span>
             </div>
 
-                      {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
+            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
             <div 
               style={{ 
                 width: "100%", 
@@ -2104,7 +2101,7 @@ useEffect(() => {
       >
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
-           {/* ========================================================
+{/* ========================================================
          BANNER PUBLICITARIO PREMIUM: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
       <div
