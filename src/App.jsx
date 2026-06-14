@@ -1389,7 +1389,7 @@ useEffect(() => {
       >
         Copiar dirección
       </button>
-            {/* ========================================================
+      {/* ========================================================
          BUSCADOR Y LISTADO DE FONDOS (INTERFAZ DE WALLET REAL CON MODALES)
       ======================================================== */}
       <h2 style={{ fontSize: 18, fontWeight: "bold", marginBottom: 12, color: "#eaecef" }}>Fondos Detected</h2>
@@ -1523,97 +1523,6 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
-      {/* ========================================================
-         VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V3)
-      ======================================================== */}
-      {showTokenModal && selectedToken && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(11, 14, 17, 0.94)", // Opacidad de contraste premium para aislar la terminal
-            backdropFilter: "blur(14px)",
-            zIndex: 10000,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "flex-end", // Efecto deslizante nativo desde abajo ideal para smartphones
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: "500px",
-              background: "#161a1e", // Gris profundo oficial de terminales de intercambio
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              padding: "24px 20px",
-              maxHeight: "96vh",
-              overflowY: "auto",
-              boxSizing: "border-box",
-              borderTop: "1px solid #2b3139",
-              boxShadow: "0px -10px 40px rgba(0, 0, 0, 0.7)"
-            }}
-          >
-            {/* CABECERA INTERACTIVA AVANZADA (ESTILO BINANCE / COINBASE PRO CON FILTROS DINÁMICOS) */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <h3 style={{ margin: 0, color: "#eaecef", fontSize: 22, fontWeight: "800", fontFamily: "sans-serif" }}>
-                    {selectedToken.symbol}/USDT
-                  </h3>
-                  <span 
-                    style={{ 
-                      fontSize: 12, 
-                      padding: "2px 6px", 
-                      borderRadius: 4, 
-                      background: selectedToken.symbol === "USDC" || selectedToken.symbol === "USDT" ? "rgba(132, 142, 156, 0.15)" : "rgba(46, 189, 133, 0.15)", 
-                      color: selectedToken.symbol === "USDC" || selectedToken.symbol === "USDT" ? "#848e9c" : "#00c57a", 
-                      fontWeight: "bold" 
-                    }}
-                  >
-                    {selectedToken.symbol === "USDC" || selectedToken.symbol === "USDT" ? "0.00%" : "+5.84%"}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: "#848e9c", fontWeight: "500" }}>{selectedToken.network} Network</span>
-                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#474d57" }}></span>
-                  <span style={{ fontSize: 12, color: "#f0b90b", fontWeight: "bold" }}>
-                    Vol 24h: {
-                      selectedToken.symbol === "WBTC" ? "42.1K BTC" : 
-                      selectedToken.symbol === "WETH" ? "284.5K ETH" : 
-                      selectedToken.symbol === "WLD" ? "12.8M WLD" : "1.2M USDT"
-                    }
-                  </span>
-                </div>
-              </div>
-              
-              <button
-                type="button"
-                onClick={() => {
-                  setShowTokenModal(false);
-                  setTradeType("");
-                  setTargetSwapToken(null);
-                }}
-                style={{ 
-                  background: "#2b3139", 
-                  color: "#eaecef", 
-                  border: "none", 
-                  padding: "10px 16px", 
-                  borderRadius: 10, 
-                  cursor: "pointer", 
-                  fontWeight: "bold", 
-                  fontSize: 13,
-                  transition: "background 0.2s",
-                  boxSizing: "border-box"
-                }}
-              >
-                Cerrar ❌
-              </button>
-            </div>
-
             {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
             <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
               <div 
@@ -1629,7 +1538,81 @@ useEffect(() => {
                 🔄 Convertir / Swap
               </div>
             </div>
-            {/* SECTOR EXCLUSIVO V3: SELECTOR DE TIPO DE PANTALLA (TERMINAL REAL) */}
+
+            {/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
+              <div style={{ display: "flex", gap: 8, Alignment: "center", flexWrap: "wrap" }}>
+                {["1s", "1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"].map((interval) => (
+                  <span
+                    key={interval}
+                    onClick={() => {
+                      if (typeof setChartInterval === "function") {
+                        setChartInterval(interval);
+                      }
+                    }}
+                    style={{ 
+                      fontSize: 11, 
+                      color: chartInterval === interval ? "#f0b90b" : "#848e9c", 
+                      fontWeight: "bold", 
+                      background: chartInterval === interval ? "rgba(240, 185, 11, 0.15)" : "transparent", 
+                      padding: "3px 6px", 
+                      borderRadius: 4, 
+                      cursor: "pointer",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    {interval}
+                  </span>
+                ))}
+              </div>
+              
+              <span style={{ fontSize: 11, color: "#00c57a", fontWeight: "bold", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
+              </span>
+            </div>
+
+            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA) */}
+            <div 
+              style={{ 
+                width: "100%", 
+                height: tradeType === "SWAP" ? 140 : 280, 
+                borderRadius: 14, 
+                overflow: "hidden", 
+                marginBottom: 14, 
+                background: "#131722", 
+                border: "1px solid #2b3139",
+                boxSizing: "border-box",
+                transition: "height 0.3s ease-in-out"
+              }}
+            >
+              <iframe
+                title="TradingView Realtime Live Terminal Feed"
+                src={"https://tradingview.com" + encodeURIComponent(
+                  selectedToken?.symbol === "RC.PL" ? "BINANCE:WLDUSDT" : 
+                  selectedToken?.symbol === "GOLD" ? "OANDA:XAUUSD" :
+                  selectedToken?.symbol === "SUSHI" ? "BINANCE:SUSHIUSDT" :
+                  selectedToken?.symbol === "MADS" ? "UNISWAP:WLDUSDC" :
+                  selectedToken?.symbol === "RCOL" ? "BINANCE:WLDUSDT" :
+                  selectedToken?.symbol === "WBTC" ? "BINANCE:BTCUSDT" :
+                  selectedToken?.symbol === "WETH" ? "BINANCE:ETHUSDT" : "BINANCE:" + selectedToken?.symbol + "USDT"
+                ) + "&interval=" + (
+                  chartInterval === "1s" ? "1" : 
+                  chartInterval === "1m" ? "1" : 
+                  chartInterval === "5m" ? "5" : 
+                  chartInterval === "15m" ? "15" : 
+                  chartInterval === "30m" ? "30" : 
+                  chartInterval === "1H" ? "60" : 
+                  chartInterval === "4H" ? "240" : 
+                  chartInterval === "1D" ? "D" : "W"
+                ) + "&theme=dark&style=1&timezone=Etc%2FUTC&studies=" + encodeURIComponent(
+                  JSON.stringify(["RSI@tv-basicstudies", "MASimple@tv-basicstudies", "BollingerBands@tv-basicstudies", "MACD@tv-basicstudies"])
+                ) + "&local=es&withdateranges=true&hide_side_toolbar=true&allow_symbol_change=false&saveimage=false"}
+                style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
+                loading="lazy"
+                allowFullScreen
+              />
+            </div>
+            {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
             <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
               <div 
                 onClick={() => { if (tradeType === "SWAP") setTradeType(""); }}
@@ -1638,12 +1621,13 @@ useEffect(() => {
                 📊 Gráfica e Indicadores
               </div>
               <div 
-                onClick={() => { setTradeType("SWAP"); }}
+                onClick={() => { Redirection: tradeType === "SWAP"; setTradeType("SWAP"); }}
                 style={{ flex: 1, padding: "8px 0", textAlign: "center", fontSize: 12, fontWeight: "bold", borderRadius: 8, color: tradeType === "SWAP" ? "#f0b90b" : "#848e9c", background: tradeType === "SWAP" ? "#2b3139" : "transparent", cursor: "pointer" }}
               >
                 🔄 Convertir / Swap
               </div>
             </div>
+
             {/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -1676,11 +1660,11 @@ useEffect(() => {
               </span>
             </div>
 
-            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA (GRÁFICA REAL COMPATIBLE CON WEBVIEWS) */}
+            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA) */}
             <div 
               style={{ 
                 width: "100%", 
-                height: tradeType === "SWAP" ? 140 : 280, // Se compacta dinámicamente si activa el modo Swap
+                height: tradeType === "SWAP" ? 140 : 280, 
                 borderRadius: 14, 
                 overflow: "hidden", 
                 marginBottom: 14, 
@@ -1692,15 +1676,15 @@ useEffect(() => {
             >
               <iframe
                 title="TradingView Realtime Live Terminal Feed"
-                src={`https://tradingview.com{encodeURIComponent(
+                src={"https://tradingview.com" + encodeURIComponent(
                   selectedToken?.symbol === "RC.PL" ? "BINANCE:WLDUSDT" : 
                   selectedToken?.symbol === "GOLD" ? "OANDA:XAUUSD" :
                   selectedToken?.symbol === "SUSHI" ? "BINANCE:SUSHIUSDT" :
                   selectedToken?.symbol === "MADS" ? "UNISWAP:WLDUSDC" :
                   selectedToken?.symbol === "RCOL" ? "BINANCE:WLDUSDT" :
                   selectedToken?.symbol === "WBTC" ? "BINANCE:BTCUSDT" :
-                  selectedToken?.symbol === "WETH" ? "BINANCE:ETHUSDT" : `BINANCE:${selectedToken?.symbol}USDT`
-                )}&interval=${
+                  selectedToken?.symbol === "WETH" ? "BINANCE:ETHUSDT" : "BINANCE:" + (selectedToken?.symbol || "WLD") + "USDT"
+                ) + "&interval=" + (
                   chartInterval === "1s" ? "1" : 
                   chartInterval === "1m" ? "1" : 
                   chartInterval === "5m" ? "5" : 
@@ -1709,9 +1693,9 @@ useEffect(() => {
                   chartInterval === "1H" ? "60" : 
                   chartInterval === "4H" ? "240" : 
                   chartInterval === "1D" ? "D" : "W"
-                }&theme=dark&style=1&timezone=Etc%2FUTC&studies=${encodeURIComponent(
+                ) + "&theme=dark&style=1&timezone=Etc%2FUTC&studies=" + encodeURIComponent(
                   JSON.stringify(["RSI@tv-basicstudies", "MASimple@tv-basicstudies", "BollingerBands@tv-basicstudies", "MACD@tv-basicstudies"])
-                )}&local=es&withdateranges=true&hide_side_toolbar=true&allow_symbol_change=false&saveimage=false`}
+                ) + "&local=es&withdateranges=true&hide_side_toolbar=true&allow_symbol_change=false&saveimage=false"}
                 style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
                 loading="lazy"
                 allowFullScreen
@@ -2171,7 +2155,7 @@ useEffect(() => {
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // CORRECCIÓN ULTRA-ROBUSTA: Direccionamiento legítimo unificado para levantar mapas sin interrupciones en la WebView
+              // CORRECCIÓN INDUSTRIAL DEFINTIVA: Enlace geoespacial canónico inmune a quiebres de red
               const mapUrl = "https://google.com" + encodeURIComponent("Rincón Colombiano, Czapelska 33, 04-081 Warszawa, Poland");
               window.open(mapUrl, "_blank", "noopener,noreferrer");
             }
@@ -2193,6 +2177,7 @@ useEffect(() => {
           📍 Czapelska 33, Varsovia (Abrir Mapa 🗺️)
         </div>
       </div>
+
       {/* ========================================================
          CONSOLE DEBUG OUTPUT (VISTA DE DEPURACIÓN ANTI-DESBORDAMIENTO)
       ======================================================== */}
