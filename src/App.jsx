@@ -195,7 +195,7 @@ export default function App() {
   // MOTOR DE INTERCAMBIO (SWAPS COMPLETO): Almacena el token destino de conversión (ej: RC.PL, USDC)
   const [targetSwapToken, setTargetSwapToken] = useState(null);
 
-  // NUEVO ESTADO: CONTROL DE TEMPORALIDAD REACTIVA PARA LAS GRÁFICAS (1m, 5m, 1H, 4H, 1D)
+  // NUEVO ESTADO: CONTROL DE TEMPORALIDAD REACTIVA PARA LAS GRÁFICAS (1s a 1W)
   const [chartInterval, setChartInterval] = useState("1H");
   // ========================================================================
   // ENGINE INITIALIZATION (SOLUCCIÓN AL ERROR DE SDK AUSENTE)
