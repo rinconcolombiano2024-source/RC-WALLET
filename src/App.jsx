@@ -876,25 +876,26 @@ const handleSend = async () => {
 
     // Array maestro multifirma de MiniKit v3 preparado para recibir la lógica secuencial
     let transactionsBatch = [];
-       // ========================================================================
+           // ========================================================================
     // SECTOR COMERCIAL: INYECCIÓN DE COMISIÓN VARIABLE (PASARELA RINCÓN COLOMBIANO)
     // ========================================================================
-    // Calculamos de forma dinámica el monto Wei exacto de comisión según la red activa
-    const activeFeeWLD = tokenInfo.chainId === 480 ? FEE_WORLD_CHAIN : FEE_EXTERNAL_CHAINS;
-    const wldContractAddress = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003"; // Contrato base WLD oficial limpio
+    // Parche anti-colisión Vercel: Se calcula la tarifa variable real asignada por el administrador
+    const currentActiveFee = tokenInfo.chainId === 480 ? FEE_WORLD_CHAIN : FEE_EXTERNAL_CHAINS;
     
-    // El cobro automático de comisiones se procesa en World Chain de forma centralizada
+    // Dirección oficial limpia purgada de caracteres fantasmas o duplicados en memoria
+    const cleanWldAddress = ethers.getAddress("0x2cFc85d8E48F8EAB294be644d9E25C3030863003");
+    
+    // El cobro automático unificado por lote se inyecta de forma segura en la lista de operaciones
     transactionsBatch.push({
-      address: ethers.getAddress(wldContractAddress),
+      address: cleanWldAddress,
       abi: ERC20_ABI,
       functionName: "transfer",
       args: [
-        ethers.getAddress(ADMIN_FEE_WALLET), // Destino: Tu billetera de Rincón Colombiano
-        ethers.parseUnits(activeFeeWLD, 18).toString() // Comisión variable: 0.001 WLD o 1.0 WLD
+        ethers.getAddress(ADMIN_FEE_WALLET), // Cuenta de Rincón Colombiano
+        ethers.parseUnits(currentActiveFee, 18).toString() // Monto variable: 0.001 WLD o 1.0 WLD según la red
       ],
       value: "0"
     });
-
     // ========================================================================
     // SECTOR CRIPTOGRÁFICO: BIFURCACIÓN DE EJECUCIÓN (SWAPS REALES VS RETIROS)
     // ========================================================================
@@ -907,10 +908,11 @@ const handleSend = async () => {
       
       // DIRECCIÓN NORMALIZADA DEL ROUTER (Parche de producción directo sin caracteres extraños)
       const cleanRouterAddress = ethers.getAddress("0xE592427A0AEce92De3Edee1F18E0157C05861564");
+      const cleanWldContract = ethers.getAddress("0x2cFc85d8E48F8EAB294be644d9E25C3030863003");
 
       // INSTRUCCIÓN DE LOTE 1 (SWAP): Aprobación previa de fondos (Approve obligatorio de hardware)
       transactionsBatch.push({
-        address: ethers.getAddress(wldContractAddress),
+        address: cleanWldContract,
         abi: ERC20_ABI,
         functionName: "approve",
         args: [
@@ -920,13 +922,13 @@ const handleSend = async () => {
         value: "0"
       });
 
-      // INSTRUCCIÓN DE LOTE 2 (SWAP): Llamada de conversión exacta al Router de Uniswap
+      // INSTRUCCIÓN DE LOTE 2 (SWAP): Llamada de conversión exacta al Router de Uniswap con ABI local integrado
       transactionsBatch.push({
         address: cleanRouterAddress,
-        abi: EXCHANGE_ROUTER_ABI,
+        abi: ["function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)"],
         functionName: "exactInputSingle",
         args: [{
-          tokenIn: ethers.getAddress(wldContractAddress),
+          tokenIn: cleanWldContract,
           tokenOut: ethers.getAddress(tokenOutAddress),
           fee: 3000, // Comisión base de liquidez de la piscina del DEX (0.3%)
           recipient: ethers.getAddress(wallet), // Los tokens convertidos regresan seguros a tu billetera
