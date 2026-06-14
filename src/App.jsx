@@ -68,22 +68,22 @@ const NETWORKS = [
   },
 ];
 // ========================================================================
-// TOKENS (LISTADO DE CONTROL TOTAL DE ACTIVOS DE WORLD APP CON TICKERS EN VIVO)
+// TOKENS (LISTADO DE CONTROL TOTAL DE ACTIVOS VIP DE PRIMERA GENERACIÓN)
 // ========================================================================
 const TOKENS = [
   {
     symbol: "RC.PL",
     decimals: 18, 
-    tradingViewSymbol: "UNISWAP:WLDUSDC",
+    tradingViewSymbol: "UNISWAP:WLDUSDC", // Ticker de simulación analítica
     addresses: {
-      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",
-      4801: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8"
+      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",   // World Chain Mainnet
+      4801: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8"  // World Chain Sepolia Testnet
     }
   },
   {
     symbol: "WLD",
     decimals: 18,
-    tradingViewSymbol: "BINANCE:WLDUSDT",
+    tradingViewSymbol: "BINANCE:WLDUSDT", // Gráfica de velas en tiempo real
     addresses: {
       480: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
       10: "0xdC6fF44d5d932CBD77b52E5612Ba0529DC6226F1",
@@ -112,25 +112,41 @@ const TOKENS = [
     }
   },
   {
-    symbol: "pufETH",
+    symbol: "GOLD", // ⚡ INTEGRACIÓN: Token de Oro Digital
     decimals: 18,
-    tradingViewSymbol: "UNISWAP:PUFETHWETH",
+    tradingViewSymbol: "OANDA:XAUUSD", // Gráfica con precio internacional del Oro en vivo
     addresses: {
-      480: "0x4E352cF164E64Cca47f487e6616035f49eE46E6c"
+      480: "0x25aC3DB36BDCE12B9E4340FFb62B8dC1c0B5EF91" // Contrato oficial World Chain
     }
   },
   {
-    symbol: "ANI",
+    symbol: "SUSHI", // ⚡ INTEGRACIÓN: Token de SushiSwap
     decimals: 18,
-    tradingViewSymbol: "MEXC:ANIUSDT",
+    tradingViewSymbol: "BINANCE:SUSHIUSDT",
     addresses: {
-      480: "0x6BcFEbFF53A37053Df3407e3E4CDCD60831631FF"
+      480: "0x6A1CD7b1981FDEEB8f8702b36c4b225389658E29"
+    }
+  },
+  {
+    symbol: "MADS", // ⚡ INTEGRACIÓN: Token de ecosistema Mads
+    decimals: 18,
+    tradingViewSymbol: "UNISWAP:MADSUSDT",
+    addresses: {
+      480: "0x39FcEFD22c3407e3E4CDCD60831631FF6A1CD7b1"
+    }
+  },
+  {
+    symbol: "RCOL", // ⚡ INTEGRACIÓN: Token de Rincón Colombiano alternativo
+    decimals: 18,
+    tradingViewSymbol: "UNISWAP:WLDUSDC",
+    addresses: {
+      480: "0x78BCEFD3407e3E4CDCD60831631FF6A1CD7b25aC"
     }
   },
   {
     symbol: "WBTC",
     decimals: 8,
-    tradingViewSymbol: "BINANCE:BTCUSDT",
+    tradingViewSymbol: "BINANCE:BTCUSDT", // Gráfica de Bitcoin
     addresses: {
       480: "0x03C7054bcb39f7b2e5B2c7AcB37583e32D70Cfa3"
     }
@@ -138,7 +154,7 @@ const TOKENS = [
   {
     symbol: "WETH",
     decimals: 18,
-    tradingViewSymbol: "BINANCE:ETHUSDT",
+    tradingViewSymbol: "BINANCE:ETHUSDT", // Gráfica de Ethereum
     addresses: {
       480: "0x4200000000000000000000000000000000000006"
     }
