@@ -225,7 +225,7 @@ export default function App() {
     "function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)"
   ];
 
-  // ========================================================================
+   // ========================================================================
   // FUNCIONES UTILITARIAS DE RED (COMPACTAS, BLINDADAS Y EN ÁMBITO CORRECTO)
   // ========================================================================
 
@@ -273,6 +273,12 @@ export default function App() {
           const balance = await contract.balanceOf(address);
 
           if (balance && balance > 0n) {
+            // INDEXACIÓN DE SYMBOLS COMPATIBLES CON STREAM DE WEBSOCKETS EN TIEMPO REAL REAL
+            let streamTicker = `${token.symbol.toLowerCase()}usdt`;
+            if (token.symbol === "RC.PL") streamTicker = "wldusdt"; // Par espejo para simulación reactiva local
+            if (token.symbol === "WBTC") streamTicker = "btcusdt";
+            if (token.symbol === "WETH") streamTicker = "ethusdt";
+
             return {
               symbol: token.symbol,
               balance: ethers.formatUnits(balance, token.decimals),
@@ -280,8 +286,8 @@ export default function App() {
               address: tokenAddress,
               chainId,
               network: network.name,
-              // ENLACE DIRECTO DE VELAS: Pasa el símbolo correcto a la ventana modal
-              tradingViewSymbol: token.tradingViewSymbol || "BINANCE:WLDUSDT"
+              tradingViewSymbol: token.tradingViewSymbol || "BINANCE:WLDUSDT",
+              binanceStreamSymbol: streamTicker // Alimenta el motor de datos en vivo tipo Binance
             };
           }
         } catch (tokenErr) {
@@ -347,7 +353,7 @@ export default function App() {
       return 0;
     }
   };
-  // ========================================================================
+ // ========================================================================
   // VALIDATOR ENGINE: VERIFICACIÓN DEFENSIVA DE PRUEBAS DE PROTOCOLO WORLD ID
   // ========================================================================
   const verifyWorldIDProof = async (proofResponse) => {
