@@ -140,7 +140,7 @@ const ERC20_ABI = [
 ];
 
 // ========================================================================
-// APP (ESTADOS DE ALTA ROBUSTEZ Y PASARELA DE COMISIONES VARIABLES)
+// APP (ESTADOS DE ALTA ROBUSTEZ Y PASARELA DE COMISIONES PORCENTUALES)
 // ========================================================================
 export default function App() {
   const mountedRef = useRef(true);
@@ -149,9 +149,12 @@ export default function App() {
   // CONFIGURACIÓN COMERCIAL ASIGNADA - RINCÓN COLOMBIANO
   const ADMIN_FEE_WALLET = "0x9160fD9755E1e4DA3c2DB047d21105eDc9452Fef"; 
   
-  // NUEVAS TARIFAS ESTRATÉGICAS ASIGNADAS POR EL ADMINISTRADOR
-  const FEE_WORLD_CHAIN = "0.001";    // Tarifa ultra-accesible de adopción masiva para World Chain
-  const FEE_EXTERNAL_CHAINS = "1.0"; // Tarifa premium de alta ganancia para Optimism, Base, BNB, Ethereum
+  // NUEVO MODELO DE TARIFAS PORCENTUALES DINÁMICAS (ESTRATEGIA RC.PL ALTA DEMANDA)
+  const FEE_GENERIC_TOKENS_PCT = 0.02; // 2% de comisión para activos estándar de World App (WLD, USDC, etc.)
+  const FEE_RC_PL_TOKEN_PCT = 0.001;  // 0.1% de comisión súper reducida si la transacción usa tu activo RC.PL
+
+  // TARIFAS DE RESPALDO MULTICADENA PARA GAS/GAS FEE EN MONEDAS NATIVAS EXTERNAS
+  const FEE_EXTERNAL_CHAINS = "1.0"; // Tarifa premium en WLD fija si se rescatan fondos nativos externos
 
   // Estados de control de la billetera y UI
   const [status, setStatus] = useState("Inicializando RC Wallet...");
@@ -191,6 +194,9 @@ export default function App() {
 
   // MOTOR DE INTERCAMBIO (SWAPS COMPLETO): Almacena el token destino de conversión (ej: RC.PL, USDC)
   const [targetSwapToken, setTargetSwapToken] = useState(null);
+
+  // NUEVO ESTADO: CONTROL DE TEMPORALIDAD REACTIVA PARA LAS GRÁFICAS (1m, 5m, 1H, 4H, 1D)
+  const [chartInterval, setChartInterval] = useState("1H");
   // ========================================================================
   // ENGINE INITIALIZATION (SOLUCCIÓN AL ERROR DE SDK AUSENTE)
   // ========================================================================
