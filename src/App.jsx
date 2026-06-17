@@ -1005,7 +1005,7 @@ const handleSend = async () => {
     const activeFeeSymbol = feeSymbol;
     const activeFeeDecimals = feeDecimals;
     
-       // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
+    // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
     let transactionsBatch = [];
 
     // ========================================================================
