@@ -252,6 +252,12 @@ export default function App() {
 
   // NUEVO ESTADO: CONTROL DE TEMPORALIDAD REACTIVA PARA LAS GRÁFICAS (1s a 1W)
   const [chartInterval, setChartInterval] = useState("1H");
+
+    // CONTROL DE MODALES DE SEGURIDAD Y ÉXITO TRANSACCIONAL (V5 SECURITY PACK)
+  const [showConfirmModal, setShowConfirmModal] = useState(false); // Controla el modal de confirmación con World ID
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // Controla la pantalla de éxito definitivo
+  const [successDetails, setSuccessDetails] = useState({ title: "", description: "" }); // Guarda los textos del éxito
+
   // ========================================================================
   // ENGINE INITIALIZATION (SOLUCCIÓN AL ERROR DE SDK AUSENTE)
   // ========================================================================
@@ -2107,11 +2113,18 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Botón de Despacho de Retiro Fijo */}
+      {/* Botón de Despacho de Retiro Fijo (MODIFICADO CON INTERCEPTOR DE SEGURIDAD) */}
       <button
         type="button"
         disabled={sending || !selectedToken || Array.isArray(selectedToken) || !recipient || !sendAmount}
-        onClick={handleSend}
+        onClick={() => {
+          if (!recipient || !sendAmount || !selectedToken) {
+            setStatus("Por favor, completa todos los campos obligatorios");
+            return;
+          }
+          // Activa el interruptor para despertar la ventana de verificación biométrica con World ID
+          setShowConfirmModal(true); 
+        }}
         style={{
           width: "100%",
           padding: 14,
@@ -2128,7 +2141,157 @@ useEffect(() => {
       >
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
+      {/* ========================================================
+               MODAL 1: SEGURIDAD BIOMÉTRICA DE CONFIRMACIÓN (WORLD ID GUARD)
+          ======================================================== */}
+      {showConfirmModal && selectedToken && (
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+            background: "rgba(11, 14, 17, 0.96)", backdropFilter: "blur(12px)",
+            zIndex: 11000, display: "flex", justifyContent: "center", alignItems: "center",
+            padding: 20, boxSizing: "border-box"
+          }}
+        >
+          <div
+            style={{
+              width: "100%", maxWidth: "420px", background: "#161a1e",
+              borderRadius: 24, padding: 24, border: "1px solid #2b3139",
+              boxShadow: "0px 10px 40px rgba(0,0,0,0.6)", boxSizing: "border-box"
+            }}
+          >
+            <h3 style={{ margin: "0 0 10px 0", color: "#fff", textAlign: "center", fontSize: 18, fontWeight: "bold" }}>
+              🔒 Confirmar Operación
+            </h3>
+            <p style={{ margin: "0 0 20px 0", color: "#848e9c", textAlign: "center", fontSize: 12 }}>
+              Verifica los datos antes de firmar con tu World ID
+            </p>
 
+            {/* Ficha Resumen de Lote */}
+            <div style={{ background: "#0b0e11", padding: 16, borderRadius: 16, marginBottom: 20, border: "1px solid #2b3139" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
+                <span style={{ color: "#848e9c" }}>Acción:</span>
+                <span style={{ color: "#38bdf8", fontWeight: "bold" }}>{tradeType || "TRANSFERENCIA"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
+                <span style={{ color: "#848e9c" }}>Cantidad:</span>
+                <span style={{ color: "#fff", fontWeight: "bold" }}>{sendAmount} {selectedToken.symbol}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
+                <span style={{ color: "#848e9c" }}>Red EVM:</span>
+                <span style={{ color: "#eaecef" }}>{selectedToken.network}</span>
+              </div>
+              <div style={{ borderTop: "1px solid #2b3139", paddingTop: 8, marginTop: 4 }}>
+                <span style={{ display: "block", color: "#848e9c", fontSize: 11, marginBottom: 4 }}>Destino:</span>
+                <span style={{ block: "block", color: "#00c57a", fontSize: 12, wordBreak: "break-all", fontFamily: "monospace" }}>
+                  {recipient}
+                </span>
+              </div>
+            </div>
+
+            {/* Acciones del Modal de Seguridad */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowConfirmModal(false); // Cierra la confirmación visual
+                  
+                  // Invoca la función transaccional maestra que procesa los lotes criptográficos
+                  await handleSend(); 
+                  
+                  // DISPARADOR AUTOMÁTICO DE ÉXITO: Configuramos los textos reactivos para la pantalla final
+                  setSuccessDetails({
+                    title: "¡Transacción Enviada! 🚀",
+                    description: `Tu solicitud para procesar ${sendAmount} ${selectedToken.symbol} ha sido despachada con éxito al Relay de la red.`
+                  });
+                  setShowSuccessModal(true); // Despierta la ventana emergente de éxito definitivo
+                }}
+                style={{
+                  width: "100%", padding: 14, borderRadius: 12, border: "none",
+                  background: "#00c57a", color: "#fff", fontWeight: "bold", fontSize: 15,
+                  cursor: "pointer", boxShadow: "0px 4px 15px rgba(0, 197, 122, 0.2)"
+                }}
+              >
+                👁️ Firmar y Verificar con World ID
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                style={{
+                  width: "100%", padding: 12, borderRadius: 12, border: "1px solid #2b3139",
+                  background: "transparent", color: "#848e9c", fontWeight: "bold", fontSize: 14,
+                  cursor: "pointer"
+                }}
+              >
+                Cancelar Operación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ========================================================
+               MODAL 2: PANTALLA DE ÉXITO DEFINITIVO (SUCCESS SCREEN)
+          ======================================================== */}
+      {showSuccessModal && (
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+            background: "rgba(11, 14, 17, 0.97)", backdropFilter: "blur(16px)",
+            zIndex: 12000, display: "flex", justifyContent: "center", alignItems: "center",
+            padding: 20, boxSizing: "border-box"
+          }}
+        >
+          <div
+            style={{
+              width: "100%", maxWidth: "400px", background: "#161a1e",
+              borderRadius: 28, padding: 30, border: "2px solid #00c57a",
+              textAlign: "center", boxShadow: "0px 15px 50px rgba(0, 197, 122, 0.15)",
+              boxSizing: "border-box"
+            }}
+          >
+            {/* Ícono de Check Animado estilo Ecosistema DeFi Pro */}
+            <div
+              style={{
+                width: 72, height: 72, borderRadius: "50%", background: "rgba(0, 197, 122, 0.1)",
+                border: "3px solid #00c57a", display: "flex", justifyContent: "center",
+                alignItems: "center", margin: "0 auto 20px auto",
+                boxShadow: "0 0 20px rgba(0, 197, 122, 0.3)"
+              }}
+            >
+              <span style={{ color: "#00c57a", fontSize: 36, fontWeight: "bold" }}>✓</span>
+            </div>
+
+            <h3 style={{ margin: "0 0 12px 0", color: "#fff", fontSize: 22, fontWeight: "800" }}>
+              {successDetails.title}
+            </h3>
+            
+            <p style={{ margin: "0 0 24px 0", color: "#848e9c", fontSize: 13, lineHeight: "1.5" }}>
+              {successDetails.description}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowSuccessModal(false); // Cierra la pantalla de éxito
+                // Limpia los campos principales para dejar lista la interfaz
+                setSendAmount("");
+                setTradeAmount("");
+                setRecipient("");
+              }}
+              style={{
+                width: "100%", padding: 14, borderRadius: 12, border: "none",
+                background: "#2563eb", color: "#fff", fontWeight: "bold", fontSize: 15,
+                cursor: "pointer", transition: "background 0.2s"
+              }}
+            >
+              Entendido / Volver a la Wallet ➔
+            </button>
+          </div>
+        </div>
+      )}
+
+      
 {/* ========================================================
          BANNER PUBLICITARIO PREMIUM: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
