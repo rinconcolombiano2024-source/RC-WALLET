@@ -1714,11 +1714,11 @@ useEffect(() => {
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
               </span>
             </div> 
-                        {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA (MOTOR DEXSCREENER ESTILO PUF MINI-APP) */}
+                                   {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA (MOTOR DEXSCREENER ESTILO PUF MINI-APP REPARADO V5) */}
             <div 
               style={{ 
                 width: "100%", 
-                height: tradeType === "SWAP" ? 150 : 300, 
+                height: tradeType === "SWAP" ? 140 : 280, 
                 borderRadius: 14, 
                 overflow: "hidden", 
                 marginBottom: 14, 
@@ -1731,8 +1731,8 @@ useEffect(() => {
               <iframe
                 title="DexScreener Realtime Live Terminal Feed"
                 src={"https://dexscreener.com" + (
-                  // PARSEO LOGÍSTICO COMPATIBLE CON WORLD CHAIN, OPTIMISM Y BASE (IGUAL QUE PUF)
-                  selectedToken?.symbol === "RC.PL" ? "worldchain/0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8" : // Tu contrato real en World Chain
+                  // DIRECCIÓN EXACTA DE LA CADENA Y EL CONTRATO DEL ACTIVO PARA EL EMBAJADOR DE GRÁFICAS
+                  selectedToken?.symbol === "RC.PL" ? "worldchain/0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8" : 
                   selectedToken?.symbol === "WLD" ? "worldchain/0x2cFc85d8E48F8EAB294be644d9E25C3030863003" : 
                   selectedToken?.symbol === "USDC" ? "worldchain/0x79A02482A880bCE3F13e09Da970dC34db4CD24d1" :
                   selectedToken?.symbol === "WETH" ? "worldchain/0x4200000000000000000000000000000000000006" :
@@ -1740,15 +1740,14 @@ useEffect(() => {
                   selectedToken?.symbol === "MADS" ? "worldchain/0x39FcEFD22c3407e3E4CDCD60831631FF6A1CD7b1" :
                   selectedToken?.symbol === "RCOL" ? "worldchain/0x78BCEFD3407e3E4CDCD60831631FF6A1CD7b25aC" :
                   selectedToken?.symbol === "SUSHI" ? "optimism/0x6A1CD7b1981FDEEB8f8702b36c4b225389658E29" :
-                  "worldchain/0x2cFc85d8E48F8EAB294be644d9E25C3030863003" // Fallback seguro a WLD
+                  "worldchain/0x2cFc85d8E48F8EAB294be644d9E25C3030863003" // Fallback indestructible
                 ) + "?embed=1&theme=dark&trades=0&info=0"}
                 style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
-                loading="eager" // Despacho inmediato de WebSockets de liquidez en tiempo real
+                loading="eager" // Ejecuta la descarga analítica de inmediato
                 allowFullScreen
               />
             </div>
-       
-            
+
             {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO INDUSTRIAL REFORZADO DE 4 VÍAS) */}
             <div style={{ display: "flex", gap: 8, marginTop: 14, marginBottom: 16, flexWrap: "wrap" }}>
               <button
