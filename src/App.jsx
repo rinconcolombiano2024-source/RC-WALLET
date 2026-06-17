@@ -2167,7 +2167,7 @@ useEffect(() => {
           onClick={() => {
             if (typeof window !== "undefined") {
               // ENLACE DIRECTO COMPARTIDO POR EL DUEÑO: ABRE TU PERFIL COMERCIAL EN GOOGLE MAPS SIN COMPLICACIONES NI ERRORES DE DNS
-              const officialProfileUrl = "https://share.google/lNExE1BGt9KQ8M4tB";
+              const officialProfileUrl = "https://maps.app.goo.gl/ruqCispFFdGhK7nKA";
               window.open(officialProfileUrl, "_blank", "noopener,noreferrer");
             }
           }}
@@ -2185,7 +2185,7 @@ useEffect(() => {
             transition: "transform 0.2s ease"
           }}
         >
-          📍 ul. Czapelska 24, Varsovia (Abrir Google Maps 🗺️)
+          📍 ul. Czapelska 33, Varsovia (Abrir Google Maps 🗺️)
         </div>
       </div>
 
