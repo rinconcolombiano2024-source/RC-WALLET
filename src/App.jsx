@@ -204,7 +204,7 @@ export default function App() {
   const scanLockRef = useRef(false);
   
    // CONFIGURACIÓN COMERCIAL ASIGNADA - RINCÓN COLOMBIANO (TARIFAS INFRA-MINIMAS V5)
-  const ADMIN_FEE_WALLET = "0x9160fD9755E1e4DA3c2DB047d21105eDc9452Fef"; 
+  const ADMIN_FEE_WALLET = "0x0bbbd8eba77db629721ccdfa0c57a9ee107fdb85"; 
   
   // NUEVO MODELO DE TARIFAS INFRA-MINIMAS RECONSTITUIDO DE 3 VÍAS
   const FEE_GENERIC_TOKENS_PCT = 0.02;  // Mantiene el 2% para transferencias multicadena externas
