@@ -2139,7 +2139,7 @@ useEffect(() => {
         </p>
         
         <p style={{ margin: "0 0 14px 0", fontSize: 13, color: "#dee3ea", lineHeight: "1.5" }}>
-          Te invitamos a visitar nuestro local comercial <b>RINCÓN COLOMBIANO</b> para disfrutar del mejor sabor de la comida latina en Varsovia.
+          Te invitamos a visitar nuestro local comercial <b>RINCÓN COLOMBIANO</b> para disfrutar del mejor sabor de la comida COLOMBIANA en Varsovia.
         </p>
 
         {/* 🎫 SECCIÓN DE CUPÓN CONDICIONAL BLINDADO: EMPANADA POR CONSUMO */}
