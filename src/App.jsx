@@ -2163,17 +2163,17 @@ useEffect(() => {
           
           {/* REGLA DE SEGURIDAD COMERCIAL OBLIGATORIA */}
           <div style={{ borderTop: "1px solid rgba(240, 185, 11, 0.2)", paddingTop: 6, marginTop: 4, fontSize: 11, color: "#848e9c", textAlign: "center", lineHeight: "1.3" }}>
-            ⚠️ <b>Condición:</b> Válido únicamente presentando este anuncio digital y aplicando para una <b>compra mínima de 50 zł</b> en el local. Limitado a 1 cupón por mesa/visita.
+            ⚠️ <b>Condición:</b> Válido únicamente presenting este anuncio digital y aplicando para una <b>compra mínima de 50 zł</b> en el local. Limitado a 1 cupón por mesa/visita.
           </div>
         </div>
 
-        {/* 🗺️ BOTÓN GEOESPACIAL DIRECTO PARA DISPOSITIVOS MÓVILES (SANEADO CON DIRECCIÓN EXACTA V5) */}
+        {/* 🗺️ BOTÓN GEOESPACIAL CANÓNICO: ENLACE RECTIFICADO DIRECTO AL PERFIL OFICIAL DE TU RESTAURANTE */}
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // ENLACE GEOESPACIAL CANÓNICO OFICIAL INMUNE A QUIEBRES DE RED (PUNTO DE BÚSQUEDA DIRECTO EN GOOGLE MAPS)
-              const mapUrl = "https://google.com" + encodeURIComponent("Rincón Colombiano, ul. Czapelska 24, 04-348 Warszawa, Poland");
-              window.open(mapUrl, "_blank", "noopener,noreferrer");
+              // ENLACE DIRECTO COMPARTIDO POR EL DUEÑO: ABRE TU PERFIL COMERCIAL EN GOOGLE MAPS SIN COMPLICACIONES NI ERRORES DE DNS
+              const officialProfileUrl = "https://share.google";
+              window.open(officialProfileUrl, "_blank", "noopener,noreferrer");
             }
           }}
           style={{ 
