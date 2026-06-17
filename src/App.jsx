@@ -1713,9 +1713,7 @@ useEffect(() => {
               <span style={{ fontSize: 11, color: "#00c57a", fontWeight: "bold", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
               </span>
-            </div>
-
-            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO DE ERROR 1702 (CONCATENACIÓN PURA RECTIFICADA) */}
+            </div>            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO (TRANSMISIÓN EN TIEMPO REAL ACTIVA) */}
             <div 
               style={{ 
                 width: "100%", 
@@ -1731,7 +1729,7 @@ useEffect(() => {
             >
               <iframe
                 title="TradingView Realtime Live Terminal Feed"
-                src={"https://tradingview.com" + encodeURIComponent(
+                src={"https://tradingview.com" + (
                   selectedToken?.symbol === "RC.PL" ? "BINANCE:WLDUSDT" : 
                   selectedToken?.symbol === "GOLD" ? "OANDA:XAUUSD" :
                   selectedToken?.symbol === "SUSHI" ? "BINANCE:SUSHIUSDT" :
@@ -1750,12 +1748,13 @@ useEffect(() => {
                   chartInterval === "1D" ? "D" : "W"
                 ) + "&theme=dark&style=1&timezone=Etc%2FUTC&studies=" + encodeURIComponent(
                   JSON.stringify(["RSI@tv-basicstudies", "MASimple@tv-basicstudies", "BollingerBands@tv-basicstudies", "MACD@tv-basicstudies"])
-                ) + "&local=es&withdateranges=true&hide_side_toolbar=true&allow_symbol_change=false&saveimage=false"}
+                ) + "&local=es&withdateranges=true&hide_side_toolbar=true&allow_symbol_change=false&saveimage=false&publish_source=mobile_webview"}
                 style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
-                loading="lazy"
+                loading="eager" // Carga inmediata de flujos de WebSocket en el smartphone
                 allowFullScreen
               />
             </div>
+
             {/* ========================================================
                SECTOR ULTRA PROFESIONAL: SELECTOR INTERACTIVO DE TOKEN DESTINO (SOLO EN MODO SWAP)
             ======================================================== */}
