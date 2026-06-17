@@ -1004,8 +1004,7 @@ const handleSend = async () => {
     const activeFeeAmount = finalFeeAmount;
     const activeFeeSymbol = feeSymbol;
     const activeFeeDecimals = feeDecimals;
-    
-    // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
+        // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
     let transactionsBatch = [];
 
     // ========================================================================
@@ -1141,7 +1140,9 @@ const handleSend = async () => {
       }
     }
   }; // Cierre exacto, simétrico y definitivo de la función handleSend
-// ========================================================================
+
+  
+  // ========================================================================
 // INIT / AUTO RECONNECT (CORRECCIÓN INTEGRAL COMPLETA: ANTI-BUCLE INFINITO)
 // ========================================================================
 useEffect(() => {
