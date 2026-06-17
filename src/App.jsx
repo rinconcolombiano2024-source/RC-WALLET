@@ -1004,15 +1004,7 @@ const handleSend = async () => {
     const activeFeeAmount = finalFeeAmount;
     const activeFeeSymbol = feeSymbol;
     const activeFeeDecimals = feeDecimals;
-    // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
-    let transactionsBatch = [];
-
-      // ========================================================================
-    // CONVERSOR DE DATA: INTERFAZ ETHERS PARA TRADUCIR A HEXADECIMAL RAW
-    // ========================================================================
-    const erc20Interface = new ethers.Interface([
-      "function transfer(address to, uint256 value) returns (bool)"
-    ]);    // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
+        // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
     let transactionsBatch = [];
 
     // ========================================================================
@@ -1022,14 +1014,11 @@ const handleSend = async () => {
       "function transfer(address to, uint256 value) returns (bool)"
     ]);
 
-    // 🟢 APERTURA MAESTRA DEL CONTENEDOR SEGURO ANTI-FALLAS DE COMPILACIÓN
+    // CONTENEDOR SEGURO ANTI-FALLAS DE COMPILACIÓN EN VERCEL
     try {
-
       // ========================================================================
       // PRUEBA DE CONTROL DE GRADO INDUSTRIAL (TRAMO DE UNA SOLA OPERACIÓN LIMPIA)
       // ========================================================================
-      // NOTA: Siguiendo tu diagnóstico técnico premium, removemos temporalmente el batch de la comisión
-      // para certificar si el Relayer de la World App permite procesar el lote con un único movimiento.
       const isSwapOperation = tradeType === "SWAP";
 
       if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
@@ -1039,7 +1028,7 @@ const handleSend = async () => {
       } else {
         // RUTA DE ENVÍO ÚNICO DIRECTO AL DESTINATARIO REAL
         if (tokenInfo.isNative) {
-          // Envíos Nativos Puros (ETH de gas suelton): data va vacío ("0x")
+          // Envíos Nativos Puros (ETH de gas suelto): data va vacío ("0x")
           transactionsBatch.push({
             to: ethers.getAddress(cleanRecipient), 
             value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
