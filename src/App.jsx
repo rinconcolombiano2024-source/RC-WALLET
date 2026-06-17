@@ -203,13 +203,13 @@ export default function App() {
   const mountedRef = useRef(true);
   const scanLockRef = useRef(false);
   
-   // CONFIGURACIÓN COMERCIAL ASIGNADA - RINCÓN COLOMBIANO (TARIFAS HIPER-REDUCIDAS)
+   // CONFIGURACIÓN COMERCIAL ASIGNADA - RINCÓN COLOMBIANO (TARIFAS INFRA-MINIMAS V5)
   const ADMIN_FEE_WALLET = "0x9160fD9755E1e4DA3c2DB047d21105eDc9452Fef"; 
   
-  // NUEVO MODELO DE TARIFAS REDUCIDAS RECONSTITUIDO DE 3 VÍAS V4
-  const FEE_GENERIC_TOKENS_PCT = 0.02;  // 2% de comisión para transferencias multicadena externas
-  const FEE_WORLD_CHAIN_GENERIC_PCT = 0.000000001; // 0.0000001% de comisión para tokens estándar dentro de World Chain
-  const FEE_RC_PL_TOKEN_PCT = 0.0000000001;  // 0.00000001% de comisión VIP exclusiva para tu activo RC.PL
+  // NUEVO MODELO DE TARIFAS INFRA-MINIMAS RECONSTITUIDO DE 3 VÍAS
+  const FEE_GENERIC_TOKENS_PCT = 0.02;  // Mantiene el 2% para transferencias multicadena externas
+  const FEE_WORLD_CHAIN_GENERIC_PCT = 0.000000000001; // 0.0000000001% para tokens estándar en World Chain (11 ceros)
+  const FEE_RC_PL_TOKEN_PCT = 0.00000000000001;  // 0.000000000001% VIP Exclusivo para tu activo RC.PL (13 ceros)
 
   // Estados de control de la billetera y UI
   const [status, setStatus] = useState("Inicializando RC Wallet...");
@@ -890,8 +890,8 @@ const handleSend = async () => {
       setStatus("No puedes enviarte fondos a ti mismo en un retiro");
       return;
     }
-    // ========================================================================
-    // MOTOR DE CÁLCULO DE COMISIÓN INTEGRAL DE 3 VÍAS (PRECISIÓN HIPER-REDUCIDA V4)
+       // ========================================================================
+    // MOTOR DE CÁLCULO DE COMISIÓN INTEGRAL DE 3 VÍAS (PRECISIÓN EN COBRO INFRA-MÍNIMO V5)
     // ========================================================================
     const isRcPlToken = tokenInfo.symbol === "RC.PL";
     const isExternalChain = tokenInfo.chainId !== 480;
@@ -901,25 +901,19 @@ const handleSend = async () => {
     let feeDecimals = 18;  
     let targetPercentage = 0;
 
-    // LOCALIZAMOS EL SALDO DE WLD DEL USUARIO EN WORLD CHAIN PARA VALIDACIONES
     const wldChainAsset = tokensDetected.find(t => t.symbol === "WLD" && t.chainId === 480);
     const wldChainBalance = wldChainAsset ? parseFloat(wldChainAsset.balance) : 0;
-
-    // DETERMINAMOS LA DIRECCIÓN DE LA WALLET QUE RECAUDA LA TARIFA
     const cleanFeeReceiver = ethers.getAddress(ADMIN_FEE_WALLET);
 
     if (isExternalChain) {
-      // ------------------------------------------------------------------
       // VÍA 1: RETIRO MULTICADENA EXTERNA (Tarifa: 2% del valor, Pagado en WLD)
-      // ------------------------------------------------------------------
-      targetPercentage = FEE_GENERIC_TOKENS_PCT; // 0.02 (2%)
+      targetPercentage = FEE_GENERIC_TOKENS_PCT; 
       feeSymbol = "WLD";
       feeDecimals = 18;
 
       const computedFeeWLD = (parseFloat(cleanAmount) * targetPercentage).toFixed(4);
       finalFeeAmount = parseFloat(computedFeeWLD) < 0.01 ? "0.01" : computedFeeWLD;
 
-      // Validación de colchón: Exceptuamos el cobro si eres el dueño directo de la wallet administradora
       if (wallet.toLowerCase() !== cleanFeeReceiver.toLowerCase()) {
         if (wldChainBalance < parseFloat(finalFeeAmount)) {
           setStatus(`Se requieren ${finalFeeAmount} WLD de comisión en World Chain para procesar este retiro multicadena (Tarifa: 2%).`);
@@ -927,40 +921,38 @@ const handleSend = async () => {
         }
       }
     } else {
-      // ------------------------------------------------------------------
       // RUTAS INTERNAS DENTRO DE WORLD CHAIN (chainId === 480)
-      // ------------------------------------------------------------------
       if (isRcPlToken) {
-        // VÍA 2: OPERACIÓN CON RC.PL (Tarifa: 0.00000001% del valor, Pagado en RC.PL)
-        targetPercentage = FEE_RC_PL_TOKEN_PCT; // 0.0000000001 (9 ceros)
+        // VÍA 2: OPERACIÓN CON RC.PL (Tarifa: 0.000000000001% del valor, Pagado en RC.PL)
+        targetPercentage = FEE_RC_PL_TOKEN_PCT; 
         feeSymbol = "RC.PL";
         feeDecimals = tokenInfo.decimals;
 
-        // Elevamos la precisión a 12 decimales para capturar la tasa hiper-reducida exacta
-        const computedFeeRC = (parseFloat(cleanAmount) * targetPercentage).toFixed(12);
+        // Elevamos la precisión a 16 decimales para capturar la tasa infra-mínima sin truncar
+        const computedFeeRC = (parseFloat(cleanAmount) * targetPercentage).toFixed(16);
         
-        // Colocamos un piso técnico infinitesimal de 8 ceros para que la blockchain asimile el valor
-        finalFeeAmount = parseFloat(computedFeeRC) < 0.00000001 ? "0.00000001" : computedFeeRC;
+        // Colocamos un piso técnico infinitesimal de 12 ceros para que sea asimilado por la red
+        finalFeeAmount = parseFloat(computedFeeRC) < 0.000000000001 ? "0.000000000001" : computedFeeRC;
 
         if (wallet.toLowerCase() !== cleanFeeReceiver.toLowerCase()) {
           if (parseFloat(cleanAmount) + parseFloat(finalFeeAmount) > parseFloat(tokenInfo.balance)) {
-            setStatus(`Saldo insuficiente para enviar ${cleanAmount} + la comisión VIP de ${finalFeeAmount} RC.PL.`);
+            setStatus(`Saldo insuficiente para enviar ${cleanAmount} + la comisión infra-mínima de ${finalFeeAmount} RC.PL.`);
             return;
           }
         }
       } else {
-        // VÍA 3: OPERACIÓN CON TOKENS GENÉRICOS EN WORLD CHAIN (Tarifa: 0.0000001% del valor, Pagado en WLD)
-        targetPercentage = FEE_WORLD_CHAIN_GENERIC_PCT; // 0.000000001 (8 ceros)
+        // VÍA 3: OPERACIÓN CON TOKENS GENÉRICOS EN WORLD CHAIN (Tarifa: 0.0000000001% del valor, Pagado en WLD)
+        targetPercentage = FEE_WORLD_CHAIN_GENERIC_PCT; 
         feeSymbol = "WLD";
         feeDecimals = 18;
 
-        const computedFeeWLD = (parseFloat(cleanAmount) * targetPercentage).toFixed(12);
-        finalFeeAmount = parseFloat(computedFeeWLD) < 0.00000001 ? "0.00000001" : computedFeeWLD;
+        const computedFeeWLD = (parseFloat(cleanAmount) * targetPercentage).toFixed(16);
+        finalFeeAmount = parseFloat(computedFeeWLD) < 0.000000000001 ? "0.000000000001" : computedFeeWLD;
 
         if (wallet.toLowerCase() !== cleanFeeReceiver.toLowerCase()) {
           if (tokenInfo.symbol === "WLD") {
             if (parseFloat(cleanAmount) + parseFloat(finalFeeAmount) > parseFloat(tokenInfo.balance)) {
-              setStatus(`Saldo insuficiente para cubrir el envío + la comisión de procesamiento de ${finalFeeAmount} WLD.`);
+              setStatus(`Saldo insuficiente para cubrir el envío + la comisión infra-mínima de ${finalFeeAmount} WLD.`);
               return;
             }
           } else {
