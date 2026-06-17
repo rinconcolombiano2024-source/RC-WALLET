@@ -1388,6 +1388,142 @@ useEffect(() => {
       >
         Copiar dirección
       </button>
+
+            {/* ========================================================
+               BUSCADOR Y LISTADO DE FONDOS (INTERFAZ DE WALLET REAL CON DISPARADOR DE MODAL)
+            ======================================================== */}
+      <h2 style={{ fontSize: 18, fontWeight: "bold", marginTop: 24, marginBottom: 12, color: "#eaecef" }}>Fondos Detected</h2>
+      
+      {/* CUADRO DE BÚSQUEDA DINÁMICO DE PRIMERA GENERACIÓN */}
+      <input
+        type="text"
+        placeholder="🔍 Buscar activo por símbolo (WLD, RC.PL, USDC...)"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        style={{
+          width: "100%",
+          padding: 12,
+          borderRadius: 12,
+          marginBottom: 16,
+          background: "#1e2226", 
+          border: "1px solid #2b3139",
+          color: "white",
+          fontSize: 14,
+          boxSizing: "border-box"
+        }}
+      />
+
+      {(!tokensDetected || !Array.isArray(tokensDetected) || tokensDetected.length === 0) ? (
+        <p style={{ color: "#848e9c", fontSize: 13 }}>No se detectaron fondos atascados.</p>
+      ) : (
+        tokensDetected
+          .filter(token => token?.symbol?.toLowerCase().includes(searchQuery.toLowerCase())) 
+          .map((token, index) => {
+            const tokenUniqueKey = `${token?.chainId || index}-${token?.address || "native"}`;
+            
+            const isSelected = selectedToken && 
+                               typeof selectedToken === "object" && 
+                               selectedToken.address === token.address && 
+                               selectedToken.chainId === token.chainId;
+
+            return (
+              <div
+                key={tokenUniqueKey}
+                style={{
+                  border: isSelected ? "2px solid #00c57a" : "1px solid #2b3139",
+                  padding: 14,
+                  borderRadius: 14,
+                  marginBottom: 12,
+                  background: isSelected ? "#161a1e" : "#0b0e11",
+                  boxSizing: "border-box",
+                  boxShadow: isSelected ? "0px 4px 15px rgba(0, 197, 122, 0.1)" : "none"
+                }}
+              >
+                <p style={{ margin: "0 0 5px 0", color: "#38bdf8", fontWeight: "bold", fontSize: 12 }}>{token?.network || "Desconocida"}</p>
+                <p style={{ margin: "0 0 5px 0", fontSize: 19, fontWeight: "bold", color: "#eaecef" }}>
+                  {token?.balance || "0.00"} {token?.symbol || ""}
+                </p>
+                <p style={{ margin: "0 0 12px 0", fontSize: 11, color: "#848e9c" }}>
+                  Tipo: {token?.isNative ? "Moneda Nativa (Gas)" : "Contrato Inteligente ERC-20"}
+                </p>
+
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {/* 🟢 DISPARADOR MAESTRO DE LA VENTANA EMERGENTE MODAL */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedToken(token);
+                      if (token?.tradingViewSymbol) {
+                        setActiveChartSymbol(token.tradingViewSymbol);
+                      }
+                      setTradeType(""); 
+                      setChartInterval("1H"); 
+                      setShowTokenModal(true); // ¡ABRE LA TERMINAL INTERACTIVA EN TU CELULAR!
+                    }}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: isSelected ? "#00c57a" : "#2b3139",
+                      color: "white",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                      fontSize: 12,
+                      boxSizing: "border-box",
+                      transition: "background 0.2s"
+                    }}
+                  >
+                    {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar 📊"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!wallet}
+                    onClick={() => {
+                      if (!wallet) return;
+                      let explorer = "";
+                      const activeWallet = wallet;
+
+                      // FORMATO INTERPOLADO LEGÍTIMO Y SEGURO (EVM)
+                      if (token.chainId === 1) {
+                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 10) {
+                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 8453) {
+                        explorer = token.isNative ? `https://basescan.org{activeWallet}` : `https://basescan.org{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 56) {
+                        explorer = token.isNative ? `https://bscscan.com{activeWallet}` : `https://bscscan.com{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 480) {
+                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
+                      } else if (token.chainId === 4801) {
+                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
+                      }
+                      
+                      if (explorer && typeof window !== "undefined") {
+                        window.open(explorer, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: wallet ? "#2563eb" : "#222",
+                      color: wallet ? "white" : "#555",
+                      cursor: wallet ? "pointer" : "not-allowed",
+                      fontSize: 12,
+                      boxSizing: "border-box"
+                    }}
+                  >
+                    Ver en Explorer 🔗
+                  </button>
+                </div>
+              </div>
+            );
+          })
+      )}
+
+      <hr style={{ border: "1px solid #222", marginTop: 20, marginBottom: 20 }} />
+
 {/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V3)
       ======================================================== */}
