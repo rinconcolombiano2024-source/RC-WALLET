@@ -1442,9 +1442,8 @@ useEffect(() => {
       >
         Copiar dirección
       </button>
-
-            {/* ========================================================
-               BUSCADOR Y LISTADO DE FONDOS (INTERFAZ DE WALLET REAL CON DISPARADOR DE MODAL)
+      {/* ========================================================
+               BUSCADOR Y LISTADO DE FONDOS (INTERFAZ DE WALLET REAL CON DISPARADOR SANO)
             ======================================================== */}
       <h2 style={{ fontSize: 18, fontWeight: "bold", marginTop: 24, marginBottom: 12, color: "#eaecef" }}>Fondos Detected</h2>
       
@@ -1471,14 +1470,22 @@ useEffect(() => {
         <p style={{ color: "#848e9c", fontSize: 13 }}>No se detectaron fondos atascados.</p>
       ) : (
         tokensDetected
-          .filter(token => token?.symbol?.toLowerCase().includes(searchQuery.toLowerCase())) 
+          .filter(token => token?.symbol?.toLowerCase().includes(searchQuery ? searchQuery.toLowerCase() : "")) 
           .map((token, index) => {
-            const tokenUniqueKey = `${token?.chainId || index}-${token?.address || "native"}`;
+            const tokenUniqueKey = token ? `${token.chainId || index}-${token.address || "native"}-${token.symbol}` : index;
             
-            const isSelected = selectedToken && 
-                               typeof selectedToken === "object" && 
+            // VALIDACIÓN CRÍTICA EXPLICITA: Evita lecturas cruzadas o nulas de objetos rotos
+            const isSelected = selectedToken && token &&
                                selectedToken.address === token.address && 
-                               selectedToken.chainId === token.chainId;
+                               selectedToken.chainId === token.chainId &&
+                               selectedToken.symbol === token.symbol;
+
+            // Formateo ultraseguro de balance para que nunca rompa el Render
+            let visualBalance = "0.00";
+            if (token && token.balance) {
+              const parsedBal = parseFloat(token.balance);
+              visualBalance = isNaN(parsedBal) ? "0.00" : parsedBal.toFixed(4);
+            }
 
             return (
               <div
@@ -1495,24 +1502,25 @@ useEffect(() => {
               >
                 <p style={{ margin: "0 0 5px 0", color: "#38bdf8", fontWeight: "bold", fontSize: 12 }}>{token?.network || "Desconocida"}</p>
                 <p style={{ margin: "0 0 5px 0", fontSize: 19, fontWeight: "bold", color: "#eaecef" }}>
-                  {token?.balance || "0.00"} {token?.symbol || ""}
+                  {visualBalance} {token?.symbol || ""}
                 </p>
                 <p style={{ margin: "0 0 12px 0", fontSize: 11, color: "#848e9c" }}>
                   Tipo: {token?.isNative ? "Moneda Nativa (Gas)" : "Contrato Inteligente ERC-20"}
                 </p>
 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {/* 🟢 DISPARADOR MAESTRO DE LA VENTANA EMERGENTE MODAL */}
+                  {/* 🟢 DISPARADOR MAESTRO INTERACTIVO SANEADO ANTI-PANTALLAZO AZUL */}
                   <button
                     type="button"
                     onClick={() => {
+                      if (!token) return;
                       setSelectedToken(token);
-                      if (token?.tradingViewSymbol) {
+                      if (token.tradingViewSymbol) {
                         setActiveChartSymbol(token.tradingViewSymbol);
                       }
                       setTradeType(""); 
                       setChartInterval("1H"); 
-                      setShowTokenModal(true); // ¡ABRE LA TERMINAL INTERACTIVA EN TU CELULAR!
+                      setShowTokenModal(true); // Abre el modal sin crashes
                     }}
                     style={{
                       padding: "10px 14px",
@@ -1534,23 +1542,22 @@ useEffect(() => {
                     type="button"
                     disabled={!wallet}
                     onClick={() => {
-                      if (!wallet) return;
+                      if (!wallet || !token) return;
                       let explorer = "";
                       const activeWallet = wallet;
 
-                      // FORMATO INTERPOLADO LEGÍTIMO Y SEGURO (EVM)
                       if (token.chainId === 1) {
-                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
+                        explorer = token.isNative ? "https://etherscan.io" + activeWallet : "https://etherscan.io" + token.address + "?a=" + activeWallet;
                       } else if (token.chainId === 10) {
-                        explorer = token.isNative ? `https://etherscan.io{activeWallet}` : `https://etherscan.io{token.address}?a=${activeWallet}`;
+                        explorer = token.isNative ? "https://etherscan.io" + activeWallet : "https://etherscan.io" + token.address + "?a=" + activeWallet;
                       } else if (token.chainId === 8453) {
-                        explorer = token.isNative ? `https://basescan.org{activeWallet}` : `https://basescan.org{token.address}?a=${activeWallet}`;
+                        explorer = token.isNative ? "https://basescan.org" + activeWallet : "https://basescan.org" + token.address + "?a=" + activeWallet;
                       } else if (token.chainId === 56) {
-                        explorer = token.isNative ? `https://bscscan.com{activeWallet}` : `https://bscscan.com{token.address}?a=${activeWallet}`;
+                        explorer = token.isNative ? "https://bscscan.com" + activeWallet : "https://bscscan.com" + token.address + "?a=" + activeWallet;
                       } else if (token.chainId === 480) {
-                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
+                        explorer = token.isNative ? "https://worldscan.org" + activeWallet : "https://worldscan.org" + token.address + "?a=" + activeWallet;
                       } else if (token.chainId === 4801) {
-                        explorer = token.isNative ? `https://worldscan.org{activeWallet}` : `https://worldscan.org{token.address}?a=${activeWallet}`;
+                        explorer = token.isNative ? "https://worldscan.org" + activeWallet : "https://worldscan.org" + token.address + "?a=" + activeWallet;
                       }
                       
                       if (explorer && typeof window !== "undefined") {
