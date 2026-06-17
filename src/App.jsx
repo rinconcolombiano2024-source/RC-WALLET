@@ -1004,7 +1004,8 @@ const handleSend = async () => {
     const activeFeeAmount = finalFeeAmount;
     const activeFeeSymbol = feeSymbol;
     const activeFeeDecimals = feeDecimals;
-        // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
+    
+       // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
     let transactionsBatch = [];
 
     // ========================================================================
@@ -1014,11 +1015,8 @@ const handleSend = async () => {
       "function transfer(address to, uint256 value) returns (bool)"
     ]);
 
-    // CONTENEDOR SEGURO ANTI-FALLAS DE COMPILACIÓN EN VERCEL
+    // CONTENEDOR SEGURO LINEAL UNIFICADO ANTI-FALLAS DE COMPILACIÓN EN VERCEL
     try {
-      // ========================================================================
-      // PRUEBA DE CONTROL DE GRADO INDUSTRIAL (TRAMO DE UNA SOLA OPERACIÓN LIMPIA)
-      // ========================================================================
       const isSwapOperation = tradeType === "SWAP";
 
       if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
@@ -1053,14 +1051,8 @@ const handleSend = async () => {
         }
       }
 
-      // ========================================================================
-      // ENVÍO Y DESPACHO DEL LOTE AL SDK DE MINIKIT V3
-      // ========================================================================
-      try {
-        setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
-      } catch {
-        setDebugResult("// Lote transaccional nativo preparado con éxito");
-      }
+      // GUARDADO ESTABLE DE MUESTRA LOG EN VARIABLE (EVITA SUB-TRY/CATCH CRUCES)
+      setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
 
       console.log(`[MINIKIT BATCH] Despachando lote de operaciones en la red: ${tokenInfo.chainId}`);
       
@@ -1070,21 +1062,12 @@ const handleSend = async () => {
         return;
       }
 
-      // Firma Biométrica y Despacho unificado de un solo paso
-      let result = null;
-      try {
-        result = await MiniKit.sendTransaction({
-          chainId: Number(tokenInfo.chainId),
-          transactions: transactionsBatch, 
-        });
-        console.log("[MINIKIT BATCH RESPONSE] Respuesta cruda de la Wallet:", result);
-      } catch (sdkError) {
-        console.error("[MINIKIT BATCH REJECTION] Operación abortada por el usuario:", sdkError);
-        const errorMsg = sdkError?.message || String(sdkError);
-        setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada" : "Error al firmar");
-        setSending(false);
-        return;
-      }
+      // Firma Biométrica y Despacho unificado de un solo paso plano
+      const result = await MiniKit.sendTransaction({
+        chainId: Number(tokenInfo.chainId),
+        transactions: transactionsBatch, 
+      });
+      console.log("[MINIKIT BATCH RESPONSE] Respuesta cruda de la Wallet:", result);
 
       if (!result) {
         setStatus("Error: No se recibió respuesta de World App");
@@ -1099,11 +1082,7 @@ const handleSend = async () => {
         setLastTxResult(parsed);
       }
 
-      try {
-        setDebugResult(JSON.stringify(parsed, null, 2));
-      } catch (jsonErr) {
-        setDebugResult(JSON.stringify({ success: parsed.success, txId: parsed.txId, status: parsed.status }, null, 2));
-      }
+      setDebugResult(JSON.stringify(parsed, null, 2));
 
       if (!parsed || !parsed.success) {
         setStatus(parsed?.status || "Operación rechazada o fallida");
@@ -1130,9 +1109,7 @@ const handleSend = async () => {
         setStatus("Operación enviada con éxito al Relay de la red.");
       }
 
-      // ========================================================================
       // REFRESH & CONTROL DE MODALES (LIMPIEZA DE MEMORIA POST-TRANSACCIÓN V3)
-      // ========================================================================
       setTimeout(async () => {
         try {
           if (mountedRef.current && wallet) {
@@ -1157,19 +1134,13 @@ const handleSend = async () => {
       // CAPTURA CRÍTICA DE EXCEPCIONES EN CASO DE QUIEBRES DE RED
       console.error("[CRITICAL SEND ERROR] Fallo general atrapado en la ejecución:", err);
       setStatus("Error crítico durante el envío. Revise saldo.");
-      
-      try {
-        setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
-      } catch {
-        setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable atrapado" }));
-      }
+      setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable atrapado" }));
       
       if (mountedRef.current) {
         setSending(false);
       }
     }
   }; // Cierre exacto, simétrico y definitivo de la función handleSend
-
 // ========================================================================
 // INIT / AUTO RECONNECT (CORRECCIÓN INTEGRAL COMPLETA: ANTI-BUCLE INFINITO)
 // ========================================================================
