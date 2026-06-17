@@ -1004,10 +1004,10 @@ const handleSend = async () => {
     const activeFeeAmount = finalFeeAmount;
     const activeFeeSymbol = feeSymbol;
     const activeFeeDecimals = feeDecimals;
-
+    // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
     let transactionsBatch = [];
 
-         // ========================================================================
+    // ========================================================================
     // CONVERSOR DE DATA: INTERFAZ ETHERS PARA TRADUCIR A HEXADECIMAL RAW
     // ========================================================================
     const erc20Interface = new ethers.Interface([
@@ -1040,7 +1040,6 @@ const handleSend = async () => {
     // ========================================================================
     // OPERACIÓN 2: BIFURCACIÓN DE EJECUCIÓN CON BYTES CRUDOS HEXADECIMALES
     // ========================================================================
-    const isSwapOperation = tradeType === "SWAP";
     if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
       // (Los Swaps quedan encapsulados preventivamente para usar la ruta directa de ENVIAR)
       setStatus("Los Swaps integrados requieren codificación de Router. Use el modo ENVIAR.");
@@ -1149,12 +1148,12 @@ const handleSend = async () => {
     } else {
       setStatus("Operación enviada con éxito al Relay de la red.");
     }
+
     // ========================================================================
     // REFRESH & CONTROL DE MODALES (LIMPIEZA DE MEMORIA POST-TRANSACCIÓN V3)
     // ========================================================================
     setTimeout(async () => {
       try {
-        // Ejecuta un re-escaneo general en la blockchain para actualizar los nuevos balances de tokens
         if (mountedRef.current && wallet) {
           await scanAllNetworks(wallet);
         }
@@ -1162,38 +1161,33 @@ const handleSend = async () => {
         console.error("[REFRESH ERROR] Falló el escaneo automatizado post-envío:", refreshErr);
       }
       
-      // Apagado seguro de indicadores y restauración de la terminal de trading
       if (mountedRef.current) {
-        setSendAmount("");      // Limpia los campos de texto del formulario principal
-        setTradeAmount("");     // Limpia el input de la terminal del modal
-        setRecipient("");       // Resetea la billetera destinataria
-        setTradeType("");       // Apaga el modo activo (BUY/SELL/SWAP)
-        setTargetSwapToken(null); // Limpia de forma segura el activo destino del Swap
-        setShowTokenModal(false); // Cierra de forma automatizada la ventana emergente deslizante
-        setSending(false);      // Libera los botones de la interfaz visual
+        setSendAmount("");      
+        setTradeAmount("");     
+        setRecipient("");       
+        setTradeType("");       
+        setTargetSwapToken(null); 
+        setShowTokenModal(false); 
+        setSending(false);      
       }
     }, 2000);
 
   } catch (err) {
-    // ========================================================================
-    // CAPTURA CRÍTICA DE EXCEPCIONES (PROTECCIÓN TOTAL DEL MOTOR WEB3)
-    // ========================================================================
+    // CAPTURA CRÍTICA DE EXCEPCIONES EN CASO DE QUIPOS DE RED
     console.error("[CRITICAL SEND ERROR] Fallo general atrapado en la ejecución:", err);
     setStatus("Error crítico durante el envío. Revise saldo.");
     
     try {
-      // Intenta decodificar el error utilizando el extractor defensivo anti-cíclico
       setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
     } catch {
-      setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable atrapado en la raíz" }));
+      setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable atrapado" }));
     }
     
-    // Medida de seguridad: Desbloquea la interfaz de usuario ante cualquier quiebre o rechazo
     if (mountedRef.current) {
       setSending(false);
     }
   }
-}; // Cierre definitivo, exacto y verificado de la función handleSend
+}; // Cierre exacto, simétrico y definitivo de la función handleSend
 // ========================================================================
 // INIT / AUTO RECONNECT (CORRECCIÓN INTEGRAL COMPLETA: ANTI-BUCLE INFINITO)
 // ========================================================================
