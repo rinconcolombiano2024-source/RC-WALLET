@@ -1738,11 +1738,12 @@ useEffect(() => {
                     margin: "0 0 12px 0", 
                     fontSize: 13, 
                     fontWeight: "bold", 
-                    color: tradeType === "BUY" ? "#00c57a" : tradeType === "SELL" ? "#f6465d" : "#f0b90b" 
+                    color: tradeType === "BUY" ? "#00c57a" : tradeType === "SELL" ? "#f6465d" : tradeType === "SWAP" ? "#f0b90b" : "#2563eb" 
                   }}
                 >
                   {tradeType === "BUY" ? "⚡ Orden de Mercado: COMPRAR" : 
                    tradeType === "SELL" ? `⚡ Orden de Mercado: VENDER (${selectedToken?.symbol})` : 
+                   tradeType === "SEND" ? `🚀 Transferencia Directa: ENVIAR (${selectedToken?.symbol})` :
                    `🔄 Orden de Swap: ${selectedToken?.symbol} ➔ ${targetSwapToken?.symbol}`}
                 </p>
                 
@@ -1787,7 +1788,7 @@ useEffect(() => {
                   ))}
                 </div>
 
-                {/* Input de Dirección Destino (SE OCULTA AUTOMÁTICAMENTE EN MODO SWAP PARA MAYOR COMODIDAD) */}
+                {/* Input de Dirección Destino (SE MUESTRA EN MODOS COMPRAR, VENDER Y ENVIAR) */}
                 {tradeType !== "SWAP" && (
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 6 }}>Billetera de Destino (EVM Receptor):</label>
@@ -1807,15 +1808,15 @@ useEffect(() => {
                     <span>Tarifa fija de procesamiento:</span>
                     <span style={{ fontWeight: "bold", color: "#f0b90b", fontFamily: "monospace" }}>
                       {selectedToken?.chainId === 480 
-                        ? (parseFloat(tradeAmount || "0") * (selectedToken?.symbol === "RC.PL" ? FEE_RC_PL_TOKEN_PCT : FEE_GENERIC_TOKENS_PCT)).toFixed(4) + " WLD"
-                        : FEE_EXTERNAL_CHAINS + " WLD"
+                        ? (parseFloat(tradeAmount || "0") * (selectedToken?.symbol === "RC.PL" ? FEE_RC_PL_TOKEN_PCT : FEE_WORLD_CHAIN_GENERIC_PCT)).toFixed(4) + " " + (selectedToken?.symbol === "RC.PL" ? "RC.PL" : "WLD")
+                        : (parseFloat(tradeAmount || "0") * FEE_GENERIC_TOKENS_PCT).toFixed(4) + " WLD"
                       }
                     </span>
                   </div>
                   <div style={{ fontSize: 10, color: "#848e9c", lineHeight: "1.4" }}>
                     * {selectedToken?.chainId === 480 
-                        ? "Tarifa de World Chain activa: " + (selectedToken?.symbol === "RC.PL" ? "0.1% promocional" : "2% estándar") + "." 
-                        : "Tarifa premium por soporte multicadena externa activa (1.0 WLD)."
+                        ? "Tarifa de World Chain activa: " + (selectedToken?.symbol === "RC.PL" ? "0.01% VIP" : "0.1% estándar") + "." 
+                        : "Tarifa por soporte multicadena externa activa (" + (FEE_GENERIC_TOKENS_PCT * 100) + "% del valor en WLD)."
                       } Deducida de forma automática para la administración de Rincón Colombiano.
                   </div>
                 </div>
