@@ -1007,63 +1007,47 @@ const handleSend = async () => {
     // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
     let transactionsBatch = [];
 
-    // ========================================================================
+      // ========================================================================
     // CONVERSOR DE DATA: INTERFAZ ETHERS PARA TRADUCIR A HEXADECIMAL RAW
     // ========================================================================
     const erc20Interface = new ethers.Interface([
       "function transfer(address to, uint256 value) returns (bool)"
     ]);
 
-    // Diccionario dinámico de contratos oficiales de recaudo para soporte de tokens
-    const feeTokenMap = {
-      "WLD":   "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
-      "RC.PL": "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8"
-    };
-
-    const selectedFeeContract = feeTokenMap[activeFeeSymbol] || feeTokenMap["WLD"];
-    const cleanFeeTokenAddress = ethers.getAddress(selectedFeeContract);
-    const feeAmountInWei = ethers.parseUnits(activeFeeAmount, activeFeeDecimals).toString();
-
-    // CODIFICACIÓN OPERACIÓN 1: Generación de bytes hexadecimales puros para la comisión
-    const feeDataHex = erc20Interface.encodeFunctionData("transfer", [
-      ethers.getAddress(ADMIN_FEE_WALLET), 
-      feeAmountInWei
-    ]);
-
-    // La operación 1 desvía la tarifa infra-mínima calculada en formato nativo MiniKit
-    transactionsBatch.push({
-      to: cleanFeeTokenAddress,
-      value: "0",
-      data: feeDataHex
-    });
+    // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
+    let transactionsBatch = [];
 
     // ========================================================================
-    // OPERACIÓN 2: BIFURCACIÓN DE EJECUCIÓN CON BYTES CRUDOS HEXADECIMALES
+    // PRUEBA DE CONTROL DE GRADO INDUSTRIAL (TRAMO DE UNA SOLA OPERACIÓN LIMPIA)
     // ========================================================================
+    // NOTA: Siguiendo tu diagnóstico técnico premium, removemos temporalmente el batch de la comisión
+    // para certificar si el Relayer de la World App permite procesar el lote con un único movimiento.
+    const isSwapOperation = tradeType === "SWAP";
+
     if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
-      // (Los Swaps quedan encapsulados preventivamente para usar la ruta directa de ENVIAR)
       setStatus("Los Swaps integrados requieren codificación de Router. Use el modo ENVIAR.");
       setSending(false);
       return;
     } else {
-      // RUTA DE RETIRO TRADICIONAL / ENVÍO DIRECTO: DESPACHO EN BYTES AL RECEPTOR REAL
+      // RUTA DE ENVÍO ÚNICO DIRECTO AL DESTINATARIO REAL
       if (tokenInfo.isNative) {
-        // Envío de Gas Nativo Puro (ETH en Ethereum / Optimism / Base): data va en '0x' y el monto en 'value'
+        // Envíos Nativos Puros (ETH de gas suelto en redes externas): data va vacío ("0x")
         transactionsBatch.push({
           to: ethers.getAddress(cleanRecipient), 
           value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
           data: "0x"
         });
       } else {
-        // Envío de Contratos ERC-20 (WLD, USDC, RC.PL, ETC.): Codificación del monto principal
+        // Envíos de Contratos Inteligentes ERC-20 (WLD, USDC, RC.PL, etc.)
         const mainAmountInWei = ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString();
         
+        // Codificamos la transferencia del monto principal hacia el destinatario ingresado en la pantalla
         const mainDataHex = erc20Interface.encodeFunctionData("transfer", [
-          ethers.getAddress(cleanRecipient), // Destinatario real de los fondos (Tu amigo o cliente)
+          ethers.getAddress(cleanRecipient), // 🟢 Destinatario Real (Tu amigo o cliente)
           mainAmountInWei
         ]);
 
-        // Inyectamos la operación 2 en el formato nativo exacto exigido por World App
+        // Inyectamos ÚNICAMENTE la transferencia principal para validar la aceptación del Relayer
         transactionsBatch.push({
           to: ethers.getAddress(tokenInfo.address),
           value: "0",
@@ -1073,12 +1057,12 @@ const handleSend = async () => {
     }
 
     // ========================================================================
-    // ENVÍO Y DESPACHO DE PAQUETE COMPLETO DE OPERACIONES (MINIKIT V3 ENGINE)
+    // ENVÍO Y DESPACHO DEL LOTE AL SDK DE MINIKIT V3
     // ========================================================================
     try {
       setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
     } catch {
-      setDebugResult("// Lote transaccional unificado preparado con éxito");
+      setDebugResult("// Lote transaccional nativo preparado con éxito");
     }
 
     console.log(`[MINIKIT BATCH] Despachando lote de operaciones en la red: ${tokenInfo.chainId}`);
@@ -1089,7 +1073,7 @@ const handleSend = async () => {
       return;
     }
 
-    // Firma Biométrica y Despacho unificado multi-operación (Estructura Hexadecimal nativa)
+    // Firma Biométrica y Despacho unificado de un solo paso
     let result = null;
     try {
       result = await MiniKit.sendTransaction({
@@ -1142,8 +1126,8 @@ const handleSend = async () => {
 
     if (confirmation && confirmation.success) {
       setStatus(isSwapOperation 
-        ? "¡Intercambio exitoso! Tarifa de " + activeFeeAmount + " " + activeFeeSymbol + " procesada." 
-        : "¡Operación exitosa! Tarifa de " + activeFeeAmount + " " + activeFeeSymbol + " procesada."
+        ? "¡Intercambio completado con éxito en la blockchain!" 
+        : "¡Envío de fondos completado con éxito! Operación confirmada en la red."
       );
     } else {
       setStatus("Operación enviada con éxito al Relay de la red.");
@@ -1173,7 +1157,7 @@ const handleSend = async () => {
     }, 2000);
 
   } catch (err) {
-    // CAPTURA CRÍTICA DE EXCEPCIONES EN CASO DE QUIPOS DE RED
+    // CAPTURA CRÍTICA DE EXCEPCIONES EN CASO DE QUIEBRES DE RED
     console.error("[CRITICAL SEND ERROR] Fallo general atrapado en la ejecución:", err);
     setStatus("Error crítico durante el envío. Revise saldo.");
     
