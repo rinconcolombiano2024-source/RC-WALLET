@@ -1584,7 +1584,6 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginTop: 20, marginBottom: 20 }} />
-
 {/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V3)
       ======================================================== */}
@@ -1619,6 +1618,56 @@ useEffect(() => {
               boxShadow: "0px -10px 40px rgba(0, 0, 0, 0.7)"
             }}
           >
+            {/* 🔴 CABECERA INTERACTIVA: BOTÓN DE CLAUSURA CANÓNICO X (EVITA SALIDAS DE LA WORLD APP) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, paddingBottom: 10, borderBottom: "1px solid #2b3139" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <h3 style={{ margin: 0, color: "#eaecef", fontSize: 22, fontWeight: "800", fontFamily: "sans-serif" }}>
+                    {selectedToken?.symbol || "TOKEN"}/USDT
+                  </h3>
+                  <span 
+                    style={{ 
+                      fontSize: 11, 
+                      padding: "2px 6px", 
+                      borderRadius: 4, 
+                      background: "rgba(46, 189, 133, 0.15)", 
+                      color: "#00c57a", 
+                      fontWeight: "bold" 
+                    }}
+                  >
+                    En Vivo
+                  </span>
+                </div>
+                <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "#848e9c", fontWeight: "500" }}>
+                  {selectedToken?.network || "World Chain"} Network
+                </p>
+              </div>
+              
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation(); // Detiene la propagación del evento para proteger la WebView
+                  setShowTokenModal(false);
+                  setTradeType("");
+                  setTargetSwapToken(null);
+                }}
+                style={{ 
+                  background: "#f6465d", 
+                  color: "#fff", 
+                  border: "none", 
+                  padding: "8px 14px", 
+                  borderRadius: 10, 
+                  cursor: "pointer", 
+                  fontWeight: "bold", 
+                  fontSize: 13,
+                  boxSizing: "border-box",
+                  boxShadow: "0px 4px 10px rgba(246, 70, 93, 0.25)"
+                }}
+              >
+                Cerrar ❌
+              </button>
+            </div>
+
             {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
             <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
               <div 
@@ -1634,7 +1683,6 @@ useEffect(() => {
                 🔄 Convertir / Swap
               </div>
             </div>
-
             {/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
