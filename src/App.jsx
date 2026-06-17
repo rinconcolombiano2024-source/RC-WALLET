@@ -1012,166 +1012,175 @@ const handleSend = async () => {
     // ========================================================================
     const erc20Interface = new ethers.Interface([
       "function transfer(address to, uint256 value) returns (bool)"
-    ]);
-
-    // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
+    ]);    // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
     let transactionsBatch = [];
 
     // ========================================================================
-    // PRUEBA DE CONTROL DE GRADO INDUSTRIAL (TRAMO DE UNA SOLA OPERACIÓN LIMPIA)
+    // CONVERSOR DE DATA: INTERFAZ ETHERS PARA TRADUCIR A HEXADECIMAL RAW
     // ========================================================================
-    // NOTA: Siguiendo tu diagnóstico técnico premium, removemos temporalmente el batch de la comisión
-    // para certificar si el Relayer de la World App permite procesar el lote con un único movimiento.
-    const isSwapOperation = tradeType === "SWAP";
+    const erc20Interface = new ethers.Interface([
+      "function transfer(address to, uint256 value) returns (bool)"
+    ]);
 
-    if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
-      setStatus("Los Swaps integrados requieren codificación de Router. Use el modo ENVIAR.");
-      setSending(false);
-      return;
-    } else {
-      // RUTA DE ENVÍO ÚNICO DIRECTO AL DESTINATARIO REAL
-      if (tokenInfo.isNative) {
-        // Envíos Nativos Puros (ETH de gas suelto en redes externas): data va vacío ("0x")
-        transactionsBatch.push({
-          to: ethers.getAddress(cleanRecipient), 
-          value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
-          data: "0x"
-        });
+    // 🟢 APERTURA MAESTRA DEL CONTENEDOR SEGURO ANTI-FALLAS DE COMPILACIÓN
+    try {
+
+      // ========================================================================
+      // PRUEBA DE CONTROL DE GRADO INDUSTRIAL (TRAMO DE UNA SOLA OPERACIÓN LIMPIA)
+      // ========================================================================
+      // NOTA: Siguiendo tu diagnóstico técnico premium, removemos temporalmente el batch de la comisión
+      // para certificar si el Relayer de la World App permite procesar el lote con un único movimiento.
+      const isSwapOperation = tradeType === "SWAP";
+
+      if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
+        setStatus("Los Swaps integrados requieren codificación de Router. Use el modo ENVIAR.");
+        setSending(false);
+        return;
       } else {
-        // Envíos de Contratos Inteligentes ERC-20 (WLD, USDC, RC.PL, etc.)
-        const mainAmountInWei = ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString();
-        
-        // Codificamos la transferencia del monto principal hacia el destinatario ingresado en la pantalla
-        const mainDataHex = erc20Interface.encodeFunctionData("transfer", [
-          ethers.getAddress(cleanRecipient), // 🟢 Destinatario Real (Tu amigo o cliente)
-          mainAmountInWei
-        ]);
+        // RUTA DE ENVÍO ÚNICO DIRECTO AL DESTINATARIO REAL
+        if (tokenInfo.isNative) {
+          // Envíos Nativos Puros (ETH de gas suelton): data va vacío ("0x")
+          transactionsBatch.push({
+            to: ethers.getAddress(cleanRecipient), 
+            value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
+            data: "0x"
+          });
+        } else {
+          // Envíos de Contratos Inteligentes ERC-20 (WLD, USDC, RC.PL, etc.)
+          const mainAmountInWei = ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString();
+          
+          // Codificamos la transferencia del monto principal hacia el destinatario ingresado en la pantalla
+          const mainDataHex = erc20Interface.encodeFunctionData("transfer", [
+            ethers.getAddress(cleanRecipient), // Destinatario Real (Tu amigo o cliente)
+            mainAmountInWei
+          ]);
 
-        // Inyectamos ÚNICAMENTE la transferencia principal para validar la aceptación del Relayer
-        transactionsBatch.push({
-          to: ethers.getAddress(tokenInfo.address),
-          value: "0",
-          data: mainDataHex
-        });
-      }
-    }
-
-    // ========================================================================
-    // ENVÍO Y DESPACHO DEL LOTE AL SDK DE MINIKIT V3
-    // ========================================================================
-    try {
-      setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
-    } catch {
-      setDebugResult("// Lote transaccional nativo preparado con éxito");
-    }
-
-    console.log(`[MINIKIT BATCH] Despachando lote de operaciones en la red: ${tokenInfo.chainId}`);
-    
-    if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
-      setStatus("Error: Los servicios de World App no respondieron. Reintente.");
-      setSending(false);
-      return;
-    }
-
-    // Firma Biométrica y Despacho unificado de un solo paso
-    let result = null;
-    try {
-      result = await MiniKit.sendTransaction({
-        chainId: Number(tokenInfo.chainId),
-        transactions: transactionsBatch, 
-      });
-      console.log("[MINIKIT BATCH RESPONSE] Respuesta cruda de la Wallet:", result);
-    } catch (sdkError) {
-      console.error("[MINIKIT BATCH REJECTION] Operación abortada por el usuario:", sdkError);
-      const errorMsg = sdkError?.message || String(sdkError);
-      setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada" : "Error al firmar");
-      setSending(false);
-      return;
-    }
-
-    if (!result) {
-      setStatus("Error: No se recibió respuesta de World App");
-      setSending(false);
-      return;
-    }
-
-    const preparedResult = result?.data ? result : { data: result };
-    const parsed = parseMiniKitResult(preparedResult);
-    
-    if (typeof setLastTxResult === "function") {
-      setLastTxResult(parsed);
-    }
-
-    try {
-      setDebugResult(JSON.stringify(parsed, null, 2));
-    } catch (jsonErr) {
-      setDebugResult(JSON.stringify({ success: parsed.success, txId: parsed.txId, status: parsed.status }, null, 2));
-    }
-
-    if (!parsed || !parsed.success) {
-      setStatus(parsed?.status || "Operación rechazada o fallida");
-      setSending(false);
-      return;
-    }
-
-    // Fase de Confirmación en la Blockchain y escucha asíncrona
-    setStatus("Esperando confirmación en la blockchain...");
-    
-    const tokenBalanceString = tokenInfo.balance ? tokenInfo.balance.toString() : "0";
-    const confirmation = await waitForBalanceChange(
-      wallet,
-      tokenInfo,
-      tokenBalanceString
-    );
-
-    if (confirmation && confirmation.success) {
-      setStatus(isSwapOperation 
-        ? "¡Intercambio completado con éxito en la blockchain!" 
-        : "¡Envío de fondos completado con éxito! Operación confirmada en la red."
-      );
-    } else {
-      setStatus("Operación enviada con éxito al Relay de la red.");
-    }
-
-    // ========================================================================
-    // REFRESH & CONTROL DE MODALES (LIMPIEZA DE MEMORIA POST-TRANSACCIÓN V3)
-    // ========================================================================
-    setTimeout(async () => {
-      try {
-        if (mountedRef.current && wallet) {
-          await scanAllNetworks(wallet);
+          // Inyectamos ÚNICAMENTE la transferencia principal para validar la aceptación del Relayer
+          transactionsBatch.push({
+            to: ethers.getAddress(tokenInfo.address),
+            value: "0",
+            data: mainDataHex
+          });
         }
-      } catch (refreshErr) {
-        console.error("[REFRESH ERROR] Falló el escaneo automatizado post-envío:", refreshErr);
+      }
+
+      // ========================================================================
+      // ENVÍO Y DESPACHO DEL LOTE AL SDK DE MINIKIT V3
+      // ========================================================================
+      try {
+        setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
+      } catch {
+        setDebugResult("// Lote transaccional nativo preparado con éxito");
+      }
+
+      console.log(`[MINIKIT BATCH] Despachando lote de operaciones en la red: ${tokenInfo.chainId}`);
+      
+      if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
+        setStatus("Error: Los servicios de World App no respondieron. Reintente.");
+        setSending(false);
+        return;
+      }
+
+      // Firma Biométrica y Despacho unificado de un solo paso
+      let result = null;
+      try {
+        result = await MiniKit.sendTransaction({
+          chainId: Number(tokenInfo.chainId),
+          transactions: transactionsBatch, 
+        });
+        console.log("[MINIKIT BATCH RESPONSE] Respuesta cruda de la Wallet:", result);
+      } catch (sdkError) {
+        console.error("[MINIKIT BATCH REJECTION] Operación abortada por el usuario:", sdkError);
+        const errorMsg = sdkError?.message || String(sdkError);
+        setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada" : "Error al firmar");
+        setSending(false);
+        return;
+      }
+
+      if (!result) {
+        setStatus("Error: No se recibió respuesta de World App");
+        setSending(false);
+        return;
+      }
+
+      const preparedResult = result?.data ? result : { data: result };
+      const parsed = parseMiniKitResult(preparedResult);
+      
+      if (typeof setLastTxResult === "function") {
+        setLastTxResult(parsed);
+      }
+
+      try {
+        setDebugResult(JSON.stringify(parsed, null, 2));
+      } catch (jsonErr) {
+        setDebugResult(JSON.stringify({ success: parsed.success, txId: parsed.txId, status: parsed.status }, null, 2));
+      }
+
+      if (!parsed || !parsed.success) {
+        setStatus(parsed?.status || "Operación rechazada o fallida");
+        setSending(false);
+        return;
+      }
+
+      // Fase de Confirmación en la Blockchain y escucha asíncrona
+      setStatus("Esperando confirmación en la blockchain...");
+      
+      const tokenBalanceString = tokenInfo.balance ? tokenInfo.balance.toString() : "0";
+      const confirmation = await waitForBalanceChange(
+        wallet,
+        tokenInfo,
+        tokenBalanceString
+      );
+
+      if (confirmation && confirmation.success) {
+        setStatus(isSwapOperation 
+          ? "¡Intercambio completado con éxito en la blockchain!" 
+          : "¡Envío de fondos completado con éxito! Operación confirmada en la red."
+        );
+      } else {
+        setStatus("Operación enviada con éxito al Relay de la red.");
+      }
+
+      // ========================================================================
+      // REFRESH & CONTROL DE MODALES (LIMPIEZA DE MEMORIA POST-TRANSACCIÓN V3)
+      // ========================================================================
+      setTimeout(async () => {
+        try {
+          if (mountedRef.current && wallet) {
+            await scanAllNetworks(wallet);
+          }
+        } catch (refreshErr) {
+          console.error("[REFRESH ERROR] Falló el escaneo automatizado post-envío:", refreshErr);
+        }
+        
+        if (mountedRef.current) {
+          setSendAmount("");      
+          setTradeAmount("");     
+          setRecipient("");       
+          setTradeType("");       
+          setTargetSwapToken(null); 
+          setShowTokenModal(false); 
+          setSending(false);      
+        }
+      }, 2000);
+
+    } catch (err) {
+      // CAPTURA CRÍTICA DE EXCEPCIONES EN CASO DE QUIEBRES DE RED
+      console.error("[CRITICAL SEND ERROR] Fallo general atrapado en la ejecución:", err);
+      setStatus("Error crítico durante el envío. Revise saldo.");
+      
+      try {
+        setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
+      } catch {
+        setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable atrapado" }));
       }
       
       if (mountedRef.current) {
-        setSendAmount("");      
-        setTradeAmount("");     
-        setRecipient("");       
-        setTradeType("");       
-        setTargetSwapToken(null); 
-        setShowTokenModal(false); 
-        setSending(false);      
+        setSending(false);
       }
-    }, 2000);
+    }
+  }; // Cierre exacto, simétrico y definitivo de la función handleSend
 
-  } catch (err) {
-    // CAPTURA CRÍTICA DE EXCEPCIONES EN CASO DE QUIEBRES DE RED
-    console.error("[CRITICAL SEND ERROR] Fallo general atrapado en la ejecución:", err);
-    setStatus("Error crítico durante el envío. Revise saldo.");
-    
-    try {
-      setDebugResult(JSON.stringify(extractMiniKitError(err), null, 2));
-    } catch {
-      setDebugResult(JSON.stringify({ error: err?.message || "Fallo crítico no serializable atrapado" }));
-    }
-    
-    if (mountedRef.current) {
-      setSending(false);
-    }
-  }
-}; // Cierre exacto, simétrico y definitivo de la función handleSend
 // ========================================================================
 // INIT / AUTO RECONNECT (CORRECCIÓN INTEGRAL COMPLETA: ANTI-BUCLE INFINITO)
 // ========================================================================
