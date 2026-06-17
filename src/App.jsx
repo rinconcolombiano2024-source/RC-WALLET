@@ -2167,12 +2167,12 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* 🗺️ BOTÓN GEOESPACIAL DIRECTO PARA DISPOSITIVOS MÓVILES (SANEADO CON RUTA CANÓNICA) */}
+        {/* 🗺️ BOTÓN GEOESPACIAL DIRECTO PARA DISPOSITIVOS MÓVILES (SANEADO CON DIRECCIÓN EXACTA V5) */}
         <div 
           onClick={() => {
             if (typeof window !== "undefined") {
-              // CORRECCIÓN INDUSTRIAL DEFINTIVA: Enlace geoespacial canónico oficial inmune a quiebres de red
-              const mapUrl = "https://google.com" + encodeURIComponent("Rincón Colombiano, Czapelska 33, 04-081 Warszawa, Poland");
+              // ENLACE GEOESPACIAL CANÓNICO OFICIAL INMUNE A QUIEBRES DE RED (PUNTO DE BÚSQUEDA DIRECTO EN GOOGLE MAPS)
+              const mapUrl = "https://google.com" + encodeURIComponent("Rincón Colombiano, ul. Czapelska 24, 04-348 Warszawa, Poland");
               window.open(mapUrl, "_blank", "noopener,noreferrer");
             }
           }}
@@ -2190,7 +2190,7 @@ useEffect(() => {
             transition: "transform 0.2s ease"
           }}
         >
-          📍 Czapelska 33, Varsovia (Abrir Mapa 🗺️)
+          📍 ul. Czapelska 24, Varsovia (Abrir Google Maps 🗺️)
         </div>
       </div>
 
