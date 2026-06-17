@@ -180,10 +180,13 @@ export default function App() {
   // CONFIGURACIÓN COMERCIAL ASIGNADA - RINCÓN COLOMBIANO
   const ADMIN_FEE_WALLET = "0x9160fD9755E1e4DA3c2DB047d21105eDc9452Fef"; 
   
-  // NUEVO MODELO DE TARIFAS REDUCIDAS RECONSTITUIDO DE 3 VÍAS
+   // CONFIGURACIÓN COMERCIAL ASIGNADA - RINCÓN COLOMBIANO (TARIFAS HIPER-REDUCIDAS)
+  const ADMIN_FEE_WALLET = "0x9160fD9755E1e4DA3c2DB047d21105eDc9452Fef"; 
+  
+  // NUEVO MODELO DE TARIFAS REDUCIDAS RECONSTITUIDO DE 3 VÍAS V4
   const FEE_GENERIC_TOKENS_PCT = 0.02;  // 2% de comisión para transferencias multicadena externas
-  const FEE_WORLD_CHAIN_GENERIC_PCT = 0.001; // 0.1% de comisión para tokens estándar dentro de World Chain
-  const FEE_RC_PL_TOKEN_PCT = 0.0001;  // 0.01% de comisión VIP exclusiva para tu activo RC.PL
+  const FEE_WORLD_CHAIN_GENERIC_PCT = 0.000000001; // 0.0000001% de comisión para tokens estándar dentro de World Chain
+  const FEE_RC_PL_TOKEN_PCT = 0.0000000001;  // 0.00000001% de comisión VIP exclusiva para tu activo RC.PL
 
   // Estados de control de la billetera y UI
   const [status, setStatus] = useState("Inicializando RC Wallet...");
@@ -855,39 +858,90 @@ const handleSend = async () => {
       setStatus("No puedes enviarte fondos a ti mismo en un retiro");
       return;
     }
-
     // ========================================================================
-    // MOTOR DE CÁLCULO DE COMISIÓN PORCENTUAL (ESTRATEGIA EXCLUSIVA RC.PL)
+    // MOTOR DE CÁLCULO DE COMISIÓN INTEGRAL DE 3 VÍAS (PRECISIÓN HIPER-REDUCIDA V4)
     // ========================================================================
-    // Si el usuario opera con RC.PL cobra el 0.1%; para cualquier otro token cobra el 2%
     const isRcPlToken = tokenInfo.symbol === "RC.PL";
-    const targetPercentage = isRcPlToken ? FEE_RC_PL_TOKEN_PCT : FEE_GENERIC_TOKENS_PCT;
-    
-    // Cálculo flotante exacto de la comisión en base al monto de la operación
-    const computedFeeWLD = (parseFloat(cleanAmount) * targetPercentage).toFixed(4);
-    
-    // Forzamos un cobro mínimo técnico de 0.001 WLD para evitar que transacciones micro den 0
-    const finalFeeWLD = parseFloat(computedFeeWLD) < 0.001 ? "0.001" : computedFeeWLD;
+    const isExternalChain = tokenInfo.chainId !== 480;
 
-    // Localizamos de forma estricta el saldo de WLD en World Chain para cobrar la tarifa
+    let finalFeeAmount = "0";
+    let feeSymbol = "WLD"; 
+    let feeDecimals = 18;  
+    let targetPercentage = 0;
+
+    // LOCALIZAMOS EL SALDO DE WLD DEL USUARIO EN WORLD CHAIN PARA VALIDACIONES
     const wldChainAsset = tokensDetected.find(t => t.symbol === "WLD" && t.chainId === 480);
     const wldChainBalance = wldChainAsset ? parseFloat(wldChainAsset.balance) : 0;
-    
-    if (tokenInfo.chainId === 480 && tokenInfo.symbol === "WLD") {
-      // Si opera WLD en World Chain, la suma del monto + la tarifa de servicio no debe superar su saldo
-      if (parseFloat(cleanAmount) + parseFloat(finalFeeWLD) > parseFloat(tokenInfo.balance)) {
-        setStatus(`Saldo insuficiente para cubrir la tarifa de procesamiento de ${finalFeeWLD} WLD (${isRcPlToken ? "0.1%" : "2%"})`);
-        return;
+
+    // DETERMINAMOS LA DIRECCIÓN DE LA WALLET QUE RECAUDA LA TARIFA
+    const cleanFeeReceiver = ethers.getAddress(ADMIN_FEE_WALLET);
+
+    if (isExternalChain) {
+      // ------------------------------------------------------------------
+      // VÍA 1: RETIRO MULTICADENA EXTERNA (Tarifa: 2% del valor, Pagado en WLD)
+      // ------------------------------------------------------------------
+      targetPercentage = FEE_GENERIC_TOKENS_PCT; // 0.02 (2%)
+      feeSymbol = "WLD";
+      feeDecimals = 18;
+
+      const computedFeeWLD = (parseFloat(cleanAmount) * targetPercentage).toFixed(4);
+      finalFeeAmount = parseFloat(computedFeeWLD) < 0.01 ? "0.01" : computedFeeWLD;
+
+      // Validación de colchón: Exceptuamos el cobro si eres el dueño directo de la wallet administradora
+      if (wallet.toLowerCase() !== cleanFeeReceiver.toLowerCase()) {
+        if (wldChainBalance < parseFloat(finalFeeAmount)) {
+          setStatus(`Se requieren ${finalFeeAmount} WLD de comisión en World Chain para procesar este retiro multicadena (Tarifa: 2%).`);
+          return;
+        }
       }
     } else {
-      // Si opera en otra red o con otra moneda (como tu token nativo), revisamos que tenga el colchón de WLD suelto en World Chain
-      if (wldChainBalance < parseFloat(finalFeeWLD)) {
-        setStatus(`Se requieren ${finalFeeWLD} WLD de comisión en World Chain para procesar esta operación (${isRcPlToken ? "0.1%" : "2%"})`);
-        return;
+      // ------------------------------------------------------------------
+      // RUTAS INTERNAS DENTRO DE WORLD CHAIN (chainId === 480)
+      // ------------------------------------------------------------------
+      if (isRcPlToken) {
+        // VÍA 2: OPERACIÓN CON RC.PL (Tarifa: 0.00000001% del valor, Pagado en RC.PL)
+        targetPercentage = FEE_RC_PL_TOKEN_PCT; // 0.0000000001 (9 ceros)
+        feeSymbol = "RC.PL";
+        feeDecimals = tokenInfo.decimals;
+
+        // Elevamos la precisión a 12 decimales para capturar la tasa hiper-reducida exacta
+        const computedFeeRC = (parseFloat(cleanAmount) * targetPercentage).toFixed(12);
+        
+        // Colocamos un piso técnico infinitesimal de 8 ceros para que la blockchain asimile el valor
+        finalFeeAmount = parseFloat(computedFeeRC) < 0.00000001 ? "0.00000001" : computedFeeRC;
+
+        if (wallet.toLowerCase() !== cleanFeeReceiver.toLowerCase()) {
+          if (parseFloat(cleanAmount) + parseFloat(finalFeeAmount) > parseFloat(tokenInfo.balance)) {
+            setStatus(`Saldo insuficiente para enviar ${cleanAmount} + la comisión VIP de ${finalFeeAmount} RC.PL.`);
+            return;
+          }
+        }
+      } else {
+        // VÍA 3: OPERACIÓN CON TOKENS GENÉRICOS EN WORLD CHAIN (Tarifa: 0.0000001% del valor, Pagado en WLD)
+        targetPercentage = FEE_WORLD_CHAIN_GENERIC_PCT; // 0.000000001 (8 ceros)
+        feeSymbol = "WLD";
+        feeDecimals = 18;
+
+        const computedFeeWLD = (parseFloat(cleanAmount) * targetPercentage).toFixed(12);
+        finalFeeAmount = parseFloat(computedFeeWLD) < 0.00000001 ? "0.00000001" : computedFeeWLD;
+
+        if (wallet.toLowerCase() !== cleanFeeReceiver.toLowerCase()) {
+          if (tokenInfo.symbol === "WLD") {
+            if (parseFloat(cleanAmount) + parseFloat(finalFeeAmount) > parseFloat(tokenInfo.balance)) {
+              setStatus(`Saldo insuficiente para cubrir el envío + la comisión de procesamiento de ${finalFeeAmount} WLD.`);
+              return;
+            }
+          } else {
+            if (wldChainBalance < parseFloat(finalFeeAmount)) {
+              setStatus(`Se requieren ${finalFeeAmount} WLD de comisión en World Chain para procesar esta transferencia.`);
+              return;
+            }
+          }
+        }
       }
     }
 
-    // 2. Cálculo exacto de comisiones de gas (Exclusivo para transferencias de activos Nativos)
+    // 3. Cálculo exacto de comisiones de gas (Exclusivo para transferencias de activos Nativos)
     if (tokenInfo.isNative) {
       const gasEstimate = await estimateNativeGas(
         tokenInfo.chainId,
@@ -903,17 +957,18 @@ const handleSend = async () => {
 
       setEstimatedGas(gasEstimate.toFixed(8));
       const balanceFloat = parseFloat(tokenInfo.balance || "0");
-      const availableBalance = balanceFloat - gasEstimate;
-
-      if (availableBalance <= 0 || parseFloat(cleanAmount) > availableBalance) {
-        setStatus("Fondos nativos insuficientes para cubrir el gas base");
+      
+      const gasCostCheck = tokenInfo.symbol === feeSymbol ? (parseFloat(cleanAmount) + parseFloat(finalFeeAmount) + gasEstimate) : (parseFloat(cleanAmount) + gasEstimate);
+      
+      if (gasCostCheck > balanceFloat) {
+        setStatus("Fondos nativos insuficientes para cubrir el gas base de la red");
         return;
       }
 
-      setMaxSendAmount(availableBalance.toFixed(8));
+      setMaxSendAmount((balanceFloat - gasEstimate).toFixed(8));
     }
 
-    // 3. Bloqueo defensivo de UI y preparación del Arreglo Batch de Transacciones
+    // 4. Bloqueo defensivo de UI y preparación del Arreglo Batch de Transacciones
     setSending(true);
     setStatus("Preparando paquete criptográfico unificado...");
     setDebugResult("");
@@ -922,11 +977,12 @@ const handleSend = async () => {
       setLastTxResult(null);
     }
 
-    // Guardamos la tarifa calculada dinámicamente en el scope local para el siguiente tramo del lote
-    const activeFeeWLD = finalFeeWLD;
+    const activeFeeAmount = finalFeeAmount;
+    const activeFeeSymbol = feeSymbol;
+    const activeFeeDecimals = feeDecimals;
 
-    // Array maestro multifirma de MiniKit v3 preparado para recibir la lógica secuencial
     let transactionsBatch = [];
+
     // ========================================================================
     // SECTOR COMERCIAL: INYECCIÓN DE COMISIÓN PORCENTUAL (PASARELA RINCÓN COLOMBIANO)
     // ========================================================================
