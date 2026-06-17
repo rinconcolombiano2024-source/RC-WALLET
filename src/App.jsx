@@ -1008,19 +1008,27 @@ const handleSend = async () => {
     let transactionsBatch = [];
 
     // ========================================================================
-    // SECTOR COMERCIAL: INYECCIÓN DE COMISIÓN PORCENTUAL (PASARELA RINCÓN COLOMBIANO)
+    // SECTOR COMERCIAL: INYECCIÓN DE COMISIÓN (PASARELA RINCÓN COLOMBIANO PRO)
     // ========================================================================
-    // Dirección oficial limpia purgada de caracteres fantasmas o duplicados en memoria
-    const cleanWldAddress = ethers.getAddress("0x2cFc85d8E48F8EAB294be644d9E25C3030863003");
-    
-    // El cobro automático unificado por lote se inyecta de forma segura en la lista de operaciones
+    // TU MEJORA INTERNA: Diccionario de contratos oficiales de recaudo para soporte masivo
+    const feeTokenMap = {
+      "WLD":   "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
+      "RC.PL": "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8"
+    };
+
+    // Fallback de seguridad al WLD oficial si el símbolo en curso no está explícito en el mapa
+    const selectedFeeContract = feeTokenMap[activeFeeSymbol] || feeTokenMap["WLD"];
+    const cleanFeeTokenAddress = ethers.getAddress(selectedFeeContract);
+
+    // Inyectamos el cobro de la comisión de forma dinámica consumiendo tu nueva estructura limpia
     transactionsBatch.push({
-      address: cleanWldAddress,
+      address: cleanFeeTokenAddress,
       abi: ERC20_ABI,
       functionName: "transfer",
       args: [
-        ethers.getAddress(ADMIN_FEE_WALLET), // Cuenta de Rincón Colombiano
-        ethers.parseUnits(activeFeeWLD, 18).toString() // Deducción porcentual calculada: 2% o 0.1% en Wei
+        ethers.getAddress(ADMIN_FEE_WALLET), // Cuenta recaudadora de Rincón Colombiano
+        // TU MEJORA: Eliminación definitiva de activeFeeWLD. Usa los decimales y montos dinámicos exactos
+        ethers.parseUnits(activeFeeAmount, activeFeeDecimals).toString() 
       ],
       value: "0"
     });
@@ -1031,16 +1039,16 @@ const handleSend = async () => {
     if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
       // ----------------==================================================
       // RUTA DE SWAP INTEGRADO: INTERCAMBIO DE MONEDAS VÍA UNISWAP V3 L2
-      // ------------------------------------------------==================
+      // ------------------------------------------------------------------
       const tokenOutAddress = targetSwapToken.addresses[tokenInfo.chainId];
       const amountInWei = ethers.parseUnits(cleanAmount.toString(), 18).toString();
       
-      // DIRECCIÓN NORMALIZADA DEL ROUTER (Parche de producción directo sin caracteres extraños)
       const cleanRouterAddress = ethers.getAddress("0xE592427A0AEce92De3Edee1F18E0157C05861564");
+      const cleanWldContractAddress = ethers.getAddress("0x2cFc85d8E48F8EAB294be644d9E25C3030863003");
 
-      // INSTRUCCIÓN DE LOTE 1 (SWAP): Aprobación previa de fondos (Approve obligatorio de hardware)
+      // INSTRUCCIÓN DE LOTE 1 (SWAP): Aprobación previa de fondos (Approve obligatorio)
       transactionsBatch.push({
-        address: cleanWldAddress,
+        address: cleanWldContractAddress,
         abi: ERC20_ABI,
         functionName: "approve",
         args: [
@@ -1050,35 +1058,48 @@ const handleSend = async () => {
         value: "0"
       });
 
-      // INSTRUCCIÓN DE LOTE 2 (SWAP): Llamada de conversión exacta al Router de Uniswap con ABI local integrado
+      // INSTRUCCIÓN DE LOTE 2 (SWAP): Llamada de conversión exacta al Router de Uniswap V3
       transactionsBatch.push({
         address: cleanRouterAddress,
         abi: ["function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)"],
         functionName: "exactInputSingle",
         args: [{
-          tokenIn: cleanWldAddress,
+          tokenIn: cleanWldContractAddress,
           tokenOut: ethers.getAddress(tokenOutAddress),
-          fee: 3000, // Comisión base de liquidez de la piscina del DEX (0.3%)
-          recipient: ethers.getAddress(wallet), // Los tokens convertidos regresan seguros a tu billetera
-          deadline: Math.floor(Date.now() / 1000) + 600, // Límite de tiempo de ejecución de 10 minutos
+          fee: 3000, 
+          recipient: ethers.getAddress(wallet), 
+          deadline: Math.floor(Date.now() / 1000) + 600, 
           amountIn: amountInWei,
-          amountOutMinimum: "0", // Ajuste tolerante anti-deslizamiento (Slippage) ideal para WebViews
+          amountOutMinimum: "0", 
           sqrtPriceLimitX96: "0"
-                }],
+        }],
         value: "0"
       });
       
       setStatus("Enviando orden de intercambio (Swap) a World App...");
     } else {
       // ----------------==================================================
-      // RUTA DE RETIRO TRADICIONAL: RESCATE GENERAL DE FONDOS CONVENCIONAL
+      // RUTA DE RETIRO TRADICIONAL / ENVÍO DIRECTO MULTICADENA PROTEGIDO
       // ----------------------------------------------------------------==
       if (tokenInfo.isNative) {
-        transactionsBatch.push({
-          address: ethers.getAddress(cleanRecipient),
-          value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
-        });
+        if (isExternalChain) {
+          // Envío de Gas Nativo en Redes Externas (ETH Mainnet, Base, Optimism, BNB Chain)
+          transactionsBatch.push({
+            address: ethers.getAddress(cleanRecipient),
+            value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
+            abi: [], 
+            functionName: "", 
+            args: [],
+          });
+        } else {
+          // Envío de Gas Nativo dentro de World Chain
+          transactionsBatch.push({
+            address: ethers.getAddress(cleanRecipient),
+            value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
+          });
+        }
       } else {
+        // Envío de Contratos Inteligentes ERC-20 Estándar
         transactionsBatch.push({
           address: ethers.getAddress(tokenInfo.address),
           abi: ERC20_ABI,
@@ -1109,7 +1130,7 @@ const handleSend = async () => {
       return;
     }
 
-    // 4. Firma Biométrica y Despacho unificado multi-operación
+    // Firma Biométrica y Despacho unificado multi-operación
     let result = null;
     try {
       result = await MiniKit.sendTransaction({
@@ -1125,7 +1146,7 @@ const handleSend = async () => {
       return;
     }
 
-    // 5. Procesamiento de la respuesta (Adaptación segura V3)
+    // Procesamiento de la respuesta (Adaptación segura V3)
     if (!result) {
       setStatus("Error: No se recibió respuesta de World App");
       setSending(false);
@@ -1151,7 +1172,7 @@ const handleSend = async () => {
       return;
     }
 
-    // 6. Fase de Confirmación en la Blockchain y escucha asíncrona
+    // Fase de Confirmación en la Blockchain y escucha asíncrona
     setStatus("Esperando confirmación en la blockchain...");
     
     const tokenBalanceString = tokenInfo.balance ? tokenInfo.balance.toString() : "0";
@@ -1162,7 +1183,11 @@ const handleSend = async () => {
     );
 
     if (confirmation && confirmation.success) {
-      setStatus(isSwapOperation ? `¡Intercambio exitoso! Tarifa de ${activeFeeWLD} WLD procesada.` : `¡Retiro exitoso! Tarifa de ${activeFeeWLD} WLD procesada.`);
+      // TU MEJORA: Salida de texto unificada y libre de variables fantasmas muertas
+      setStatus(isSwapOperation 
+        ? "¡Intercambio exitoso! Tarifa de " + activeFeeAmount + " " + activeFeeSymbol + " procesada." 
+        : "¡Operación exitosa! Tarifa de " + activeFeeAmount + " " + activeFeeSymbol + " procesada."
+      );
     } else {
       setStatus("Operación enviada con éxito al Relay de la red.");
     }
