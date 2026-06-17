@@ -1753,6 +1753,48 @@ useEffect(() => {
                 loading="eager" // Carga inmediata de flujos de WebSocket en el smartphone
                 allowFullScreen
               />
+            </div>            {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO INDUSTRIAL REFORZADO DE 4 VÍAS) */}
+            <div style={{ display: "flex", gap: 8, marginTop: 14, marginBottom: 16, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeType("BUY");
+                  setTargetSwapToken(null);
+                }}
+                style={{ flex: "1 1 40%", padding: 12, borderRadius: 12, border: "none", background: tradeType === "BUY" ? "#00c57a" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
+              >
+                🟢 COMPRAR
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeType("SELL");
+                  setTargetSwapToken(null);
+                }}
+                style={{ flex: "1 1 40%", padding: 12, borderRadius: 12, border: "none", background: tradeType === "SELL" ? "#f6465d" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
+              >
+                🔴 VENDER
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeType("SWAP");
+                }}
+                style={{ flex: "1 1 40%", padding: 12, borderRadius: 12, border: "none", background: tradeType === "SWAP" ? "#f0b90b" : "#2b3139", color: tradeType === "SWAP" ? "#000" : "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
+              >
+                🔄 SWAP
+              </button>
+              {/* 🔵 PASARELA DIRECTA DE ENVIÓ / RETIRO DE FONDOS MULTICADENA */}
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeType("SEND");
+                  setTargetSwapToken(null);
+                }}
+                style={{ flex: "1 1 40%", padding: 12, borderRadius: 12, border: "none", background: tradeType === "SEND" ? "#2563eb" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
+              >
+                🔵 ENVIAR
+              </button>
             </div>
 
             {/* ========================================================
@@ -1796,38 +1838,6 @@ useEffect(() => {
               </div>
             )}
 
-                        {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO REFORZADO BINANCE PREMIUM DE 3 VÍAS) */}
-            <div style={{ display: "flex", gap: 10, marginTop: 14, marginBottom: 16 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setTradeType("BUY");
-                  setTargetSwapToken(null);
-                }}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: tradeType === "BUY" ? "#00c57a" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
-              >
-                🟢 COMPRAR
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTradeType("SELL");
-                  setTargetSwapToken(null);
-                }}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: tradeType === "SELL" ? "#f6465d" : "#2b3139", color: "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
-              >
-                🔴 VENDER
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTradeType("SWAP");
-                }}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: tradeType === "SWAP" ? "#f0b90b" : "#2b3139", color: tradeType === "SWAP" ? "#000" : "#fff", fontWeight: "bold", fontSize: 13, cursor: "pointer", transition: "background 0.2s" }}
-              >
-                🔄 SWAP
-              </button>
-            </div>
 
 {/* ========================================================
                FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO COMPATIBLE V3)
