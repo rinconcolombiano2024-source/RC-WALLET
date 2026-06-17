@@ -1713,11 +1713,12 @@ useEffect(() => {
               <span style={{ fontSize: 11, color: "#00c57a", fontWeight: "bold", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
               </span>
-            </div>            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA SANEADO (TRANSMISIÓN EN TIEMPO REAL ACTIVA) */}
+            </div> 
+                        {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA (MOTOR DEXSCREENER ESTILO PUF MINI-APP) */}
             <div 
               style={{ 
                 width: "100%", 
-                height: tradeType === "SWAP" ? 140 : 280, 
+                height: tradeType === "SWAP" ? 150 : 300, 
                 borderRadius: 14, 
                 overflow: "hidden", 
                 marginBottom: 14, 
@@ -1728,32 +1729,27 @@ useEffect(() => {
               }}
             >
               <iframe
-                title="TradingView Realtime Live Terminal Feed"
-                src={"https://tradingview.com" + (
-                  selectedToken?.symbol === "RC.PL" ? "BINANCE:WLDUSDT" : 
-                  selectedToken?.symbol === "GOLD" ? "OANDA:XAUUSD" :
-                  selectedToken?.symbol === "SUSHI" ? "BINANCE:SUSHIUSDT" :
-                  selectedToken?.symbol === "MADS" ? "UNISWAP:WLDUSDC" :
-                  selectedToken?.symbol === "RCOL" ? "BINANCE:WLDUSDT" :
-                  selectedToken?.symbol === "WBTC" ? "BINANCE:BTCUSDT" :
-                  selectedToken?.symbol === "WETH" ? "BINANCE:ETHUSDT" : "BINANCE:" + (selectedToken?.symbol || "WLD") + "USDT"
-                ) + "&interval=" + (
-                  chartInterval === "1s" ? "1" : 
-                  chartInterval === "1m" ? "1" : 
-                  chartInterval === "5m" ? "5" : 
-                  chartInterval === "15m" ? "15" : 
-                  chartInterval === "30m" ? "30" : 
-                  chartInterval === "1H" ? "60" : 
-                  chartInterval === "4H" ? "240" : 
-                  chartInterval === "1D" ? "D" : "W"
-                ) + "&theme=dark&style=1&timezone=Etc%2FUTC&studies=" + encodeURIComponent(
-                  JSON.stringify(["RSI@tv-basicstudies", "MASimple@tv-basicstudies", "BollingerBands@tv-basicstudies", "MACD@tv-basicstudies"])
-                ) + "&local=es&withdateranges=true&hide_side_toolbar=true&allow_symbol_change=false&saveimage=false&publish_source=mobile_webview"}
+                title="DexScreener Realtime Live Terminal Feed"
+                src={"https://dexscreener.com" + (
+                  // PARSEO LOGÍSTICO COMPATIBLE CON WORLD CHAIN, OPTIMISM Y BASE (IGUAL QUE PUF)
+                  selectedToken?.symbol === "RC.PL" ? "worldchain/0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8" : // Tu contrato real en World Chain
+                  selectedToken?.symbol === "WLD" ? "worldchain/0x2cFc85d8E48F8EAB294be644d9E25C3030863003" : 
+                  selectedToken?.symbol === "USDC" ? "worldchain/0x79A02482A880bCE3F13e09Da970dC34db4CD24d1" :
+                  selectedToken?.symbol === "WETH" ? "worldchain/0x4200000000000000000000000000000000000006" :
+                  selectedToken?.symbol === "WBTC" ? "worldchain/0x03C7054bcb39f7b2e5B2c7AcB37583e32D70Cfa3" :
+                  selectedToken?.symbol === "MADS" ? "worldchain/0x39FcEFD22c3407e3E4CDCD60831631FF6A1CD7b1" :
+                  selectedToken?.symbol === "RCOL" ? "worldchain/0x78BCEFD3407e3E4CDCD60831631FF6A1CD7b25aC" :
+                  selectedToken?.symbol === "SUSHI" ? "optimism/0x6A1CD7b1981FDEEB8f8702b36c4b225389658E29" :
+                  "worldchain/0x2cFc85d8E48F8EAB294be644d9E25C3030863003" // Fallback seguro a WLD
+                ) + "?embed=1&theme=dark&trades=0&info=0"}
                 style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
-                loading="eager" // Carga inmediata de flujos de WebSocket en el smartphone
+                loading="eager" // Despacho inmediato de WebSockets de liquidez en tiempo real
                 allowFullScreen
               />
-            </div>            {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO INDUSTRIAL REFORZADO DE 4 VÍAS) */}
+            </div>
+       
+            
+            {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO INDUSTRIAL REFORZADO DE 4 VÍAS) */}
             <div style={{ display: "flex", gap: 8, marginTop: 14, marginBottom: 16, flexWrap: "wrap" }}>
               <button
                 type="button"
