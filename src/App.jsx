@@ -1983,7 +1983,7 @@ useEffect(() => {
 
       <hr style={{ border: "1px solid #222", marginBottom: 20 }} />
       {/* ========================================================
-         FORMULARIO DE RETIRO TRADICIONAL (DISEÑO INDUSTRIAL DE RESPALDO)
+         FORMULARIO DE RETIRO TRADICIONAL (DISEÑO INDUSTRIAL DE RESPALDO RECONSTITUIDO)
       ======================================================== */}
       <h2 style={{ fontSize: 18, fontWeight: "bold", marginTop: 24, marginBottom: 12, color: "#eaecef" }}>
         Retirar / Recuperar Fondos
@@ -1996,7 +1996,7 @@ useEffect(() => {
           padding: 14, 
           borderRadius: 14, 
           marginBottom: 16, 
-          border: "1px solid #2b3139",
+          border: selectedToken ? "1px solid #00c57a" : "1px solid #2b3139",
           boxSizing: "border-box"
         }}
       >
@@ -2082,14 +2082,16 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Desglose de Tarifas de Respaldo Dinámicas en Pantalla Base (SANEADO CON CONCATENACIÓN PLANA) */}
+      {/* Desglose de Tarifas de Respaldo Dinámicas en Pantalla Base (SINCRO REAL CON MÁXIMA PRECISIÓN DE 3 VÍAS) */}
       {selectedToken && typeof selectedToken === "object" && !Array.isArray(selectedToken) && (
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#848e9c", marginBottom: 16, padding: "0 4px" }}>
           <span>Tarifa de procesamiento estimada:</span>
           <span style={{ fontWeight: "bold", color: "#f0b90b", fontFamily: "monospace" }}>
             {selectedToken.chainId === 480 
-              ? (parseFloat(sendAmount || "0") * (selectedToken.symbol === "RC.PL" ? FEE_RC_PL_TOKEN_PCT : FEE_GENERIC_TOKENS_PCT)).toFixed(4) + " WLD"
-              : FEE_EXTERNAL_CHAINS + " WLD"
+              ? (selectedToken.symbol === "RC.PL"
+                  ? (parseFloat(sendAmount || "0") * FEE_RC_PL_TOKEN_PCT).toFixed(12) + " RC.PL"
+                  : (parseFloat(sendAmount || "0") * FEE_WORLD_CHAIN_GENERIC_PCT).toFixed(12) + " WLD")
+              : (parseFloat(sendAmount || "0") * FEE_GENERIC_TOKENS_PCT).toFixed(4) + " WLD"
             }
           </span>
         </div>
@@ -2116,6 +2118,7 @@ useEffect(() => {
       >
         {sending ? "Procesando en World App..." : "Retirar Fondos"}
       </button>
+
 {/* ========================================================
          BANNER PUBLICITARIO PREMIUM: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
