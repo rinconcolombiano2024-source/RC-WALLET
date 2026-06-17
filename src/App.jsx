@@ -578,13 +578,15 @@ export default function App() {
 
       setTokensDetected(uniqueTokens);
 
-      // CORRECCIÓN DE EXPERIENCIA: Mantiene la selección del usuario si el token sigue existiendo
+        // CORRECCIÓN DE EXPERIENCIA: Mantiene la selección del usuario si el token sigue existiendo
       if (uniqueTokens.length > 0) {
         const stillExists = selectedToken ? uniqueTokens.find(t => t.address === selectedToken.address && t.chainId === selectedToken.chainId) : null;
-        if (!stillExists) {
+        if (!stillExists) {          
+          // SECCIÓN REPARADA: Si no hay selección previa, toma el primer token de forma individual
           setSelectedToken(uniqueTokens[0]); 
           if (uniqueTokens[0]?.tradingViewSymbol) setActiveChartSymbol(uniqueTokens[0].tradingViewSymbol);
         } else {
+          // SECCIÓN REPARADA: Si seleccionaste ETH o WLD, se respeta tu decisión y no te regresa a RC.PL
           setSelectedToken(stillExists); 
           if (stillExists?.tradingViewSymbol) setActiveChartSymbol(stillExists.tradingViewSymbol);
         }
@@ -599,7 +601,8 @@ export default function App() {
     } finally {
       scanLockRef.current = false; 
     }
-  }, [network]); // CORRECCIÓN DEFINITIVA ANTI-BUCLE: Solo escucha cambios de red para impedir re-escaneos infinitos
+  }, [network, selectedToken]); // Cierre exacto del useCallback con persistencia de clics activa
+
    // ========================================================================
   // LOGIN (MÁXIMA ROBUSTEZ - COMPATIBLE CON MINIKIT V3 Y APAGADO SEGURO)
   // ========================================================================
