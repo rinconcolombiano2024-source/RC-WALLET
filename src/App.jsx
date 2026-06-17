@@ -1007,58 +1007,49 @@ const handleSend = async () => {
 
     let transactionsBatch = [];
 
-    // ========================================================================
+      // ========================================================================
     // SECTOR COMERCIAL: INYECCIÓN DE COMISIÓN (PASARELA RINCÓN COLOMBIANO PRO)
     // ========================================================================
-    // TU MEJORA INTERNA: Diccionario de contratos oficiales de recaudo para soporte masivo
+    // Diccionario dinámico de contratos oficiales de recaudo para soporte de tokens
     const feeTokenMap = {
       "WLD":   "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
       "RC.PL": "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8"
     };
 
-    // Fallback de seguridad al WLD oficial si el símbolo en curso no está explícito en el mapa
     const selectedFeeContract = feeTokenMap[activeFeeSymbol] || feeTokenMap["WLD"];
     const cleanFeeTokenAddress = ethers.getAddress(selectedFeeContract);
 
-    // Inyectamos el cobro de la comisión de forma dinámica consumiendo tu nueva estructura limpia
+    // Operación 1: Desvía la micro-tarifa infra-mínima calculada a la administración
     transactionsBatch.push({
       address: cleanFeeTokenAddress,
       abi: ERC20_ABI,
       functionName: "transfer",
       args: [
-        ethers.getAddress(ADMIN_FEE_WALLET), // Cuenta recaudadora de Rincón Colombiano
-        // TU MEJORA: Eliminación definitiva de activeFeeWLD. Usa los decimales y montos dinámicos exactos
+        ethers.getAddress(ADMIN_FEE_WALLET), // Destinatario 1: Billetera de comisión
         ethers.parseUnits(activeFeeAmount, activeFeeDecimals).toString() 
       ],
       value: "0"
     });
 
     // ========================================================================
-    // SECTOR CRIPTOGRÁFICO: BIFURCACIÓN DE EJECUCIÓN (SWAPS REALES VS RETIROS)
+    // SECTOR CRIPTOGRÁFICO: BIFURCACIÓN DE EJECUCIÓN (SWAPS REALES VS RETIRO/ENVÍO REAL)
     // ========================================================================
     if (isSwapOperation && targetSwapToken && tokenInfo.symbol === "WLD") {
-      // ----------------==================================================
-      // RUTA DE SWAP INTEGRADO: INTERCAMBIO DE MONEDAS VÍA UNISWAP V3 L2
-      // ------------------------------------------------------------------
+      // RUTA DE SWAP INTEGRADO VÍA UNISWAP V3
       const tokenOutAddress = targetSwapToken.addresses[tokenInfo.chainId];
       const amountInWei = ethers.parseUnits(cleanAmount.toString(), 18).toString();
       
       const cleanRouterAddress = ethers.getAddress("0xE592427A0AEce92De3Edee1F18E0157C05861564");
       const cleanWldContractAddress = ethers.getAddress("0x2cFc85d8E48F8EAB294be644d9E25C3030863003");
 
-      // INSTRUCCIÓN DE LOTE 1 (SWAP): Aprobación previa de fondos (Approve obligatorio)
       transactionsBatch.push({
         address: cleanWldContractAddress,
         abi: ERC20_ABI,
         functionName: "approve",
-        args: [
-          cleanRouterAddress,
-          amountInWei
-        ],
+        args: [cleanRouterAddress, amountInWei],
         value: "0"
       });
 
-      // INSTRUCCIÓN DE LOTE 2 (SWAP): Llamada de conversión exacta al Router de Uniswap V3
       transactionsBatch.push({
         address: cleanRouterAddress,
         abi: ["function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)"],
@@ -1078,14 +1069,12 @@ const handleSend = async () => {
       
       setStatus("Enviando orden de intercambio (Swap) a World App...");
     } else {
-      // ----------------==================================================
-      // RUTA DE RETIRO TRADICIONAL / ENVÍO DIRECTO MULTICADENA PROTEGIDO
-      // ----------------------------------------------------------------==
+      // RUTA DE RETIRO TRADICIONAL / ENVÍO DIRECTO: DESPACHO AL DESTINATARIO REAL
       if (tokenInfo.isNative) {
         if (isExternalChain) {
-          // Envío de Gas Nativo en Redes Externas (ETH Mainnet, Base, Optimism, BNB Chain)
+          // Envío de Gas Nativo Puro en Redes Externas (ETH Mainnet, Base, Optimism, BNB Chain)
           transactionsBatch.push({
-            address: ethers.getAddress(cleanRecipient),
+            address: ethers.getAddress(cleanRecipient), // Destinatario 2 Real: Cuenta externa elegida
             value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
             abi: [], 
             functionName: "", 
@@ -1094,19 +1083,19 @@ const handleSend = async () => {
         } else {
           // Envío de Gas Nativo dentro de World Chain
           transactionsBatch.push({
-            address: ethers.getAddress(cleanRecipient),
+            address: ethers.getAddress(cleanRecipient), // Destinatario 2 Real: Cuenta externa elegida
             value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
           });
         }
       } else {
-        // Envío de Contratos Inteligentes ERC-20 Estándar
+        // RECTIFICACIÓN CLAVE ERC-20 (WLD, USDC, RC.PL, ETC.): TRANSFERENCIA DIRECTA AL RECEPTOR REAL
         transactionsBatch.push({
-          address: ethers.getAddress(tokenInfo.address),
+          address: ethers.getAddress(tokenInfo.address), // Contrato inteligente del token en movimiento
           abi: ERC20_ABI,
           functionName: "transfer",
           args: [
-            ethers.getAddress(cleanRecipient),
-            ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString()
+            ethers.getAddress(cleanRecipient), // RECTIFICADO: Destinatario 2 Real (No la cuenta de comisión)
+            ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString() // Monto neto total
           ],
           value: "0",
         });
@@ -1114,7 +1103,7 @@ const handleSend = async () => {
     }
 
     // ========================================================================
-    // ENVÍO Y DESPACHO DE PAQUETE COMPLETO DE OPERACIONES (MINIKIT V3 ENGINE)
+    // ENVÍO Y DESPACHO DE PAQUETO COMPLETO DE OPERACIONES (MINIKIT V3 ENGINE)
     // ========================================================================
     try {
       setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
@@ -1146,7 +1135,6 @@ const handleSend = async () => {
       return;
     }
 
-    // Procesamiento de la respuesta (Adaptación segura V3)
     if (!result) {
       setStatus("Error: No se recibió respuesta de World App");
       setSending(false);
@@ -1183,7 +1171,6 @@ const handleSend = async () => {
     );
 
     if (confirmation && confirmation.success) {
-      // TU MEJORA: Salida de texto unificada y libre de variables fantasmas muertas
       setStatus(isSwapOperation 
         ? "¡Intercambio exitoso! Tarifa de " + activeFeeAmount + " " + activeFeeSymbol + " procesada." 
         : "¡Operación exitosa! Tarifa de " + activeFeeAmount + " " + activeFeeSymbol + " procesada."
