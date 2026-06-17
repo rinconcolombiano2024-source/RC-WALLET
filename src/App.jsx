@@ -2172,7 +2172,7 @@ useEffect(() => {
           onClick={() => {
             if (typeof window !== "undefined") {
               // ENLACE DIRECTO COMPARTIDO POR EL DUEÑO: ABRE TU PERFIL COMERCIAL EN GOOGLE MAPS SIN COMPLICACIONES NI ERRORES DE DNS
-              const officialProfileUrl = "https://share.google";
+              const officialProfileUrl = "https://share.google/lNExE1BGt9KQ8M4tB";
               window.open(officialProfileUrl, "_blank", "noopener,noreferrer");
             }
           }}
