@@ -1569,18 +1569,25 @@ useEffect(() => {
                       let explorer = "";
                       const activeWallet = wallet;
 
+                                 // ESTRUCTURA DIRECTA EVM RECONSTITUIDA DE ALTA FIDELIDAD (ESTILO PROFESSIONAL WALLET)
                       if (token.chainId === 1) {
-                        explorer = token.isNative ? "https://etherscan.io" + activeWallet : "https://etherscan.io" + token.address + "?a=" + activeWallet;
+                        // Ethereum Mainnet: Envío directo al perfil consolidado de la wallet
+                        explorer = `https://etherscan.io/address/${activeWallet}`;
                       } else if (token.chainId === 10) {
-                        explorer = token.isNative ? "https://etherscan.io" + activeWallet : "https://etherscan.io" + token.address + "?a=" + activeWallet;
+                        // Optimism: Visualización de movimientos globales
+                        explorer = `https://optimistic.etherscan.io/address/${activeWallet}`;
                       } else if (token.chainId === 8453) {
-                        explorer = token.isNative ? "https://basescan.org" + activeWallet : "https://basescan.org" + token.address + "?a=" + activeWallet;
+                        // Base Chain: Rastreo de saldos unificados
+                        explorer = `https://basescan.org/address/${activeWallet}`;
                       } else if (token.chainId === 56) {
-                        explorer = token.isNative ? "https://bscscan.com" + activeWallet : "https://bscscan.com" + token.address + "?a=" + activeWallet;
+                        // BNB Smart Chain: Consulta de portafolio
+                        explorer = `https://bscscan.com/address/${activeWallet}`;
                       } else if (token.chainId === 480) {
-                        explorer = token.isNative ? "https://worldscan.org" + activeWallet : "https://worldscan.org" + token.address + "?a=" + activeWallet;
+                        // World Chain (PRO RECOMENDACIÓN): Envío directo al portafolio completo del usuario para ver todos sus activos
+                        explorer = `https://worldscan.org/address/${activeWallet}`;
                       } else if (token.chainId === 4801) {
-                        explorer = token.isNative ? "https://worldscan.org" + activeWallet : "https://worldscan.org" + token.address + "?a=" + activeWallet;
+                        // World Chain Sepolia Testnet: Diagnóstico de transacciones de prueba
+                        explorer = `https://sepolia.worldscan.org/address/${activeWallet}`;
                       }
                       
                       if (explorer && typeof window !== "undefined") {
