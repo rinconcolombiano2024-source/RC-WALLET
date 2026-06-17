@@ -177,16 +177,13 @@ const ERC20_ABI = [
 export default function App() {
   const mountedRef = useRef(true);
   const scanLockRef = useRef(false);
-
   // CONFIGURACIÓN COMERCIAL ASIGNADA - RINCÓN COLOMBIANO
   const ADMIN_FEE_WALLET = "0x9160fD9755E1e4DA3c2DB047d21105eDc9452Fef"; 
   
-  // NUEVO MODELO DE TARIFAS PORCENTUALES DINÁMICAS (ESTRATEGIA RC.PL ALTA DEMANDA)
-  const FEE_GENERIC_TOKENS_PCT = 0.02; // 2% de comisión para activos estándar de World App (WLD, USDC, etc.)
-  const FEE_RC_PL_TOKEN_PCT = 0.001;  // 0.1% de comisión súper reducida si la transacción usa tu activo RC.PL
-
-  // TARIFAS DE RESPALDO MULTICADENA PARA GAS/GAS FEE EN MONEDAS NATIVAS EXTERNAS
-  const FEE_EXTERNAL_CHAINS = "1.0"; // Tarifa premium en WLD fija si se rescatan fondos nativos externos
+  // NUEVO MODELO DE TARIFAS REDUCIDAS RECONSTITUIDO DE 3 VÍAS
+  const FEE_GENERIC_TOKENS_PCT = 0.02;  // 2% de comisión para transferencias multicadena externas
+  const FEE_WORLD_CHAIN_GENERIC_PCT = 0.001; // 0.1% de comisión para tokens estándar dentro de World Chain
+  const FEE_RC_PL_TOKEN_PCT = 0.0001;  // 0.01% de comisión VIP exclusiva para tu activo RC.PL
 
   // Estados de control de la billetera y UI
   const [status, setStatus] = useState("Inicializando RC Wallet...");
