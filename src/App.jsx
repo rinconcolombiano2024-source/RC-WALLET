@@ -1840,7 +1840,7 @@ useEffect(() => {
 
 
 {/* ========================================================
-               FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO COMPATIBLE V3)
+               FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO COMPATIBLE V4)
             ======================================================== */}
             {tradeType && (tradeType !== "SWAP" || targetSwapToken) && (
               <div 
@@ -1936,13 +1936,13 @@ useEffect(() => {
                   </div>
                   <div style={{ fontSize: 10, color: "#848e9c", lineHeight: "1.4" }}>
                     * {selectedToken?.chainId === 480 
-                        ? "Tarifa de World Chain activa: " + (selectedToken?.symbol === "RC.PL" ? "0.01% VIP" : "0.1% estándar") + "." 
+                        ? "Tarifa de World Chain activa: " + (selectedToken?.symbol === "RC.PL" ? "0.00000001% VIP" : "0.0000001% estándar") + "." 
                         : "Tarifa por soporte multicadena externa activa (" + (FEE_GENERIC_TOKENS_PCT * 100) + "% del valor en WLD)."
                       } Deducida de forma automática para la administración de Rincón Colombiano.
                   </div>
                 </div>
 
-                {/* BOTÓN DE DESPACHO DE LOTE EN WORLD APP (ADAPTATIVO DE PRIMERA GENERACIÓN) */}
+                {/* BOTÓN DE DESPACHO DE LOTE EN WORLD APP (SINCRO DE 4 VÍAS PERFECTA) */}
                 <button
                   type="button"
                   disabled={sending || !tradeAmount || (tradeType !== "SWAP" && !recipient)}
@@ -1958,6 +1958,8 @@ useEffect(() => {
                       ? "#00c57a" 
                       : tradeType === "SELL" 
                       ? "#f6465d" 
+                      : tradeType === "SEND"
+                      ? "#2563eb"
                       : "#f0b90b", 
                     color: (sending || !tradeAmount || (tradeType !== "SWAP" && !recipient)) ? "#848e9c" : tradeType === "SWAP" ? "#000" : "#fff", 
                     fontWeight: "bold", 
@@ -1968,7 +1970,8 @@ useEffect(() => {
                 >
                   {sending ? "Procesando lote en World App..." : 
                    tradeType === "BUY" ? "Confirmar Orden de Compra" : 
-                   tradeType === "SELL" ? "Confirmar Orden de Venta" : "Confirmar Ejecución de Swap 🔄"}
+                   tradeType === "SELL" ? "Confirmar Orden de Venta" : 
+                   tradeType === "SEND" ? "Confirmar Envío de Fondos 🚀" : "Confirmar Ejecución de Swap 🔄"}
                 </button>
               </div>
             )}
