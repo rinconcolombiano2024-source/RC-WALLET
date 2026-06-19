@@ -1015,16 +1015,37 @@ const handleSend = async () => {
       "function transfer(address to, uint256 value) returns (bool)"
     ]);
 
-    // RUTA DE ENVÍO ÚNICO DIRECTO AL DESTINATARIO REAL (FORMATO HEXADECIMAL MINIKIT NATIVO)
-    if (tokenInfo.isNative) {
-      // Envíos Nativos Puros (ETH de gas suelto): data va vacío ("0x")
+        // ========================================================================
+    // DETECCIÓN Y ARMADO NATIVO EXCLUSIVO (REPARADO PARA TOKENS EN ETHEREUM)
+    // ========================================================================
+    // Un token es Nativo ÚNICAMENTE si su símbolo es "ETH" y está en la red 1, 10 o 8453
+    const isRealNativeAsset = tokenInfo.isNative && tokenInfo.symbol === "ETH";
+
+    if (isRealNativeAsset) {
+      // RUTA ETH NATIVO: El monto va en 'value' y el calldata de datos va vacío ("0x")
       transactionsBatch.push({
         to: ethers.getAddress(cleanRecipient), 
         value: ethers.parseUnits(cleanAmount.toString(), 18).toString(),
         data: "0x"
       });
     } else {
-      // Envíos de Contratos Inteligentes ERC-20 (WLD, USDC, RC.PL, etc.)
+      // RUTA ERC-20 COMPLETA (WLD de Ethereum, USDC, RC.PL, etc.)
+      const mainAmountInWei = ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString();
+      
+      // Forzamos la codificación de bytes hexadecimales de la función transfer()
+      const mainDataHex = erc20Interface.encodeFunctionData("transfer", [
+        ethers.getAddress(cleanRecipient), // Destinatario Real de los fondos (Tu amigo o cliente)
+        mainAmountInWei
+      ]);
+
+      // Inyectamos la operación en el formato exacto de bajo nivel que exige el SDK
+      transactionsBatch.push({
+        to: ethers.getAddress(tokenInfo.address), // Apunta al contrato de WLD o RC.PL
+        value: "0",
+        data: mainDataHex
+      });
+    }
+  // Envíos de Contratos Inteligentes ERC-20 (WLD, USDC, RC.PL, etc.)
       const mainAmountInWei = ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString();
       
       // Codificamos la transferencia del monto principal hacia el destinatario ingresado en la pantalla
