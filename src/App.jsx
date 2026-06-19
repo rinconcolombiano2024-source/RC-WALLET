@@ -1533,7 +1533,7 @@ if (token.chainId === 1) {
   explorer = `https://worldscan.org{activeWallet}`}
 
 if (explorer && typeof window !== "undefined") {
-  window.open(explorer, "_blank", "noopener,noreferrer");
+  window.open(explorer, "_blank", "noopener,noreferrer")
                   }
 
 
