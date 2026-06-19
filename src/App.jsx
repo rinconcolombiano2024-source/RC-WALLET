@@ -1980,9 +1980,11 @@ if (explorer && typeof window !== "undefined") {
               </pre>
             )}
 
-          </div> {/* Fin de la tarjeta interna del modal */}
-        </div> {/* Fin del contenedor de fondo difuminado del modal */}
-      )}
+          </div> 
+        </div>
+              )
+         
+      )
                 }
             {/* ========================================================
                FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO COMPATIBLE V6)
