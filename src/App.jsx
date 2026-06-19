@@ -1675,9 +1675,9 @@ if (explorer && typeof window !== "undefined") {
           </button>
         </div>
       ) : null}
-      {/* ========================================================
-               VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V4)
-          ======================================================== */}
+           {/* ========================================================
+         VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V4)
+      ======================================================== */}
       {showTokenModal && selectedToken && (
         <div
           style={{
@@ -1686,19 +1686,19 @@ if (explorer && typeof window !== "undefined") {
             left: 0,
             width: "100vw",
             height: "100vh",
-            background: "rgba(11, 14, 17, 0.94)", // Opacidad de contraste premium para aislar la terminal
+            background: "rgba(11, 14, 17, 0.94)",
             backdropFilter: "blur(14px)",
             zIndex: 10000,
             display: "flex",
             justifyContent: "center",
-            alignItems: "flex-end" // Efecto deslizante nativo desde abajo ideal para smartphones
+            alignItems: "flex-end"
           }}
         >
           <div
             style={{
               width: "100%",
               maxWidth: "500px",
-              background: "#161a1e", // Gris profundo oficial de terminales de intercambio
+              background: "#161a1e",
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               padding: "24px 20px",
@@ -1716,16 +1716,7 @@ if (explorer && typeof window !== "undefined") {
                   <h3 style={{ margin: 0, color: "#eaecef", fontSize: 22, fontWeight: "800", fontFamily: "sans-serif" }}>
                     {selectedToken?.symbol || "TOKEN"}/USDT
                   </h3>
-                  <span 
-                    style={{ 
-                      fontSize: 11, 
-                      padding: "2px 6px", 
-                      borderRadius: 4, 
-                      background: "rgba(46, 189, 133, 0.15)", 
-                      color: "#00c57a", 
-                      fontWeight: "bold" 
-                    }}
-                  >
+                  <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "rgba(46, 189, 133, 0.15)", color: "#00c57a", fontWeight: "bold" }}>
                     En Vivo
                   </span>
                 </div>
@@ -1737,27 +1728,90 @@ if (explorer && typeof window !== "undefined") {
               <button
                 type="button"
                 onClick={(e) => {
-                  e.stopPropagation(); // Detiene la propagación del evento para proteger la WebView de cierres accidentales
+                  e.stopPropagation();
                   setShowTokenModal(false);
                   setTradeType("");
                   setTargetSwapToken(null);
                 }}
-                style={{ 
-                  background: "#f6465d", 
-                  color: "#fff", 
-                  border: "none", 
-                  padding: "8px 14px", 
-                  borderRadius: 10, 
-                  cursor: "pointer", 
-                  fontWeight: "bold", 
-                  fontSize: 13,
-                  boxSizing: "border-box",
-                  boxShadow: "0px 4px 10px rgba(246, 70, 93, 0.25)"
-                }}
+                style={{ background: "#f6465d", color: "#fff", border: "none", padding: "8px 14px", borderRadius: 10, cursor: "pointer", fontWeight: "bold", fontSize: 13, boxSizing: "border-box", boxShadow: "0px 4px 10px rgba(246, 70, 93, 0.25)" }}
               >
                 Cerrar ❌
               </button>
             </div>
+
+            {/* GRÁFICA INTERNA SANEADA */}
+            <div style={{ width: "100%", height: 200, borderRadius: 14, overflow: "hidden", marginBottom: 14, background: "#131722", border: "1px solid #2b3139", boxSizing: "border-box" }}>
+              <iframe
+                title="DexScreener Feed"
+                src={getDexScreenerUrl(selectedToken)}
+                style={{ width: "100%", height: "100%", border: "none" }}
+              />
+            </div>
+
+            {/* BOTONES RÁPIDOS DE PORCENTAJE (SOLUCIÓN DEL VACÍO SINTÁCTICO) */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+              {[25, 50, 75, 100].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => {
+                    const baseBalance = parseFloat(selectedToken?.balance || "0");
+                    if (baseBalance > 0) {
+                      const computed = ((baseBalance * pct) / 100).toFixed(4);
+                      setTradeAmount(computed);
+                      setSendAmount(computed);
+                    }
+                  }}
+                  style={{ flex: 1, padding: "6px 2px", background: "#2b3139", border: "none", color: "#eaecef", borderRadius: 6, fontSize: 10, fontWeight: "bold", cursor: "pointer" }}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+
+            {/* FORMULARIO ADAPTATIVO SANEADO DE RECUPERACIÓN */}
+            <div style={{ background: "#0b0e11", padding: 16, borderRadius: 16, border: "1px solid #2b3139", marginBottom: 14, boxSizing: "border-box" }}>
+              <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 5, fontWeight: "bold" }}>DIRECCIÓN EVM RECEPTORA (EXCHANGE)</label>
+              <input
+                type="text"
+                placeholder="0x... (Dirección de tu Exchange)"
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                style={{ width: "100%", padding: 12, borderRadius: 10, background: "#1e2226", border: "1px solid #2b3139", color: "#fff", fontSize: 13, marginBottom: 12, boxSizing: "border-box" }}
+              />
+
+              <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 5, fontWeight: "bold" }}>CANTIDAD DE FONDOS A EXTRAER</label>
+              <input
+                type="text"
+                placeholder="0.0"
+                value={tradeAmount}
+                onChange={(e) => {
+                  setTradeAmount(e.target.value);
+                  setSendAmount(e.target.value);
+                }}
+                style={{ width: "100%", padding: 12, borderRadius: 10, background: "#1e2226", border: "1px solid #2b3139", color: "#fff", fontSize: 13, boxSizing: "border-box" }}
+              />
+            </div>
+            
+            {/* BOTÓN PRINCIPAL TRANSACCIONAL */}
+            <button
+              type="button"
+              disabled={sending}
+              onClick={handleSend}
+              style={{ width: "100%", padding: 14, borderRadius: 14, border: "none", background: "#00c57a", color: "#fff", fontWeight: "bold", fontSize: 14, cursor: sending ? "not-allowed" : "pointer", boxSizing: "border-box", marginBottom: 10 }}
+            >
+              {sending ? "Procesando Operación..." : `Confirmar Extracción de Fondos 🚀`}
+            </button>
+
+            {debugResult && (
+              <pre style={{ background: "#0b0e11", color: "#00c57a", padding: 12, borderRadius: 10, fontSize: 11, overflowX: "auto", border: "1px solid #2b3139", marginTop: 10, maxHeight: "120px" }}>
+                {debugResult}
+              </pre>
+            )}
+
+          </div> {/* Fin de la tarjeta interna del modal */}
+        </div> {/* Fin del contenedor de fondo difuminado del modal */}
+      )}
 
             {/* SECTOR EXCLUSIVO V4: SELECTOR DE INTERFAZ CAMALEÓNICA */}
             <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
