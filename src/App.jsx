@@ -1716,13 +1716,10 @@ useEffect(() => {
           </button>
         </div>
       ) : null}
-
       {/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V3)
       ======================================================== */}
-     
       {showTokenModal && selectedToken && (
-
         <div
           style={{
             position: "fixed",
@@ -1802,7 +1799,6 @@ useEffect(() => {
                 Cerrar ❌
               </button>
             </div>
-
             {/* SECTOR EXCLUSIVO V3: SELECTOR DE INTERFAZ CAMALEÓNICA (COMPATIBLE CON MODO SWAP DE ALTA FIDELIDAD) */}
             <div style={{ display: "flex", background: "#0b0e11", borderRadius: 10, padding: 4, marginBottom: 14, border: "1px solid #2b3139" }}>
               <div 
@@ -1818,6 +1814,7 @@ useEffect(() => {
                 🔄 Convertir / Swap
               </div>
             </div>
+
             {/* 📈 TABLERO DE CONTROL DE TEMPORALIDADES REALES (ESTILO BINANCE TERMINAL PRO) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -1850,7 +1847,7 @@ useEffect(() => {
               </span>
             </div> 
             
-                        {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA (MOTOR DEXSCREENER ESTILO PUF MINI-APP) */}
+            {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA (MOTOR DEXSCREENER ESTILO PUF MINI-APP) */}
             <div 
               style={{ 
                 width: "100%", 
@@ -1869,6 +1866,7 @@ useEffect(() => {
                 src={getDexScreenerUrl(selectedToken)}
                 style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
                 loading="eager" // Obliga a la WebView a encender los hilos de WebSocket inmediatamente
+                sandbox="allow-scripts allow-same-origin allow-popups" // ⚡ BLINDAJE DE ENTREGAS: Evita bloqueos o crashes de WebView
                 allowFullScreen
               />
             </div>
@@ -1885,6 +1883,7 @@ useEffect(() => {
               >
                 🟢 COMPRAR
               </button>
+              
               <button
                 type="button"
                 onClick={() => {
@@ -1895,6 +1894,7 @@ useEffect(() => {
               >
                 🔴 VENDER
               </button>
+              
               <button
                 type="button"
                 onClick={() => {
@@ -1904,6 +1904,7 @@ useEffect(() => {
               >
                 🔄 SWAP
               </button>
+              
               {/* 🔵 PASARELA DIRECTA DE ENVIÓ / RETIRO DE FONDOS MULTICADENA */}
               <button
                 type="button"
@@ -1916,49 +1917,115 @@ useEffect(() => {
                 🔵 ENVIAR
               </button>
             </div>
-
             {/* ========================================================
-               SECTOR ULTRA PROFESIONAL: SELECTOR INTERACTIVO DE TOKEN DESTINO (SOLO EN MODO SWAP)
+               FORMULARIO DINÁMICO ADAPTATIVO SEGÚN EL BOTÓN SELECCIONADO
             ======================================================== */}
-            {tradeType === "SWAP" && !targetSwapToken && (
-              <div style={{ background: "#1e2226", padding: 14, borderRadius: 16, border: "1px solid #2b3139", marginBottom: 14, boxSizing: "border-box" }}>
-                <p style={{ margin: "0 0 10px 0", fontSize: 12, color: "#848e9c", fontWeight: "bold" }}>
-                  Selecciona el activo de destino para tu intercambio:
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {TOKENS
-                    .filter(t => t.symbol !== selectedToken?.symbol && t.addresses[selectedToken?.chainId])
-                    .map((token, sIdx) => (
-                      <div
-                        key={sIdx}
-                        onClick={() => {
-                          if (typeof setTargetSwapToken === "function") {
-                            setTargetSwapToken(token);
-                          }
-                        }}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          background: "#0b0e11",
-                          padding: "12px 14px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          border: "1px solid #2b3139",
-                          transition: "all 0.2s ease"
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.borderColor = "#f0b90b"}
-                        onMouseLeave={(e) => e.currentTarget.style.borderColor = "#2b3139"}
-                      >
-                        <span style={{ color: "#eaecef", fontWeight: "bold", fontSize: 14 }}>{token.symbol}</span>
-                        <span style={{ color: "#848e9c", fontSize: 11 }}>Convertir a este activo ➔</span>
-                      </div>
-                    ))}
-                </div>
+            {tradeType === "SEND" && (
+              <div style={{ background: "#0b0e11", padding: 16, borderRadius: 16, border: "1px solid #2b3139", marginBottom: 14, boxSizing: "border-box" }}>
+                <p style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: "bold", color: "#38bdf8" }}>🔵 Modo: Retiro / Envío Multicadena</p>
+                
+                <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 5, fontWeight: "bold" }}>DIRECCIÓN EVM DEL DESTINATARIO</label>
+                <input
+                  type="text"
+                  placeholder="0x... (Dirección Hexadecimal EVM)"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  style={{ width: "100%", padding: 12, borderRadius: 10, background: "#1e2226", border: "1px solid #2b3139", color: "#fff", fontSize: 13, marginBottom: 12, boxSizing: "border-box" }}
+                />
+
+                <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 5, fontWeight: "bold" }}>CANTIDAD A ENVIAR</label>
+                <input
+                  type="number"
+                  placeholder="0.0"
+                  value={sendAmount}
+                  onChange={(e) => setSendAmount(e.target.value)}
+                  style={{ width: "100%", padding: 12, borderRadius: 10, background: "#1e2226", border: "1px solid #2b3139", color: "#fff", fontSize: 13, boxSizing: "border-box" }}
+                />
               </div>
             )}
 
+            {tradeType === "SWAP" && (
+              <div style={{ background: "#0b0e11", padding: 16, borderRadius: 16, border: "1px solid #2b3139", marginBottom: 14, boxSizing: "border-box" }}>
+                <p style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: "bold", color: "#f0b90b" }}>🔄 Modo: Conversión de Activos Internos</p>
+                
+                <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 5, fontWeight: "bold" }}>ACTIVO DESTINO</label>
+                <select
+                  value={targetSwapToken?.symbol || ""}
+                  onChange={(e) => {
+                    const tokenFound = TOKENS.find(t => t.symbol === e.target.value);
+                    setTargetSwapToken(tokenFound || null);
+                  }}
+                  style={{ width: "100%", padding: 12, borderRadius: 10, background: "#1e2226", border: "1px solid #2b3139", color: "#fff", fontSize: 13, marginBottom: 12, boxSizing: "border-box", cursor: "pointer" }}
+                >
+                  <option value="">-- Selecciona Token Destino --</option>
+                  {TOKENS.filter(t => t.symbol !== selectedToken?.symbol).map(t => (
+                    <option key={t.symbol} value={t.symbol}>{t.symbol}</option>
+                  ))}
+                </select>
 
+                <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 5, fontWeight: "bold" }}>CANTIDAD A CONVERTIR</label>
+                <input
+                  type="number"
+                  placeholder="0.0"
+                  value={tradeAmount}
+                  onChange={(e) => setTradeAmount(e.target.value)}
+                  style={{ width: "100%", padding: 12, borderRadius: 10, background: "#1e2226", border: "1px solid #2b3139", color: "#fff", fontSize: 13, boxSizing: "border-box" }}
+                />
+              </div>
+            )}
+
+            {(tradeType === "BUY" || tradeType === "SELL") && (
+              <div style={{ background: "#0b0e11", padding: 16, borderRadius: 16, border: "1px solid #2b3139", marginBottom: 14, boxSizing: "border-box" }}>
+                <p style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: "bold", color: tradeType === "BUY" ? "#00c57a" : "#f6465d" }}>
+                  {tradeType === "BUY" ? "🟢 Modo: Orden de Compra FIAT/Crypto" : "🔴 Modo: Orden de Venta Directa"}
+                </p>
+                
+                <label style={{ display: "block", fontSize: 11, color: "#848e9c", marginBottom: 5, fontWeight: "bold" }}>MTO DE OPERACIÓN</label>
+                <input
+                  type="number"
+                  placeholder="0.0"
+                  value={tradeAmount}
+                  onChange={(e) => setTradeAmount(e.target.value)}
+                  style={{ width: "100%", padding: 12, borderRadius: 10, background: "#1e2226", border: "1px solid #2b3139", color: "#fff", fontSize: 13, boxSizing: "border-box" }}
+                />
+              </div>
+            )}
+
+            {/* 🚀 BOTÓN PRINCIPAL EJECUTIVO COMPATIBLE CON TU MOTOR handleSend */}
+            {tradeType && (
+              <button
+                type="button"
+                disabled={sending}
+                onClick={handleSend}
+                style={{
+                  width: "100%",
+                  padding: 14,
+                  borderRadius: 14,
+                  border: "none",
+                  background: tradeType === "BUY" ? "#00c57a" : tradeType === "SELL" ? "#f6465d" : tradeType === "SWAP" ? "#f0b90b" : "#2563eb",
+                  color: tradeType === "SWAP" ? "#000" : "#fff",
+                  fontWeight: "bold",
+                  fontSize: 14,
+                  cursor: sending ? "not-allowed" : "pointer",
+                  boxSizing: "border-box",
+                  marginBottom: 10,
+                  boxShadow: "0px 4px 15px rgba(0,0,0,0.3)"
+                }}
+              >
+                {sending ? "Procesando Operación..." : `Confirmar Ejecución de ${tradeType} 🚀`}
+              </button>
+            )}
+
+            {/* CAJA DE LOG DIAGNÓSTICO EN TIEMPO REAL INTEGRADA EN LA TERMINAL */}
+            {debugResult && (
+              <pre style={{ background: "#0b0e11", color: "#00c57a", padding: 12, borderRadius: 10, fontSize: 11, overflowX: "auto", border: "1px solid #2b3139", marginTop: 10, maxHeight: "120px" }}>
+                {debugResult}
+              </pre>
+            )}
+
+          </div> {/* Fin de la tarjeta interna del modal */}
+        </div> {/* Fin del contenedor de fondo difuminado del modal */}
+      )}
 {/* ========================================================
                FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO COMPATIBLE V4)
             ======================================================== */}
@@ -2396,7 +2463,7 @@ useEffect(() => {
       )}
 
       
-{/* ========================================================
+      {/* ========================================================
          BANNER PUBLICITARIO PREMIUM: RINCÓN COLOMBIANO EN VARSOVIA
       ======================================================== */}
       <div
@@ -2449,7 +2516,7 @@ useEffect(() => {
           onClick={() => {
             if (typeof window !== "undefined") {
               // ENLACE DIRECTO COMPARTIDO POR EL DUEÑO: ABRE TU PERFIL COMERCIAL EN GOOGLE MAPS SIN COMPLICACIONES NI ERRORES DE DNS
-              const officialProfileUrl = "https://maps.app.goo.gl/ruqCispFFdGhK7nKA";
+              const officialProfileUrl = "https://goo.gl";
               window.open(officialProfileUrl, "_blank", "noopener,noreferrer");
             }
           }}
