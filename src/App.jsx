@@ -1983,6 +1983,7 @@ if (explorer && typeof window !== "undefined") {
           </div> {/* Fin de la tarjeta interna del modal */}
         </div> {/* Fin del contenedor de fondo difuminado del modal */}
       )}
+                }
             {/* ========================================================
                FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO COMPATIBLE V6)
             ======================================================== */}
