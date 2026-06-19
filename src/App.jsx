@@ -714,53 +714,53 @@ export default function App() {
         return;
       }
 
-      // INTEGRACIÓN DE MÁXIMO CONTROL: Valida de forma estricta las credenciales de World ID (ZKP)
+           // INTEGRACIÓN DE MÁXIMO CONTROL: Valida de forma estricta las credenciales de World ID (ZKP)
       const isHumanVerified = await verifyWorldIDProof(payload);
       if (!isHumanVerified) {
         setStatus("Fallo de verificación: Se requiere un World ID verificado por Orb.");
         return;
       }
 
-      // 4. Normalización estricta de la dirección (Checksum activo)
-      const cleanAddress = ethers.getAddress(address);
-      setWallet(cleanAddress);
-      
-      // Guardado seguro en localStorage compatible con servidores de compilación (SSR)
-      if (typeof window !== "undefined" && window.localStorage) {
-        localStorage.setItem("rc_wallet_address", cleanAddress);
-      }
-      
-      // Asignación limpia del objeto de red de World Chain
-      const worldChainNet = NETWORKS.find(n => n.chainId === 480) || NETWORKS;
-      setNetwork(worldChainNet);
-
-      setWorldVerified(true);
-      setStatus("¡Wallet conectada con éxito!");
-
-      // Ejecución pasiva del diagnóstico de proveedores
-      await detectProvider();
-      
-      // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
-      setTimeout(async () => {
-        if (mountedRef.current) {
-                      // Ejecuta el escaneo tradicional de balances en todas las redes EVM
-        await scanAllNetworks(cleanAddress);
-
-        // 🟢 INYECCIÓN MAESTRA POST-LOGIN (MÓDULO DE RECUPERACIÓN V5)
-        // Lanza la auditoría en paralelo para verificar si el contrato Safe en Ethereum está vacío ("0x")
-        if (cleanAddress) {
-          await checkContractDeployment(cleanAddress);
+      // CONTENEDOR SEGURO LINEAL UNIFICADO ANTI-FALLAS DE COMPILACIÓN EN VERCEL
+      try {
+        // 4. Normalización estricta de la dirección (Checksum activo)
+        const cleanAddress = ethers.getAddress(address);
+        setWallet(cleanAddress);
+        
+        // Guardado seguro en localStorage compatible con servidores de compilación (SSR)
+        if (typeof window !== "undefined" && window.localStorage) {
+          localStorage.setItem("rc_wallet_address", cleanAddress);
         }
-      }, 2000);
+        
+        // Asignación limpia del objeto de red de World Chain
+        const worldChainNet = NETWORKS.find(n => n.chainId === 480) || NETWORKS;
+        setNetwork(worldChainNet);
 
-    }); // 🚀 EL CIERRE MAESTRO REPARADO: Clausura la función del callback de World ID de forma limpia
+        setWorldVerified(true);
+        setStatus("¡Wallet conectada con éxito!");
 
-    } catch (err) {
-      console.error("[WORLD LOGIN ERROR] Falla en autenticación o firma biométrica:", err);
-      const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
-      setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelada" : "Error en conexión");
-    }
+        // Ejecución pasiva del diagnóstico de proveedores
+        await detectProvider();
+        
+        // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
+        setTimeout(async () => {
+          if (mountedRef.current) {
+            // Ejecuta el escaneo tradicional de balances en todas las redes EVM
+            await scanAllNetworks(cleanAddress);
 
+            // 🟢 INYECCIÓN MAESTRA POST-LOGIN (MÓDULO DE RECUPERACIÓN V5)
+            // Lanza la auditoría en paralelo para verificar si el contrato Safe en Ethereum está vacío ("0x")
+            if (cleanAddress) {
+              await checkContractDeployment(cleanAddress);
+            }
+          } // Cierre correcto y verificado de la condición mountedRef.current
+        }, 2000);
+
+      } catch (err) {
+        console.error("[WORLD LOGIN ERROR] Falla en autenticación o firma biométrica:", err);
+        const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
+        setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelada" : "Error en conexión");
+      }
 
  // ========================================================================
   // ERROR EXTRACTOR (MÁXIMA ROBUSTEZ Y PROTECCIÓN CONTRA ESTRUCTURAS CÍCLICAS)
