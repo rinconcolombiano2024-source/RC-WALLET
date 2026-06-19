@@ -1014,8 +1014,7 @@ const handleSend = async () => {
     const erc20Interface = new ethers.Interface([
       "function transfer(address to, uint256 value) returns (bool)"
     ]);
-
-        // ========================================================================
+    // ========================================================================
     // DETECCIÓN Y ARMADO NATIVO EXCLUSIVO (REPARADO PARA TOKENS EN ETHEREUM)
     // ========================================================================
     // Un token es Nativo ÚNICAMENTE si su símbolo es "ETH" y está en la red 1, 10 o 8453
@@ -1045,6 +1044,7 @@ const handleSend = async () => {
         data: mainDataHex
       });
     }
+
   // Envíos de Contratos Inteligentes ERC-20 (WLD, USDC, RC.PL, etc.)
       const mainAmountInWei = ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString();
       
