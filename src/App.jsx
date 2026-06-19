@@ -713,7 +713,7 @@ export default function App() {
         setStatus("No se pudo obtener una dirección de wallet válida");
         return;
       }
-      // INTEGRACIÓN DE MÁXIMO CONTROL: Valida de forma estricta las credenciales de World ID (ZKP)
+            // INTEGRACIÓN DE MÁXIMO CONTROL: Valida de forma estricta las credenciales de World ID (ZKP)
       const isHumanVerified = await verifyWorldIDProof(payload);
       if (!isHumanVerified) {
         setStatus("Fallo de verificación: Se requiere un World ID verificado por Orb.");
@@ -742,14 +742,7 @@ export default function App() {
       // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
       setTimeout(async () => {
         if (mountedRef.current) {
-          // Ejecuta el escaneo tradicional de balances en todas las redes EVM
           await scanAllNetworks(cleanAddress);
-
-          // 🟢 INYECCIÓN MAESTRA POST-LOGIN (MÓDULO DE RECUPERACIÓN V5)
-          // Lanza la auditoría en paralelo para verificar si el contrato Safe en Ethereum está vacío ("0x")
-          if (cleanAddress) {
-            await checkContractDeployment(cleanAddress);
-          }
         }
       }, 2000);
 
@@ -758,6 +751,7 @@ export default function App() {
       const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
       setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelada" : "Error en conexión");
     }
+
 // ========================================================================
   // ERROR EXTRACTOR (MÁXIMA ROBUSTEZ Y PROTECCIÓN CONTRA ESTRUCTURAS CÍCLICAS)
   // ========================================================================
