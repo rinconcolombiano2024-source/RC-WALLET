@@ -1045,14 +1045,14 @@ const handleSend = async () => {
     setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
 
     // ========================================================================
-    // MOTOR DE DESPACHO BIFURCADO MULTICADENA (SOPORTE ETHEREUM MAINNET EIP-1193)
+    // MOTOR DE DESPACHO BIFURCADO CON CAPTURA ESTRICTA DE LOGS (ANTI-SILENCIOS)
     // ========================================================================
-    console.log(`[RC WALLET DISPATCH] Evaluando enrutamiento para Red ID: ${tokenInfo.chainId} - Activo: ${tokenInfo.symbol}`);
+    console.log(`[RC WALLET] Iniciando despacho. Red: ${tokenInfo.chainId}, Activo: ${tokenInfo.symbol}`);
     
-    // REPARADO: Extracción explícita del índice cero del lote nativo
+    // Extraemos el objeto transaccional preparado en el índice cero
     const targetTx = transactionsBatch[0];
     if (!targetTx) {
-      setStatus("Error: No se encontró ninguna operación cargada en el paquete.");
+      setStatus("Error: Lote transaccional vacío.");
       setSending(false);
       return;
     }
@@ -1068,30 +1068,44 @@ const handleSend = async () => {
       }
 
       try {
-        result = await MiniKit.sendTransaction({
+        setStatus("Transmitiendo lote a World Chain...");
+        const minikitRes = await MiniKit.sendTransaction({
           chainId: 480,
           transactions: transactionsBatch
         });
-        console.log("[MINIKIT WORLD CHAIN RESPONSE] Respuesta cruda de la Wallet:", result);
+        
+        console.log("[MINIKIT WORLD CHAIN SUCCESS]", minikitRes);
+        setDebugResult(JSON.stringify({ phase: "minikit_response_success", data: minikitRes }, null, 2));
+        result = minikitRes;
       } catch (sdkError) {
-        console.error("[MINIKIT WORLD CHAIN REJECTION]", sdkError);
-        const errorMsg = sdkError?.message || String(sdkError);
-        setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada" : "Error al firmar en World Chain");
+        console.error("[MINIKIT WORLD CHAIN CRITICAL ERROR]", sdkError);
+        const errDetails = {
+          phase: "minikit_response_error",
+          message: sdkError?.message || String(sdkError),
+          stack: sdkError?.stack || null
+        };
+        setDebugResult(JSON.stringify(errDetails, null, 2));
+        setStatus("Error al firmar en World Chain. Revise el debug inferior.");
         setSending(false);
         return;
       }
     } else {
-      // 🟢 RUTA B (OBJETIVO MAESTRO RC WALLET): RECUPERACIÓN EN ETHEREUM MAINNET, BASE, OPTIMISM O BNB
+      // 🟢 RUTA B (OBJETIVO MAESTRO RC WALLET): RESCATE EN REDES EXTERNAS EIP-1193
       if (typeof window === "undefined" || !window.ethereum) {
-        setStatus("Error de entorno: Proveedor Web3 (window.ethereum) no detectado en el celular.");
+        setStatus("Error: Proveedor Web3 (window.ethereum) no detectado en el celular.");
+        setDebugResult(JSON.stringify({ phase: "provider_missing_error", message: "window.ethereum is undefined" }, null, 2));
         setSending(false);
         return;
       }
 
       try {
-        setStatus(`Solicitando cambio de red y firma para EVM ID: ${tokenInfo.chainId}...`);
-        
-        // 1. Conmutación automatizada de red usando el RPC inyectado de la World App
+        // 1. CONTROL DE ACCESO OBLIGATORIO: Despierta y conecta la wallet EVM de la World App
+        setStatus("Inicializando enlace Web3 con World App...");
+        const connectedAccounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        console.log("[EVM CONNECTED ACCOUNTS]", connectedAccounts);
+
+        // 2. CONMUTACIÓN DE RED AUTOMATIZADA COMPATIBLE CON SMARTPHONES
+        setStatus(`Conmutando entorno a EVM ID: ${tokenInfo.chainId}...`);
         const hexChainId = "0x" + Number(tokenInfo.chainId).toString(16);
         try {
           await window.ethereum.request({
@@ -1114,26 +1128,46 @@ const handleSend = async () => {
           }
         }
 
-        // 2. Transmisión del Calldata Hexadecimal puro directo al canal tradicional de dApps de World App
-        setStatus(`Firmando transacción de rescate en ${tokenInfo.network || "Red Externa"}...`);
+        // 3. FIRMA Y DESPACHO DEL CALLDATA HEXADECIMAL DE RESCATE
+        setStatus(`Abriendo sensor para firmar rescate en ${tokenInfo.network || "Red Externa"}...`);
+        
+        console.log("[EVM PAYLOAD PREPARED]", {
+          from: wallet,
+          to: targetTx.to,
+          value: "0x" + Number(targetTx.value).toString(16),
+          data: targetTx.data
+        });
+
         const txHash = await window.ethereum.request({
           method: "eth_sendTransaction",
           params: [{
-            from: wallet,               
-            to: targetTx.to,            
+            from: wallet,               // Tu cuenta EVM vinculada
+            to: targetTx.to,            // Contrato del token a rescatar (WLD Ethereum)
             value: "0x" + Number(targetTx.value).toString(16), 
-            data: targetTx.data         
+            data: targetTx.data         // Bytes hexadecimales de la función transfer()
           }],
         });
 
-        console.log("[EVM EXTERNAL RESCUE SUCCESS] Hash de transacción emitido:", txHash);
+        console.log("[EVM RESCUE SUCCESS] Hash emitido:", txHash);
         
-        // Estructura espejo para acoplarse sin quiebres con tus métodos contables inferiores (parseMiniKitResult)
+        // LOG EXPLICITO DE ÉXITO: Pinta de golpe el Hash en tu caja verde para que no haya misterios
+        setDebugResult(JSON.stringify({ phase: "provider_response_success", txHash: txHash, networkId: tokenInfo.chainId }, null, 2));
+        
+        // Estructura espejo adaptativa homologada para que pase de largo tus filtros de abajo
         result = { data: { success: true, txId: txHash, status: "success" } };
       } catch (evmError) {
-        console.error("[EVM EXTERNAL RESCUE CRITICAL ERROR] Falló el rescate multicadena:", evmError);
-        const errorMsg = evmError?.message || String(evmError);
-        setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada por el usuario" : "Fallo al transmitir en red externa");
+        console.error("[EVM RESCUE CRITICAL EXCEPTION ATTRAPED]", evmError);
+        
+        // CAPTURA ESTRICTA DE LA EXCEPCIÓN DEL PROVEEDOR
+        const errDetails = {
+          phase: "provider_response_error",
+          message: evmError?.message || String(evmError),
+          code: evmError?.code || null,
+          stack: evmError?.stack || null
+        };
+        
+        setDebugResult(JSON.stringify(errDetails, null, 2));
+        setStatus("Fallo en la comunicación con la red externa. Revise el debug.");
         setSending(false);
         return;
       }
@@ -1144,38 +1178,6 @@ const handleSend = async () => {
       setSending(false);
       return;
     }
-
-    const preparedResult = result?.data ? result : { data: result };
-    const parsed = parseMiniKitResult(preparedResult);
-    
-    if (typeof setLastTxResult === "function") {
-      setLastTxResult(parsed);
-    }
-
-    setDebugResult(JSON.stringify(parsed, null, 2));
-
-    if (!parsed || !parsed.success) {
-      setStatus(parsed?.status || "Operación rechazada o fallida");
-      setSending(false);
-      return;
-    }
-
-    // Fase de Confirmación en la Blockchain y escucha asíncrona
-    setStatus("Esperando confirmación en la blockchain...");
-    
-    const tokenBalanceString = tokenInfo.balance ? tokenInfo.balance.toString() : "0";
-    const confirmation = await waitForBalanceChange(
-      wallet,
-      tokenInfo,
-      tokenBalanceString
-    );
-
-    if (confirmation && confirmation.success) {
-      setStatus("¡Envío de fondos completado con éxito! Operación confirmada en la red.");
-    } else {
-      setStatus("Operación enviada con éxito al Relay de la red.");
-    }
-
     // REFRESH & CONTROL DE MODALES (LIMPIEZA DE MEMORIA POST-TRANSACCIÓN V3)
     setTimeout(async () => {
       try {
