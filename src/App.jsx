@@ -1487,7 +1487,7 @@ useEffect(() => {
                 </p>
 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {/* REPARADO Y SANEADO: Operador ternario corregido para evitar quiebres de compilación */}
+                                    {/* REPARADO Y SANEADO: Operador ternario corregido para evitar quiebres de compilación */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1515,29 +1515,35 @@ useEffect(() => {
                   >
                     {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar 📊"}
                   </button>
-                      // ESTRUCTURA DIRECTA EVM RECONSTITUIDA DE ALTA FIDELIDAD
-// ========================================================================
-// RUTA DE EXPLORADORES (ÚNICO, CORREGIDO Y SANEADO PARA VERCEL)
-// ========================================================================
-if (token.chainId === 1) {
-  explorer = `https://etherscan.io{activeWallet}`}
-} else if (token.chainId === 10) {
-  explorer = `https://etherscan.io{activeWallet}`}
-} else if (token.chainId === 8453) {
-  explorer = `https://basescan.org{activeWallet}`}
-} else if (token.chainId === 56) {
-  explorer = `https://bscscan.com{activeWallet}`
-} else if (token.chainId === 480) {
-  explorer = `https://worldscan.org{activeWallet}`
-} else if (token.chainId === 4801) {
-  explorer = `https://worldscan.org{activeWallet}`}
 
-if (explorer && typeof window !== "undefined") {
-  window.open(explorer, "_blank", "noopener,noreferrer")
-                  }
+                  {/* BOTÓN INTERACTIVO SANEADO PARA VER EN EXPLORADOR */}
+                  <button
+                    type="button"
+                    disabled={!wallet}
+                    onClick={() => {
+                      if (!wallet || !token) return;
+                      let explorer = "";
+                      const activeWallet = wallet;
 
+                      if (token.chainId === 1) {
+                        explorer = `https://etherscan.io{activeWallet}`;
+                      } else if (token.chainId === 10) {
+                        explorer = `https://etherscan.io{activeWallet}`;
+                      } else if (token.chainId === 8453) {
+                        explorer = `https://basescan.org{activeWallet}`;
+                      } else if (token.chainId === 56) {
+                        explorer = `https://bscscan.com{activeWallet}`;
+                      } else if (token.chainId === 480) {
+                        explorer = `https://worldscan.org{activeWallet}`;
+                      } else if (token.chainId === 4801) {
+                        explorer = `https://worldscan.org{activeWallet}`;
+                      }
 
-                  style={{
+                      if (explorer && typeof window !== "undefined") {
+                        window.open(explorer, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    style={{
                       padding: "10px 14px",
                       borderRadius: 10,
                       border: "none",
@@ -1550,12 +1556,11 @@ if (explorer && typeof window !== "undefined") {
                   >
                     Ver en Explorer 🔗
                   </button>
-                
-              
+                </div> {/* Fin del contenedor flex de botones */}
+              </div> {/* Fin de la tarjeta del token individual */}
             );
           })
       )}
-
       <hr style={{ border: "1px solid #222", marginTop: 20, marginBottom: 20 }} />
 
       {/* ========================================================================
