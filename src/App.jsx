@@ -1524,18 +1524,17 @@ if (token.chainId === 1) {
 } else if (token.chainId === 10) {
   explorer = `https://etherscan.io{activeWallet}`}
 } else if (token.chainId === 8453) {
-  explorer = `https://basescan.org{activeWallet}`;
+  explorer = `https://basescan.org{activeWallet}`}
 } else if (token.chainId === 56) {
-  explorer = `https://bscscan.com{activeWallet}`;
+  explorer = `https://bscscan.com{activeWallet}`
 } else if (token.chainId === 480) {
-  explorer = `https://worldscan.org{activeWallet}`;
+  explorer = `https://worldscan.org{activeWallet}`
 } else if (token.chainId === 4801) {
-  explorer = `https://worldscan.org{activeWallet}`;
-}
+  explorer = `https://worldscan.org{activeWallet}`}
 
 if (explorer && typeof window !== "undefined") {
   window.open(explorer, "_blank", "noopener,noreferrer");
-}
+                  }
 
 
                   style={{
