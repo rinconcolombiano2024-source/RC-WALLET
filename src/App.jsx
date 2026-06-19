@@ -2031,23 +2031,23 @@ if (explorer && typeof window !== "undefined") {
 
                 {/* BOTONES EXCLUSIVOS DE PORCENTAJE RÁPIDO */}
                 <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-                  {[25, 50, 75, 100].map((pct) => (
-                    <button
-                      key={pct}
-                      type="button"
-                      onClick={() => {
-                        const baseBalance = parseFloat(selectedToken?.balance || "0");
-                        if (baseBalance > 0) {
-                          const computed = ((baseBalance * pct) / 100).toFixed(4);
-                          setTradeAmount(computed);
-                          setSendAmount(computed);
-                        }
-                      }}
-                      style={{ flex: 1, padding: "6px 2px", background: "#2b3139", border: "none", color: "#eaecef", borderRadius: 6, fontSize: 10, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }}
-                    >
-                      {pct}%
-                    </button>
-                  ))}
+              {[25, 50, 75, 100].map((pct) => (
+  <button
+    key={pct}
+    type="button"
+    onClick={() => {
+      const baseBalance = parseFloat(selectedToken?.balance || "0");
+      if (baseBalance > 0) {
+        const computed = ((baseBalance * pct) / 100).toFixed(4);
+        setTradeAmount(computed);
+        setSendAmount(computed);
+      }
+    }}
+    style={{ flex: 1, padding: "6px 2px", background: "#2b3139", border: "none", color: "#eaecef", borderRadius: 6, fontSize: 10, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }}
+  >
+    {pct}%
+  </button>
+))}
                 </div>
 
                 {/* Input de Dirección Destino condicional */}
