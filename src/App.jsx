@@ -1550,7 +1550,7 @@ if (explorer && typeof window !== "undefined") {
                   >
                     Ver en Explorer 🔗
                   </button>
-                </div>
+                
               
             );
           })
