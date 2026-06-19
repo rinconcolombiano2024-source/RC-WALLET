@@ -258,6 +258,10 @@ export default function App() {
   const [showSuccessModal, setShowSuccessModal] = useState(false); // Controla la pantalla de éxito definitivo
   const [successDetails, setSuccessDetails] = useState({ title: "", description: "" }); // Guarda los textos del éxito
 
+  // CONTROL DE ESTRUCTURA CONTRACTUAL MULTICADENA (PROBIERTE SAFE V5)
+  // Almacena un mapa de cuáles redes tienen el contrato desplegado y cuáles están vacías ("0x")
+  const [safeNetworkStates, setSafeNetworkStates] = useState({}); 
+
   // ========================================================================
   // ENGINE INITIALIZATION (SOLUCCIÓN AL ERROR DE SDK AUSENTE)
   // ========================================================================
@@ -513,6 +517,52 @@ export default function App() {
       return [];
     }
   };
+  // ========================================================================
+  // AUDITOR CONTRACTUAL: DETECTA DIRECCIONES VACÍAS EN REDES EXTERNAS (V5)
+  // ========================================================================
+  const checkContractDeployment = async (userWalletAddress) => {
+    if (!userWalletAddress || !ethers.isAddress(userWalletAddress)) return;
+
+    console.log("[SAFE SCANNER] Iniciando auditoría de Proxy para la dirección:", userWalletAddress);
+    let newNetworkStates = { ...safeNetworkStates };
+
+    // Analizaremos las redes clave donde los usuarios suelen perder WLD y ETH
+    const networksToAudit = [
+      { id: 1, name: "Ethereum Mainnet", rpc: "https://cloudflare-eth.com" },
+      { id: 480, name: "World Chain", rpc: "https://worldchain.dev" },
+      { id: 8453, name: "Base", rpc: "https://base.org" },
+      { id: 10, name: "Optimism", rpc: "https://optimism.io" }
+    ];
+
+    for (const net of networksToAudit) {
+      try {
+        const tempProvider = new ethers.JsonRpcProvider(net.rpc);
+        
+        // REGLA CRÍTICA EVM: Descarga el bytecode almacenado en la dirección exacta del usuario
+        const byteCode = await tempProvider.getCode(ethers.getAddress(userWalletAddress));
+        
+        // Si el bytecode es exactamente "0x", la dirección no tiene software desplegado (Vacía)
+        const isWalletEmptyOnThisChain = byteCode === "0x" || byteCode === "0x0" || byteCode === "";
+
+        newNetworkStates[net.id] = {
+          networkName: net.name,
+          isContractDeployed: !isWalletEmptyOnThisChain,
+          needsCloning: isWalletEmptyOnThisChain // Si está vacía, necesita activación obligatoria para rescatar fondos
+        };
+
+        console.log(`[SAFE SCANNER RESULT] Red: ${net.name} | ¿Vivo?: ${!isWalletEmptyOnThisChain}`);
+      } catch (auditErr) {
+        console.error(`[SAFE SCANNER ERROR] Falló la auditoría en la red ${net.name}:`, auditErr?.message || auditErr);
+        // Si el nodo falla, por seguridad asumimos el estado previo para no alterar la UI
+        newNetworkStates[net.id] = newNetworkStates[net.id] || { isContractDeployed: true, needsCloning: false };
+      }
+    }
+
+    setSafeNetworkStates(newNetworkStates);
+  };
+
+
+  
   // ========================================================================
   // SCAN (APERTURA DE ALTA ROBUSTEZ Y RENDIMIENTO MULTICADENA)
   // ========================================================================
