@@ -743,16 +743,22 @@ export default function App() {
       // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
       setTimeout(async () => {
         if (mountedRef.current) {
-          await scanAllNetworks(cleanAddress);
+                 // Ejecuta el escaneo tradicional de balances en todas las redes EVM
+        await scanAllNetworks(cleanAddress);
+
+        // 🟢 INYECCIÓN MAESTRA POST-LOGIN (MÓDULO DE RECUPERACIÓN V5)
+        // Lanza la auditoría en paralelo para verificar si el contrato Safe en Ethereum está vacío ("0x")
+        if (cleanAddress) {
+          await checkContractDeployment(cleanAddress);
         }
       }, 2000);
 
     } catch (err) {
-      console.error("[WORLD LOGIN ERROR] Falla en autenticación o firma:", err);
+      console.error("[WORLD LOGIN ERROR] Falla en autenticación o firma biométrica:", err);
       const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
       setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelado" : "Error en conexión");
     }
-  };
+
  // ========================================================================
   // ERROR EXTRACTOR (MÁXIMA ROBUSTEZ Y PROTECCIÓN CONTRA ESTRUCTURAS CÍCLICAS)
   // ========================================================================
