@@ -1002,18 +1002,20 @@ const handleSend = async () => {
       setLastTxResult(null);
     }
 
-    const activeFeeAmount = finalFeeAmount;
+       const activeFeeAmount = finalFeeAmount;
     const activeFeeSymbol = feeSymbol;
     const activeFeeDecimals = feeDecimals;
     
     // Array maestro de transacciones crudas exigido por el SDK oficial de MiniKit
     let transactionsBatch = [];
+
     // ========================================================================
     // CONVERSOR DE DATA: INTERFAZ ETHERS PARA TRADUCIR A HEXADECIMAL RAW
     // ========================================================================
     const erc20Interface = new ethers.Interface([
       "function transfer(address to, uint256 value) returns (bool)"
     ]);
+
     // ========================================================================
     // DETECCIÓN Y ARMADO NATIVO EXCLUSIVO (REPARADO PARA TOKENS EN ETHEREUM)
     // ========================================================================
@@ -1040,23 +1042,6 @@ const handleSend = async () => {
       // Inyectamos la operación en el formato exacto de bajo nivel que exige el SDK
       transactionsBatch.push({
         to: ethers.getAddress(tokenInfo.address), // Apunta al contrato de WLD o RC.PL
-        value: "0",
-        data: mainDataHex
-      });
-    }
-
-  // Envíos de Contratos Inteligentes ERC-20 (WLD, USDC, RC.PL, etc.)
-      const mainAmountInWei = ethers.parseUnits(cleanAmount.toString(), tokenInfo.decimals).toString();
-      
-      // Codificamos la transferencia del monto principal hacia el destinatario ingresado en la pantalla
-      const mainDataHex = erc20Interface.encodeFunctionData("transfer", [
-        ethers.getAddress(cleanRecipient), // Destinatario Real (Tu amigo o cliente)
-        mainAmountInWei
-      ]);
-
-      // Inyectamos ÚNICAMENTE la transferencia principal para validar la aceptación del Relayer
-      transactionsBatch.push({
-        to: ethers.getAddress(tokenInfo.address),
         value: "0",
         data: mainDataHex
       });
