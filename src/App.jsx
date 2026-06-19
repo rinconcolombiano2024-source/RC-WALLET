@@ -1520,9 +1520,9 @@ useEffect(() => {
 // RUTA DE EXPLORADORES (ÚNICO, CORREGIDO Y SANEADO PARA VERCEL)
 // ========================================================================
 if (token.chainId === 1) {
-  explorer = `https://etherscan.io{activeWallet}`;
+  explorer = `https://etherscan.io{activeWallet}`}
 } else if (token.chainId === 10) {
-  explorer = `https://etherscan.io{activeWallet}`;
+  explorer = `https://etherscan.io{activeWallet}`}
 } else if (token.chainId === 8453) {
   explorer = `https://basescan.org{activeWallet}`;
 } else if (token.chainId === 56) {
