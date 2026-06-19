@@ -1516,23 +1516,33 @@ useEffect(() => {
                     {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar 📊"}
                   </button>
                       // ESTRUCTURA DIRECTA EVM RECONSTITUIDA DE ALTA FIDELIDAD
-                     if (token.chainId === 1) {
+                     // ========================================================================
+// RUTA DE EXPLORADORES (ESTRUCTURA CORRECTA CON SYMBOLS CANÓNICOS)
+// ========================================================================
+if (token.chainId === 1) {
+  // Ethereum Mainnet
   explorer = `https://etherscan.io{activeWallet}`;
 } else if (token.chainId === 10) {
+  // Optimism
   explorer = `https://etherscan.io{activeWallet}`;
 } else if (token.chainId === 8453) {
+  // Base Chain
   explorer = `https://basescan.org{activeWallet}`;
 } else if (token.chainId === 56) {
+  // BNB Smart Chain
   explorer = `https://bscscan.com{activeWallet}`;
 } else if (token.chainId === 480) {
+  // World Chain
   explorer = `https://worldscan.org{activeWallet}`;
 } else if (token.chainId === 4801) {
+  // World Chain Sepolia Testnet
   explorer = `https://worldscan.org{activeWallet}`;
 }
 
 if (explorer && typeof window !== "undefined") {
   window.open(explorer, "_blank", "noopener,noreferrer");
 }
+
                     }}
                     style={{
                       padding: "10px 14px",
@@ -2029,26 +2039,26 @@ if (explorer && typeof window !== "undefined") {
                   </div>
                 </div>
 
-                {/* BOTONES EXCLUSIVOS DE PORCENTAJE RÁPIDO */}
-                <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-              {[25, 50, 75, 100].map((pct) => (
-  <button
-    key={pct}
-    type="button"
-    onClick={() => {
-      const baseBalance = parseFloat(selectedToken?.balance || "0");
-      if (baseBalance > 0) {
-        const computed = ((baseBalance * pct) / 100).toFixed(4);
-        setTradeAmount(computed);
-        setSendAmount(computed);
-      }
-    }}
-    style={{ flex: 1, padding: "6px 2px", background: "#2b3139", border: "none", color: "#eaecef", borderRadius: 6, fontSize: 10, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }}
-  >
-    {pct}%
-  </button>
-))}
-                </div>
+               {/* BOTONES EXCLUSIVOS DE PORCENTAJE RÁPIDO (ESTILO TERMINAL PROFESIONAL) */}
+<div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+  {[25, 50, 75, 100].map((pct) => (
+    <button
+      key={pct}
+      type="button"
+      onClick={() => {
+        const baseBalance = parseFloat(selectedToken?.balance || "0");
+        if (baseBalance > 0) {
+          const computed = ((baseBalance * pct) / 100).toFixed(4);
+          setTradeAmount(computed);
+          setSendAmount(computed);
+        }
+      }}
+      style={{ flex: 1, padding: "6px 2px", background: "#2b3139", border: "none", color: "#eaecef", borderRadius: 6, fontSize: 10, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }}
+    >
+      {pct}%
+    </button>
+  ))}
+</div>
 
                 {/* Input de Dirección Destino condicional */}
                 {tradeType !== "SWAP" && (
