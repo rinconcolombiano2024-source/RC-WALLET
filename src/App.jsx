@@ -1041,136 +1041,56 @@ const handleSend = async () => {
       });
     }
 
-    // GUARDADO ESTABLE DE MUESTRA LOG EN VARIABLE (SINTAXIS PLANA UNIFICADA)
+       // GUARDADO ESTABLE DE MUESTRA LOG EN VARIABLE (SINTAXIS PLANA UNIFICADA DE ENTRADA)
     setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
 
     // ========================================================================
-    // MOTOR DE DESPACHO BIFURCADO CON CAPTURA ESTRICTA DE LOGS (ANTI-SILENCIOS)
+    // MOTOR DE DESPACHO MULTICADENA UNIFICADO (EXPERIMENTO DE CONTROL INTEGRAL V5)
     // ========================================================================
-    console.log(`[RC WALLET] Iniciando despacho. Red: ${tokenInfo.chainId}, Activo: ${tokenInfo.symbol}`);
+    console.log(`[RC WALLET DISPATCH] Transmitiendo lote a World App - Red ID: ${tokenInfo.chainId} - Activo: ${tokenInfo.symbol}`);
     
-    // Extraemos el objeto transaccional preparado en el índice cero
-    const targetTx = transactionsBatch[0];
-    if (!targetTx) {
-      setStatus("Error: Lote transaccional vacío.");
+    if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
+      setStatus("Error: Los servicios nativos de World App no respondieron. Reintente.");
       setSending(false);
       return;
     }
 
     let result = null;
 
-    if (Number(tokenInfo.chainId) === 480) {
-      // 🔵 RUTA A: OPERACIONES INTERNAS DE WORLD CHAIN (Canal Nativo MiniKit)
-      if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
-        setStatus("Error: Los servicios nativos de World App no respondieron. Reintente.");
-        setSending(false);
-        return;
-      }
+    try {
+      setStatus(`Abriendo sensor biométrico en la red ID: ${tokenInfo.chainId}...`);
+      
+      // PRUEBA REAL: Enviamos el lote en bytes crudos usando el SDK oficial con chainId dinámico (1, 480, 8453, etc.)
+      result = await MiniKit.sendTransaction({
+        chainId: Number(tokenInfo.chainId), 
+        transactions: transactionsBatch    
+      });
+      
+      console.log("MINIKIT RESULT", result);
+      
+      // CAPTURA ÍNTEGRA Y TRANSPARENTE DEL RESULTADO DE ÉXITO EN TU CAJA VERDE
+      setDebugResult(JSON.stringify({
+        phase: "minikit_response",
+        status: "success_returned",
+        result: result
+      }, null, 2));
 
-      try {
-        setStatus("Transmitiendo lote a World Chain...");
-        const minikitRes = await MiniKit.sendTransaction({
-          chainId: 480,
-          transactions: transactionsBatch
-        });
-        
-        console.log("[MINIKIT WORLD CHAIN SUCCESS]", minikitRes);
-        setDebugResult(JSON.stringify({ phase: "minikit_response_success", data: minikitRes }, null, 2));
-        result = minikitRes;
-      } catch (sdkError) {
-        console.error("[MINIKIT WORLD CHAIN CRITICAL ERROR]", sdkError);
-        const errDetails = {
-          phase: "minikit_response_error",
-          message: sdkError?.message || String(sdkError),
-          stack: sdkError?.stack || null
-        };
-        setDebugResult(JSON.stringify(errDetails, null, 2));
-        setStatus("Error al firmar en World Chain. Revise el debug inferior.");
-        setSending(false);
-        return;
-      }
-    } else {
-      // 🟢 RUTA B (OBJETIVO MAESTRO RC WALLET): RESCATE EN REDES EXTERNAS EIP-1193
-      if (typeof window === "undefined" || !window.ethereum) {
-        setStatus("Error: Proveedor Web3 (window.ethereum) no detectado en el celular.");
-        setDebugResult(JSON.stringify({ phase: "provider_missing_error", message: "window.ethereum is undefined" }, null, 2));
-        setSending(false);
-        return;
-      }
-
-      try {
-        // 1. CONTROL DE ACCESO OBLIGATORIO: Despierta y conecta la wallet EVM de la World App
-        setStatus("Inicializando enlace Web3 con World App...");
-        const connectedAccounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        console.log("[EVM CONNECTED ACCOUNTS]", connectedAccounts);
-
-        // 2. CONMUTACIÓN DE RED AUTOMATIZADA COMPATIBLE CON SMARTPHONES
-        setStatus(`Conmutando entorno a EVM ID: ${tokenInfo.chainId}...`);
-        const hexChainId = "0x" + Number(tokenInfo.chainId).toString(16);
-        try {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: hexChainId }],
-          });
-        } catch (switchError) {
-          if (switchError.code === 4902) {
-            await window.ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [{
-                chainId: hexChainId,
-                chainName: tokenInfo.network || "External EVM Chain",
-                rpcUrls: [tokenInfo.chainId === 1 ? "https://cloudflare-eth.com" : ""],
-                nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }
-              }]
-            });
-          } else {
-            throw switchError;
-          }
-        }
-
-        // 3. FIRMA Y DESPACHO DEL CALLDATA HEXADECIMAL DE RESCATE
-        setStatus(`Abriendo sensor para firmar rescate en ${tokenInfo.network || "Red Externa"}...`);
-        
-        console.log("[EVM PAYLOAD PREPARED]", {
-          from: wallet,
-          to: targetTx.to,
-          value: "0x" + Number(targetTx.value).toString(16),
-          data: targetTx.data
-        });
-
-        const txHash = await window.ethereum.request({
-          method: "eth_sendTransaction",
-          params: [{
-            from: wallet,               // Tu cuenta EVM vinculada
-            to: targetTx.to,            // Contrato del token a rescatar (WLD Ethereum)
-            value: "0x" + Number(targetTx.value).toString(16), 
-            data: targetTx.data         // Bytes hexadecimales de la función transfer()
-          }],
-        });
-
-        console.log("[EVM RESCUE SUCCESS] Hash emitido:", txHash);
-        
-        // LOG EXPLICITO DE ÉXITO: Pinta de golpe el Hash en tu caja verde para que no haya misterios
-        setDebugResult(JSON.stringify({ phase: "provider_response_success", txHash: txHash, networkId: tokenInfo.chainId }, null, 2));
-        
-        // Estructura espejo adaptativa homologada para que pase de largo tus filtros de abajo
-        result = { data: { success: true, txId: txHash, status: "success" } };
-      } catch (evmError) {
-        console.error("[EVM RESCUE CRITICAL EXCEPTION ATTRAPED]", evmError);
-        
-        // CAPTURA ESTRICTA DE LA EXCEPCIÓN DEL PROVEEDOR
-        const errDetails = {
-          phase: "provider_response_error",
-          message: evmError?.message || String(evmError),
-          code: evmError?.code || null,
-          stack: evmError?.stack || null
-        };
-        
-        setDebugResult(JSON.stringify(errDetails, null, 2));
-        setStatus("Fallo en la comunicación con la red externa. Revise el debug.");
-        setSending(false);
-        return;
-      }
+    } catch (sdkError) {
+      console.error("[MINIKIT CRITICAL EXCEPTION] El SDK rechazó el comando:", sdkError);
+      
+      // CAPTURA ÍNTEGRA DE LA EXCEPCIÓN PARA DESCIFRAR LAS POLÍTICAS DEL RELAYER
+      const errDetails = {
+        phase: "minikit_response",
+        status: "error_caught",
+        message: sdkError?.message || String(sdkError),
+        code: sdkError?.code || null,
+        stack: sdkError?.stack || null
+      };
+      
+      setDebugResult(JSON.stringify(errDetails, null, 2));
+      setStatus("Fallo al procesar el comando en World App. Revise el debug.");
+      setSending(false);
+      return;
     }
 
     if (!result) {
@@ -1178,7 +1098,38 @@ const handleSend = async () => {
       setSending(false);
       return;
     }
-    // REFRESH & CONTROL DE MODALES (LIMPIEZA DE MEMORIA POST-TRANSACCIÓN V3)
+
+    const preparedResult = result?.data ? result : { data: result };
+    const parsed = parseMiniKitResult(preparedResult);
+    
+    if (typeof setLastTxResult === "function") {
+      setLastTxResult(parsed);
+    }
+
+    setDebugResult(JSON.stringify(parsed, null, 2));
+
+    if (!parsed || !parsed.success) {
+      setStatus(parsed?.status || "Operación rechazada o fallida");
+      setSending(false);
+      return;
+    }
+
+    // Fase de Confirmación en la Blockchain y escucha asíncrona
+    setStatus("Esperando confirmación en la blockchain...");
+    
+    const tokenBalanceString = tokenInfo.balance ? tokenInfo.balance.toString() : "0";
+    const confirmation = await waitForBalanceChange(
+      wallet,
+      tokenInfo,
+      tokenBalanceString
+    );
+
+    if (confirmation && confirmation.success) {
+      setStatus("¡Envío de fondos completado con éxito! Operación confirmada en la red.");
+    } else {
+      setStatus("Operación enviada con éxito al Relay de la red.");
+    }
+ // REFRESH & CONTROL DE MODALES (LIMPIEZA DE MEMORIA POST-TRANSACCIÓN V3)
     setTimeout(async () => {
       try {
         if (mountedRef.current && wallet) {
