@@ -1642,7 +1642,7 @@ useEffect(() => {
       )}
 
       <hr style={{ border: "1px solid #222", marginTop: 20, marginBottom: 20 }} />
-      {/* ⚠️ MÓDULO ALERTA INTELIGENTE: DIAGNÓSTICO DE CUENTA SAFE INACTIVA EN REDES EXTERNAS */}
+            {/* ⚠️ MÓDULO ALERTA INTELIGENTE: DIAGNÓSTICO DE CUENTA SAFE INACTIVA EN REDES EXTERNAS */}
       {wallet && selectedToken && safeNetworkStates?.[selectedToken.chainId]?.needsCloning ? (
         <div
           style={{
@@ -1669,8 +1669,53 @@ useEffect(() => {
             type="button"
             disabled={sending}
             onClick={async () => {
-              // Esta función la acoplaremos de forma consecutiva en el siguiente bloque
-              setStatus("Iniciando preparación del despliegue del contrato Safe...");
+              if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
+                setStatus("Error: Los servicios nativos de World App no respondieron.");
+                return;
+              }
+
+              setSending(true);
+              setStatus("Conectando con el Factory de Safe en la Blockchain...");
+
+              try {
+                const safeFactoryAddress = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2";
+                const factoryInterface = new ethers.Interface([
+                  "function createProxy(address masterCopy, bytes data) returns (address proxy)"
+                ]);
+                const safeMasterCopyAddress = "0x3e9ebf0587220E774406D4D54288bC207BD05329";
+
+                const cloneDataHex = factoryInterface.encodeFunctionData("createProxy", [
+                  ethers.getAddress(safeMasterCopyAddress),
+                  "0x"
+                ]);
+
+                const cloneResult = await MiniKit.sendTransaction({
+                  chainId: Number(selectedToken.chainId),
+                  transactions: [{
+                    to: ethers.getAddress(safeFactoryAddress),
+                    value: "0",
+                    data: cloneDataHex
+                  }]
+                });
+
+                setDebugResult(JSON.stringify({ phase: "safe_cloning_response", result: cloneResult }, null, 2));
+                const preparedClone = cloneResult?.data ? cloneResult : { data: cloneResult };
+                const parsedClone = parseMiniKitResult(preparedClone);
+
+                if (parsedClone && parsedClone.success) {
+                  setStatus("¡Dirección de Rescate Activada con éxito! Re-escaneando portafolio...");
+                  if (wallet) await checkContractDeployment(wallet);
+                } else {
+                  setStatus(parsedClone?.status || "El Relayer de World App rechazó el despliegue.");
+                }
+
+              } catch (cloneErr) {
+                console.error("[SAFE CLONE CRITICAL ERROR]", cloneErr);
+                setDebugResult(JSON.stringify({ phase: "safe_cloning_error", message: cloneErr?.message || String(cloneErr) }, null, 2));
+                setStatus("Fallo al activar la dirección. Verifique saldo de gas en la red.");
+              } finally {
+                setSending(false);
+              }
             }}
             style={{
               marginTop: 12,
@@ -1682,15 +1727,14 @@ useEffect(() => {
               color: "#000",
               fontWeight: "bold",
               cursor: sending ? "not-allowed" : "pointer",
-              fontSize: 12,
-              transition: "opacity 0.2s"
+              fontSize: 12
             }}
           >
-            {sending ? "Procesando..." : "Activar Dirección de Rescate 🚀"}
+            {sending ? "Procesando activación..." : "Activar Dirección de Rescate 🚀"}
           </button>
         </div>
       ) : null}
-      
+
       {/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V3)
       ======================================================== */}
