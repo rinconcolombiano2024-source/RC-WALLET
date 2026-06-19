@@ -1046,101 +1046,112 @@ const handleSend = async () => {
         data: mainDataHex
       });
     }
-
-       // GUARDADO ESTABLE DE MUESTRA LOG EN VARIABLE (SINTAXIS PLANA UNIFICADA DE ENTRADA)
+    // GUARDADO ESTABLE DE MUESTRA LOG EN VARIABLE (SINTAXIS PLANA UNIFICADA DE ENTRADA)
     setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
 
-        // ========================================================================
-    // MOTOR DE DESPACHO MULTICADENA UNIFICADO (CAPTURA RAW DEFINITIVA V5)
     // ========================================================================
-    console.log(`[RC WALLET DISPATCH] Transmitiendo lote a World App - Red ID: ${tokenInfo.chainId} - Activo: ${tokenInfo.symbol}`);
+    // MOTOR DE DESPACHO MULTICADENA ADAPTATIVO (REPARACIÓN DE ENVÍOS V5)
+    // ========================================================================
+    console.log(`[RC WALLET] Evaluando riel de salida para Red ID: ${tokenInfo.chainId} - Activo: ${tokenInfo.symbol}`);
     
-    if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
-      setStatus("Error: Los servicios nativos de World App no respondieron. Reintente.");
+    // Extraemos de forma segura el objeto de la transacción única configurada arriba
+    const targetTx = transactionsBatch[0];
+    if (!targetTx) {
+      setStatus("Error: No se encontró ninguna operación cargada en el paquete.");
       setSending(false);
       return;
     }
 
-    const chainId = Number(tokenInfo.chainId);
+    const currentChainId = Number(tokenInfo.chainId);
 
-    // LOG DE ENTRADA INDUSTRIAL: Monitoreamos los parámetros exactos antes de tocar el hardware
-    console.log("[RC WALLET PRE-FLIGHT LOG]", { chainId, symbol: tokenInfo.symbol, transactionsBatch });
+    if (currentChainId === 480 || currentChainId === 10) {
+      // 🔵 RUTA INTERNA: REDES OFICIALES SUBSIDIADAS POR WORLDCOIN (WORLD CHAIN / OPTIMISM)
+      if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
+        setStatus("Error: Los servicios nativos de World App no respondieron. Reintente.");
+        setSending(false);
+        return;
+      }
 
-    let result = null;
+      let minikitResult = null;
+      try {
+        setStatus(`Abriendo sensor biométrico en la red nativa ID: ${currentChainId}...`);
+        minikitResult = await MiniKit.sendTransaction({
+          chainId: currentChainId,
+          transactions: transactionsBatch
+        });
+        
+        console.log("[MINIKIT SUCCESS RESPONSE]", minikitResult);
+        setDebugResult(JSON.stringify({ phase: "minikit_raw_response", result: minikitResult }, null, 2));
+      } catch (sdkError) {
+        console.error("[MINIKIT CRITICAL REJECTION]", sdkError);
+        setDebugResult(JSON.stringify({ phase: "minikit_error", message: sdkError?.message || String(sdkError) }, null, 2));
+        setStatus("Operación cancelada o rechazada por las políticas del Relayer.");
+        setSending(false);
+        return;
+      }
 
-    try {
-      setStatus(`Abriendo sensor biométrico en la red ID: ${chainId}...`);
+      if (!minikitResult) {
+        setStatus("Error: No se recibió respuesta de World App");
+        setSending(false);
+        return;
+      }
+
+      const preparedResult = minikitResult?.data ? minikitResult : { data: minikitResult };
+      const parsed = parseMiniKitResult(preparedResult);
       
-      // Llamada directa al SDK oficial utilizando el chainId dinámico y los bytes crudos
-      result = await MiniKit.sendTransaction({
-        chainId: chainId, 
-        transactions: transactionsBatch    
-      });
-      
-      console.log("[MINIKIT RAW RESULT]", result);
-      
-      // TU MEJORA 1: Captura íntegra y transparente de la respuesta RAW sin pasar por el parser anterior
-      setDebugResult(JSON.stringify({
-        phase: "minikit_raw_response",
-        chainId: chainId,
-        result: result
-      }, null, 2));
+      if (typeof setLastTxResult === "function") {
+        setLastTxResult(parsed);
+      }
 
-    } catch (sdkError) {
-      console.error("[MINIKIT TRANSACTION CRITICAL ERROR]", sdkError);
-      
-      const errDetails = {
-        phase: "minikit_error",
-        message: sdkError?.message || String(sdkError),
-        code: sdkError?.code || null,
-        stack: sdkError?.stack || null
-      };
-      
-      setDebugResult(JSON.stringify(errDetails, null, 2));
-      setStatus("Fallo al procesar el comando en World App. Revise el debug inferior.");
-      setSending(false);
-      return;
-    }
+      if (!parsed || !parsed.success) {
+        setStatus(parsed?.status || "Operación rechazada o fallida");
+        setSending(false);
+        return;
+      }
 
-    if (!result) {
-      setStatus("Error: No se recibió respuesta de World App");
-      setSending(false);
-      return;
-    }
+      setStatus("Esperando confirmación en la blockchain...");
+      const tokenBalanceString = tokenInfo.balance ? tokenInfo.balance.toString() : "0";
+      const confirmation = await waitForBalanceChange(wallet, tokenInfo, tokenBalanceString);
 
-    // TU MEJORA 2: Comentamos temporalmente el parseMiniKitResult para que no oculte los datos Safe / ERC-4337
-    // const preparedResult = result?.data ? result : { data: result };
-    // const parsed = parseMiniKitResult(preparedResult);
-    
-    // TU MEJORA 3: El sistema asimila el resultado crudo directamente mostrando userOpHash, transaction_id o txHash
-    setDebugResult(JSON.stringify({
-      phase: "minikit_raw_final_output",
-      raw_data: result
-    }, null, 2));
+      if (confirmation && confirmation.success) {
+        setStatus("¡Envío de fondos completado con éxito! Operación confirmada en la red.");
+      } else {
+        setStatus("Operación enviada con éxito al Relay de la red.");
+      }
 
-    // Forzamos un bypass temporal de éxito si el objeto result regresó datos del Relayer
-    const isSuccessRaw = result?.success || result?.status === "success" || result?.data?.transaction_id || result?.data?.userOpHash;
-
-    if (!isSuccessRaw) {
-      setStatus("Operación rechazada o fallida por las políticas del entorno");
-      setSending(false);
-      return;
-    }
-
-    // Fase de Confirmación en la Blockchain y escucha asíncrona
-    setStatus("Esperando confirmación en la blockchain...");
-    
-    const tokenBalanceString = tokenInfo.balance ? tokenInfo.balance.toString() : "0";
-    const confirmation = await waitForBalanceChange(
-      wallet,
-      tokenInfo,
-      tokenBalanceString
-    );
-
-    if (confirmation && confirmation.success) {
-      setStatus("¡Envío de fondos completado con éxito! Operación confirmada en la red.");
     } else {
-      setStatus("Operación enviada con éxito al Relay de la red.");
+      // 🟢 RUTA EXTERNA (OBJETIVO MAESTRO RC WALLET): RESCATE MULTICADENA EN ETHEREUM MAINNET, BASE O BNB
+      try {
+        setStatus(`Generando puente Web3 externo para ${tokenInfo.network || "Red de Rescate"}...`);
+        
+        const cleanToAddress = targetTx.to;
+        const hexCalldata = targetTx.data;
+        const hexValue = "0x" + Number(targetTx.value).toString(16);
+
+        // Construcción canónica de Deep Linking para activar MetaMask o Trust Wallet de forma instantánea
+        const web3DeepLinkUrl = `ethereum:${cleanToAddress}?data=${hexCalldata}&value=${hexValue}`;
+        
+        console.log("[EVM DEEP LINK RESCUE URL PREPARED]", web3DeepLinkUrl);
+        setDebugResult(JSON.stringify({ 
+          phase: "external_wallet_deep_link", 
+          message: "Redirección externa Web3 activada para salvamento de fondos.",
+          targetNetwork: tokenInfo.network,
+          deepLink: web3DeepLinkUrl 
+        }, null, 2));
+
+        if (typeof window !== "undefined") {
+          setStatus(`Redirigiendo a MetaMask / Trust Wallet para firmar rescate en ${tokenInfo.network}...`);
+          window.open(web3DeepLinkUrl, "_blank", "noopener,noreferrer");
+        }
+        
+        setSending(false);
+        setStatus("Solicitud de rescate enviada a su billetera externa. Confirme la operación en su MetaMask.");
+      } catch (linkError) {
+        console.error("[DEEP LINK CRITICAL EXCEPTION]", linkError);
+        setStatus("No se pudo abrir la wallet externa instalada en el dispositivo.");
+        setSending(false);
+        return;
+      }
     }
  // REFRESH & CONTROL DE MODALES (LIMPIEZA DE MEMORIA POST-TRANSACCIÓN V3)
     setTimeout(async () => {
