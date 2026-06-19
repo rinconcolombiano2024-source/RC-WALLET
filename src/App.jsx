@@ -713,7 +713,7 @@ export default function App() {
         setStatus("No se pudo obtener una dirección de wallet válida");
         return;
       }
-                 // INTEGRACIÓN DE MÁXIMO CONTROL: Valida de forma estricta las credenciales de World ID (ZKP)
+      // INTEGRACIÓN DE MÁXIMO CONTROL: Valida de forma estricta las credenciales de World ID (ZKP)
       const isHumanVerified = await verifyWorldIDProof(payload);
       if (!isHumanVerified) {
         setStatus("Fallo de verificación: Se requiere un World ID verificado por Orb.");
