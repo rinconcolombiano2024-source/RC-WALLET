@@ -743,8 +743,7 @@ export default function App() {
       // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
       setTimeout(async () => {
         if (mountedRef.current) {
-                 // Ejecuta el escaneo tradicional de balances en todas las redes EVM
-               // Ejecuta el escaneo tradicional de balances en todas las redes EVM
+                      // Ejecuta el escaneo tradicional de balances en todas las redes EVM
         await scanAllNetworks(cleanAddress);
 
         // 🟢 INYECCIÓN MAESTRA POST-LOGIN (MÓDULO DE RECUPERACIÓN V5)
@@ -754,11 +753,14 @@ export default function App() {
         }
       }, 2000);
 
+    }); // 🚀 EL CIERRE MAESTRO REPARADO: Clausura la función del callback de World ID de forma limpia
+
     } catch (err) {
       console.error("[WORLD LOGIN ERROR] Falla en autenticación o firma biométrica:", err);
       const errorMessage = err?.message || err?.error_message || "Falla al conectar World ID";
-      setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelado" : "Error en conexión");
+      setStatus(errorMessage.includes("user rejected") || errorMessage.includes("rejected") ? "Inicio de sesión cancelada" : "Error en conexión");
     }
+
 
  // ========================================================================
   // ERROR EXTRACTOR (MÁXIMA ROBUSTEZ Y PROTECCIÓN CONTRA ESTRUCTURAS CÍCLICAS)
