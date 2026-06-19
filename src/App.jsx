@@ -1500,20 +1500,25 @@ useEffect(() => {
                       setChartInterval("1H"); 
                       setShowTokenModal(true); 
                     }}
-                    style={{
+                                      style={{
                       padding: "10px 14px",
                       borderRadius: 10,
                       border: "none",
-                      background: isSelected ? "#00c57a" : "#2b3139",
-                      color: "white",
-                      cursor: "pointer",
-                      fontWeight: "bold",
+                      background: wallet ? "#2563eb" : "#222",
+                      color: wallet ? "white" : "#555",
+                      cursor: wallet ? "pointer" : "not-allowed",
                       fontSize: 12,
-                      boxSizing: "border-box",
-                      transition: "background 0.2s"
+                      boxSizing: "border-box"
                     }}
                   >
-                    {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar 📊"}
+                    Ver en Explorer 🔗
+                  </button>
+                </div>
+              </div>
+            );
+          })
+      )}
+  {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar 📊"}
                   </button>
 
                   {/* BOTÓN INTERACTIVO SANEADO PARA VER EN EXPLORADOR */}
