@@ -713,7 +713,7 @@ export default function App() {
         setStatus("No se pudo obtener una dirección de wallet válida");
         return;
       }
-            // INTEGRACIÓN DE MÁXIMO CONTROL: Valida de forma estricta las credenciales de World ID (ZKP)
+                 // INTEGRACIÓN DE MÁXIMO CONTROL: Valida de forma estricta las credenciales de World ID (ZKP)
       const isHumanVerified = await verifyWorldIDProof(payload);
       if (!isHumanVerified) {
         setStatus("Fallo de verificación: Se requiere un World ID verificado por Orb.");
@@ -739,7 +739,11 @@ export default function App() {
       // Ejecución pasiva del diagnóstico de proveedores
       await detectProvider();
       
-      // 5. Temporizador blindado: Solo escanea si el componente sigue montado en la interfaz (Incluye tu token RC.PL)
+      // MÓDULO DE ADQUISICIÓN DE CONTRATO COMPATIBLE (FUERA DE ANIDACIONES TIMEOUT)
+      // Ejecutamos la auditoría de redes externas en el hilo principal post-login
+      checkContractDeployment(cleanAddress);
+
+      // 5. Temporizador blindado de un solo paso para actualización pasiva del portafolio
       setTimeout(async () => {
         if (mountedRef.current) {
           await scanAllNetworks(cleanAddress);
