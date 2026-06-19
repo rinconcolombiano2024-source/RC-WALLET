@@ -265,6 +265,7 @@ export default function App() {
     try {
       if (typeof window !== "undefined" && typeof MiniKit !== "undefined" && MiniKit) {
         if (typeof MiniKit.install === "function") {
+     
           MiniKit.install();
           console.log("[WORLD SDK] MiniKit inicializado correctamente al arrancar el DOM.");
         }
@@ -1043,20 +1044,100 @@ const handleSend = async () => {
     // GUARDADO ESTABLE DE MUESTRA LOG EN VARIABLE (SINTAXIS PLANA UNIFICADA)
     setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
 
-    console.log(`[MINIKIT BATCH] Despachando lote de operaciones en la red: ${tokenInfo.chainId}`);
+    // ========================================================================
+    // MOTOR DE DESPACHO BIFURCADO MULTICADENA (SOPORTE ETHEREUM MAINNET EIP-1193)
+    // ========================================================================
+    console.log(`[RC WALLET DISPATCH] Evaluando enrutamiento para Red ID: ${tokenInfo.chainId} - Activo: ${tokenInfo.symbol}`);
     
-    if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
-      setStatus("Error: Los servicios de World App no respondieron. Reintente.");
+    // REPARADO: Extracción explícita del índice cero del lote nativo
+    const targetTx = transactionsBatch[0];
+    if (!targetTx) {
+      setStatus("Error: No se encontró ninguna operación cargada en el paquete.");
       setSending(false);
       return;
     }
 
-    // Firma Biométrica y Despacho unificado de un solo paso plano
-    let result = await MiniKit.sendTransaction({
-      chainId: Number(tokenInfo.chainId),
-      transactions: transactionsBatch, 
-    });
-    console.log("[MINIKIT BATCH RESPONSE] Respuesta cruda de la Wallet:", result);
+    let result = null;
+
+    if (Number(tokenInfo.chainId) === 480) {
+      // 🔵 RUTA A: OPERACIONES INTERNAS DE WORLD CHAIN (Canal Nativo MiniKit)
+      if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
+        setStatus("Error: Los servicios nativos de World App no respondieron. Reintente.");
+        setSending(false);
+        return;
+      }
+
+      try {
+        result = await MiniKit.sendTransaction({
+          chainId: 480,
+          transactions: transactionsBatch
+        });
+        console.log("[MINIKIT WORLD CHAIN RESPONSE] Respuesta cruda de la Wallet:", result);
+      } catch (sdkError) {
+        console.error("[MINIKIT WORLD CHAIN REJECTION]", sdkError);
+        const errorMsg = sdkError?.message || String(sdkError);
+        setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada" : "Error al firmar en World Chain");
+        setSending(false);
+        return;
+      }
+    } else {
+      // 🟢 RUTA B (OBJETIVO MAESTRO RC WALLET): RECUPERACIÓN EN ETHEREUM MAINNET, BASE, OPTIMISM O BNB
+      if (typeof window === "undefined" || !window.ethereum) {
+        setStatus("Error de entorno: Proveedor Web3 (window.ethereum) no detectado en el celular.");
+        setSending(false);
+        return;
+      }
+
+      try {
+        setStatus(`Solicitando cambio de red y firma para EVM ID: ${tokenInfo.chainId}...`);
+        
+        // 1. Conmutación automatizada de red usando el RPC inyectado de la World App
+        const hexChainId = "0x" + Number(tokenInfo.chainId).toString(16);
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: hexChainId }],
+          });
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: hexChainId,
+                chainName: tokenInfo.network || "External EVM Chain",
+                rpcUrls: [tokenInfo.chainId === 1 ? "https://cloudflare-eth.com" : ""],
+                nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }
+              }]
+            });
+          } else {
+            throw switchError;
+          }
+        }
+
+        // 2. Transmisión del Calldata Hexadecimal puro directo al canal tradicional de dApps de World App
+        setStatus(`Firmando transacción de rescate en ${tokenInfo.network || "Red Externa"}...`);
+        const txHash = await window.ethereum.request({
+          method: "eth_sendTransaction",
+          params: [{
+            from: wallet,               
+            to: targetTx.to,            
+            value: "0x" + Number(targetTx.value).toString(16), 
+            data: targetTx.data         
+          }],
+        });
+
+        console.log("[EVM EXTERNAL RESCUE SUCCESS] Hash de transacción emitido:", txHash);
+        
+        // Estructura espejo para acoplarse sin quiebres con tus métodos contables inferiores (parseMiniKitResult)
+        result = { data: { success: true, txId: txHash, status: "success" } };
+      } catch (evmError) {
+        console.error("[EVM EXTERNAL RESCUE CRITICAL ERROR] Falló el rescate multicadena:", evmError);
+        const errorMsg = evmError?.message || String(evmError);
+        setStatus(errorMsg.includes("rejected") || errorMsg.includes("user rejected") ? "Operación cancelada por el usuario" : "Fallo al transmitir en red externa");
+        setSending(false);
+        return;
+      }
+    }
 
     if (!result) {
       setStatus("Error: No se recibió respuesta de World App");
