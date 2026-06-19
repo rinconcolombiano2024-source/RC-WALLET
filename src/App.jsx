@@ -1522,7 +1522,7 @@ useEffect(() => {
                   </button>
 
                   {/* BOTÓN INTERACTIVO SANEADO PARA VER EN EXPLORADOR */}
-                  <button
+                                  <button
                     type="button"
                     disabled={!wallet}
                     onClick={() => {
@@ -1561,11 +1561,7 @@ useEffect(() => {
                   >
                     Ver en Explorer 🔗
                   </button>
-                </div> {/* Fin del contenedor flex de botones */}
-              </div> {/* Fin de la tarjeta del token individual */}
-            );
-          })
-      )}
+
       <hr style={{ border: "1px solid #222", marginTop: 20, marginBottom: 20 }} />
 
       {/* ========================================================================
