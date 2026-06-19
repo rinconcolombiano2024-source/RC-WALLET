@@ -1516,26 +1516,20 @@ useEffect(() => {
                     {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar 📊"}
                   </button>
                       // ESTRUCTURA DIRECTA EVM RECONSTITUIDA DE ALTA FIDELIDAD
-                     // ========================================================================
-// RUTA DE EXPLORADORES (ESTRUCTURA CORRECTA CON SYMBOLS CANÓNICOS)
+// ========================================================================
+// RUTA DE EXPLORADORES (ÚNICO, CORREGIDO Y SANEADO PARA VERCEL)
 // ========================================================================
 if (token.chainId === 1) {
-  // Ethereum Mainnet
   explorer = `https://etherscan.io{activeWallet}`;
 } else if (token.chainId === 10) {
-  // Optimism
   explorer = `https://etherscan.io{activeWallet}`;
 } else if (token.chainId === 8453) {
-  // Base Chain
   explorer = `https://basescan.org{activeWallet}`;
 } else if (token.chainId === 56) {
-  // BNB Smart Chain
   explorer = `https://bscscan.com{activeWallet}`;
 } else if (token.chainId === 480) {
-  // World Chain
   explorer = `https://worldscan.org{activeWallet}`;
 } else if (token.chainId === 4801) {
-  // World Chain Sepolia Testnet
   explorer = `https://worldscan.org{activeWallet}`;
 }
 
@@ -1543,8 +1537,8 @@ if (explorer && typeof window !== "undefined") {
   window.open(explorer, "_blank", "noopener,noreferrer");
 }
 
-                    }}
-                    style={{
+
+                  style={{
                       padding: "10px 14px",
                       borderRadius: 10,
                       border: "none",
