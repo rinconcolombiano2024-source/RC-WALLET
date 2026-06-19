@@ -1643,7 +1643,7 @@ useEffect(() => {
 
       <hr style={{ border: "1px solid #222", marginTop: 20, marginBottom: 20 }} />
       {/* ⚠️ MÓDULO ALERTA INTELIGENTE: DIAGNÓSTICO DE CUENTA SAFE INACTIVA EN REDES EXTERNAS */}
-      {wallet && selectedToken && safeNetworkStates[selectedToken.chainId]?.needsCloning && (
+      {wallet && selectedToken && safeNetworkStates?.[selectedToken.chainId]?.needsCloning ? (
         <div
           style={{
             background: "rgba(234, 179, 8, 0.1)",
@@ -1664,72 +1664,13 @@ useEffect(() => {
           <p style={{ margin: 0, color: "#aaa", fontSize: 12, lineHeight: "1.5" }}>
             Se detectaron fondos en la red <strong>{safeNetworkStates[selectedToken.chainId]?.networkName}</strong>, pero tu cuenta inteligente no ha sido inicializada en esta capa. Necesitas activar la dirección de rescate para poder retirar tus activos.
           </p>
-                    <button
+          
+          <button
             type="button"
             disabled={sending}
             onClick={async () => {
-              if (!MiniKit || typeof MiniKit.sendTransaction !== "function") {
-                setStatus("Error: Los servicios nativos de World App no respondieron.");
-                return;
-              }
-
-              setSending(true);
-              setStatus("Conectando con el Factory de Safe en la Blockchain...");
-
-              try {
-                // Dirección oficial del Safe Proxy Factory unificado en Ethereum, Base y Optimism
-                const safeFactoryAddress = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2";
-                
-                // Interfaz de bajo nivel para codificar la función 'createProxy' del factory de Safe
-                const factoryInterface = new ethers.Interface([
-                  "function createProxy(address masterCopy, bytes data) returns (address proxy)"
-                ]);
-
-                // Dirección de la copia maestra canónica de Safe que usa la Fundación Worldcoin
-                const safeMasterCopyAddress = "0x3e9ebf0587220E774406D4D54288bC207BD05329";
-
-                // Codificamos los bytes hexadecimales puros (calldata) para clonar el contrato Safe
-                const cloneDataHex = factoryInterface.encodeFunctionData("createProxy", [
-                  ethers.getAddress(safeMasterCopyAddress),
-                  "0x" // Inicialización limpia sin llamadas secundarias
-                ]);
-
-                console.log("[SAFE CLONE PAYLOAD PREPARED]", { to: safeFactoryAddress, data: cloneDataHex });
-
-                // Despachamos la clonación directo a MiniKit usando el chainId externo (ej: 1 para Ethereum Mainnet)
-                const cloneResult = await MiniKit.sendTransaction({
-                  chainId: Number(selectedToken.chainId), // Envía dinámicamente el ID de la red externa elegida
-                  transactions: [{
-                    to: ethers.getAddress(safeFactoryAddress),
-                    value: "0",
-                    data: cloneDataHex
-                  }]
-                });
-
-                console.log("[SAFE CLONE MINIKIT RESPONSE]", cloneResult);
-                setDebugResult(JSON.stringify({ phase: "safe_cloning_response", result: cloneResult }, null, 2));
-
-                const preparedClone = cloneResult?.data ? cloneResult : { data: cloneResult };
-                const parsedClone = parseMiniKitResult(preparedClone);
-
-                if (parsedClone && parsedClone.success) {
-                  setStatus("¡Dirección de Rescate Activada con éxito! Re-escaneando portafolio...");
-                  // Volvemos a auditar para actualizar el estado visual de la alerta a "Desplegado"
-                  if (wallet) await checkContractDeployment(wallet);
-                } else {
-                  setStatus(parsedClone?.status || "El Relayer de World App rechazó el despliegue.");
-                }
-
-              } catch (cloneErr) {
-                console.error("[SAFE CLONE CRITICAL ERROR]", cloneErr);
-                setDebugResult(JSON.stringify({
-                  phase: "safe_cloning_error",
-                  message: cloneErr?.message || String(cloneErr)
-                }, null, 2));
-                setStatus("Fallo al activar la dirección. Verifique saldo de gas en la red.");
-              } finally {
-                setSending(false);
-              }
+              // Esta función la acoplaremos de forma consecutiva en el siguiente bloque
+              setStatus("Iniciando preparación del despliegue del contrato Safe...");
             }}
             style={{
               marginTop: 12,
@@ -1745,9 +1686,11 @@ useEffect(() => {
               transition: "opacity 0.2s"
             }}
           >
-            {sending ? "Procesando activación..." : "Activar Dirección de Rescate 🚀"}
+            {sending ? "Procesando..." : "Activar Dirección de Rescate 🚀"}
           </button>
-
+        </div>
+      ) : null}
+      
       {/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V3)
       ======================================================== */}
