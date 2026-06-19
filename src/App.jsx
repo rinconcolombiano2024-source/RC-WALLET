@@ -2516,7 +2516,7 @@ useEffect(() => {
           onClick={() => {
             if (typeof window !== "undefined") {
               // ENLACE DIRECTO COMPARTIDO POR EL DUEÑO: ABRE TU PERFIL COMERCIAL EN GOOGLE MAPS SIN COMPLICACIONES NI ERRORES DE DNS
-              const officialProfileUrl = "https://goo.gl";
+              const officialProfileUrl = "https://maps.app.goo.gl/xc9PWPvZF6z8Htev7?g_st=ac";
               window.open(officialProfileUrl, "_blank", "noopener,noreferrer");
             }
           }}
