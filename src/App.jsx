@@ -1044,8 +1044,8 @@ const handleSend = async () => {
        // GUARDADO ESTABLE DE MUESTRA LOG EN VARIABLE (SINTAXIS PLANA UNIFICADA DE ENTRADA)
     setDebugResult(JSON.stringify({ phase: "batch_prepared", totalOperations: transactionsBatch.length, transactionsBatch }, null, 2));
 
-    // ========================================================================
-    // MOTOR DE DESPACHO MULTICADENA UNIFICADO (EXPERIMENTO DE CONTROL INTEGRAL V5)
+        // ========================================================================
+    // MOTOR DE DESPACHO MULTICADENA UNIFICADO (CAPTURA RAW DEFINITIVA V5)
     // ========================================================================
     console.log(`[RC WALLET DISPATCH] Transmitiendo lote a World App - Red ID: ${tokenInfo.chainId} - Activo: ${tokenInfo.symbol}`);
     
@@ -1055,40 +1055,43 @@ const handleSend = async () => {
       return;
     }
 
+    const chainId = Number(tokenInfo.chainId);
+
+    // LOG DE ENTRADA INDUSTRIAL: Monitoreamos los parámetros exactos antes de tocar el hardware
+    console.log("[RC WALLET PRE-FLIGHT LOG]", { chainId, symbol: tokenInfo.symbol, transactionsBatch });
+
     let result = null;
 
     try {
-      setStatus(`Abriendo sensor biométrico en la red ID: ${tokenInfo.chainId}...`);
+      setStatus(`Abriendo sensor biométrico en la red ID: ${chainId}...`);
       
-      // PRUEBA REAL: Enviamos el lote en bytes crudos usando el SDK oficial con chainId dinámico (1, 480, 8453, etc.)
+      // Llamada directa al SDK oficial utilizando el chainId dinámico y los bytes crudos
       result = await MiniKit.sendTransaction({
-        chainId: Number(tokenInfo.chainId), 
+        chainId: chainId, 
         transactions: transactionsBatch    
       });
       
-      console.log("MINIKIT RESULT", result);
+      console.log("[MINIKIT RAW RESULT]", result);
       
-      // CAPTURA ÍNTEGRA Y TRANSPARENTE DEL RESULTADO DE ÉXITO EN TU CAJA VERDE
+      // TU MEJORA 1: Captura íntegra y transparente de la respuesta RAW sin pasar por el parser anterior
       setDebugResult(JSON.stringify({
-        phase: "minikit_response",
-        status: "success_returned",
+        phase: "minikit_raw_response",
+        chainId: chainId,
         result: result
       }, null, 2));
 
     } catch (sdkError) {
-      console.error("[MINIKIT CRITICAL EXCEPTION] El SDK rechazó el comando:", sdkError);
+      console.error("[MINIKIT TRANSACTION CRITICAL ERROR]", sdkError);
       
-      // CAPTURA ÍNTEGRA DE LA EXCEPCIÓN PARA DESCIFRAR LAS POLÍTICAS DEL RELAYER
       const errDetails = {
-        phase: "minikit_response",
-        status: "error_caught",
+        phase: "minikit_error",
         message: sdkError?.message || String(sdkError),
         code: sdkError?.code || null,
         stack: sdkError?.stack || null
       };
       
       setDebugResult(JSON.stringify(errDetails, null, 2));
-      setStatus("Fallo al procesar el comando en World App. Revise el debug.");
+      setStatus("Fallo al procesar el comando en World App. Revise el debug inferior.");
       setSending(false);
       return;
     }
@@ -1099,17 +1102,21 @@ const handleSend = async () => {
       return;
     }
 
-    const preparedResult = result?.data ? result : { data: result };
-    const parsed = parseMiniKitResult(preparedResult);
+    // TU MEJORA 2: Comentamos temporalmente el parseMiniKitResult para que no oculte los datos Safe / ERC-4337
+    // const preparedResult = result?.data ? result : { data: result };
+    // const parsed = parseMiniKitResult(preparedResult);
     
-    if (typeof setLastTxResult === "function") {
-      setLastTxResult(parsed);
-    }
+    // TU MEJORA 3: El sistema asimila el resultado crudo directamente mostrando userOpHash, transaction_id o txHash
+    setDebugResult(JSON.stringify({
+      phase: "minikit_raw_final_output",
+      raw_data: result
+    }, null, 2));
 
-    setDebugResult(JSON.stringify(parsed, null, 2));
+    // Forzamos un bypass temporal de éxito si el objeto result regresó datos del Relayer
+    const isSuccessRaw = result?.success || result?.status === "success" || result?.data?.transaction_id || result?.data?.userOpHash;
 
-    if (!parsed || !parsed.success) {
-      setStatus(parsed?.status || "Operación rechazada o fallida");
+    if (!isSuccessRaw) {
+      setStatus("Operación rechazada o fallida por las políticas del entorno");
       setSending(false);
       return;
     }
