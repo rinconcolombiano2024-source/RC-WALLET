@@ -1419,10 +1419,9 @@ useEffect(() => {
         }}
       >
         Copiar dirección
-      </button>
-      {/* ========================================================
-               BUSCADOR Y LISTADO DE FONDOS (INTERFAZ DE WALLET REAL SANEADA)
-            ======================================================== */}
+      </button>      {/* ========================================================
+         BUSCADOR Y LISTADO DE FONDOS (INTERFAZ DE WALLET REAL SANEADA Y ROBUSTA)
+      ======================================================== */}
       <h2 style={{ fontSize: 18, fontWeight: "bold", marginTop: 24, marginBottom: 12, color: "#eaecef" }}>Fondos Detected</h2>
       
       {/* CUADRO DE BÚSQUEDA DINÁMICO */}
@@ -1452,7 +1451,7 @@ useEffect(() => {
           .map((token, index) => {
             const tokenUniqueKey = token ? `${token.chainId || index}-${token.address || "native"}-${token.symbol}` : index;
             
-            // VALIDACIÓN CRÍTICA EXPLICITA: Evita lecturas cruzadas de objetos
+            // VALIDACIÓN CRÍTICA EXPLÍCITA: Evita lecturas cruzadas de objetos
             const isSelected = selectedToken && token &&
                                selectedToken.address === token.address && 
                                selectedToken.chainId === token.chainId &&
@@ -1487,7 +1486,7 @@ useEffect(() => {
                 </p>
 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                    {/* REPARADO Y SANEADO: Operador ternario corregido para evitar quiebres de compilación */}
+                  {/* 📊 BOTÓN 1: VER GRÁFICA Y OPERAR TERMINAL */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1500,7 +1499,49 @@ useEffect(() => {
                       setChartInterval("1H"); 
                       setShowTokenModal(true); 
                     }}
-                                      style={{
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: isSelected ? "#00c57a" : "#2b3139",
+                      color: "white",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                      fontSize: 12,
+                      boxSizing: "border-box",
+                      transition: "background 0.2s"
+                    }}
+                  >
+                    {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar 📊"}
+                  </button>
+                  {/* 🔗 BOTÓN 2: VER EN EXPLORADOR EVM (SANEADO Y RECONSTITUIDO V6) */}
+                  <button
+                    type="button"
+                    disabled={!wallet}
+                    onClick={() => {
+                      if (!wallet || !token) return;
+                      let explorer = "";
+                      const activeWallet = wallet;
+
+                      if (token.chainId === 1) {
+                        explorer = `https://etherscan.io{activeWallet}`;
+                      } else if (token.chainId === 10) {
+                        explorer = `https://etherscan.io{activeWallet}`;
+                      } else if (token.chainId === 8453) {
+                        explorer = `https://basescan.org{activeWallet}`;
+                      } else if (token.chainId === 56) {
+                        explorer = `https://bscscan.com{activeWallet}`;
+                      } else if (token.chainId === 480) {
+                        explorer = `https://worldscan.org{activeWallet}`;
+                      } else if (token.chainId === 4801) {
+                        explorer = `https://worldscan.org{activeWallet}`;
+                      }
+
+                      if (explorer && typeof window !== "undefined") {
+                        window.open(explorer, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    style={{
                       padding: "10px 14px",
                       borderRadius: 10,
                       border: "none",
@@ -1513,16 +1554,12 @@ useEffect(() => {
                   >
                     Ver en Explorer 🔗
                   </button>
-                </div>
-              </div>
+                </div> {/* Fin del contenedor flex de botones */}
+              </div> {/* Fin de la tarjeta del token */}
             );
           })
       )}
-  {isSelected ? "Seleccionado ✅" : "Ver Gráfica y Operar 📊"}
-                  </button>
-
-                  {/* BOTÓN INTERACTIVO SANEADO PARA VER EN EXPLORADOR */}
-                                  <button
+                  <button
                     type="button"
                     disabled={!wallet}
                     onClick={() => {
@@ -1563,7 +1600,6 @@ useEffect(() => {
                   </button>
 
       <hr style={{ border: "1px solid #222", marginTop: 20, marginBottom: 20 }} />
-
       {/* ========================================================================
           ⚠️ MÓDULO ALERTA INTELIGENTE: ACTIVACIÓN EFECTIVA DE CUENTA SAFE MULTICADENA
           ======================================================================== */}
@@ -1681,7 +1717,7 @@ useEffect(() => {
           </button>
         </div>
       ) : null}
-           {/* ========================================================
+      {/* ========================================================
          VENTANA EMERGENTE (MODAL MAESTRO: TERMINAL DE TRADING PRO COMPATIBLE V4)
       ======================================================== */}
       {showTokenModal && selectedToken && (
