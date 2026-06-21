@@ -1541,7 +1541,7 @@ useEffect(() => {
                         window.open(explorer, "_blank", "noopener,noreferrer");
                       }
                     }}
-                    style={{
+                       style={{
                       padding: "10px 14px",
                       borderRadius: 10,
                       border: "none",
@@ -1554,12 +1554,12 @@ useEffect(() => {
                   >
                     Ver en Explorer 🔗
                   </button>
-                </div> {/* Fin del contenedor flex de botones */}
-              </div> {/* Fin de la tarjeta del token */}
+                </div> {/* 1. Cierra el display flex de los botones */}
+              </div> {/* 2. Cierra la tarjeta del token individual */}
             );
           })
       )}
-                  <button
+               <button
                     type="button"
                     disabled={!wallet}
                     onClick={() => {
