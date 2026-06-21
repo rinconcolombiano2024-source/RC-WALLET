@@ -191,7 +191,7 @@ function getDexScreenerUrl(token) {
   const targetPair = pairs[token?.symbol] || pairs.WLD;
 
   // REPARADO: Inyección exacta mediante ${targetPair} y barra diagonal de ruta integrada
-  return `https://dexscreener.com{targetPair}?embed=1&theme=dark&trades=0&info=0&chartTheme=dark`;
+ return `https://dexscreener.com{targetPair}?embed=1&theme=dark&trades=0&info=0&chartTheme=dark`;
 }
 
 // ========================================================================
@@ -1419,7 +1419,9 @@ useEffect(() => {
         }}
       >
         Copiar dirección
-      </button>      {/* ========================================================
+      </button>   
+      
+      {/* ========================================================
          BUSCADOR Y LISTADO DE FONDOS (INTERFAZ DE WALLET REAL SANEADA Y ROBUSTA)
       ======================================================== */}
       <h2 style={{ fontSize: 18, fontWeight: "bold", marginTop: 24, marginBottom: 12, color: "#eaecef" }}>Fondos Detected</h2>
@@ -1874,34 +1876,37 @@ useEffect(() => {
             {/* TABLERO DE CONTROL DE TEMPORALIDADES REALES */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1e2226", padding: "8px 12px", borderRadius: 10, marginBottom: 12, border: "1px solid #2b3139", boxSizing: "border-box" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                {["1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"].map((interval) => (
-                  <span
-                    key={interval}
-                    onClick={() => {
-                      if (typeof setChartInterval === "function") {
-                        setChartInterval(interval);
-                      }
-                    }}
-                    style={{ 
-                      fontSize: 11, 
-                      color: chartInterval === interval ? "#f0b90b" : "#848e9c", 
-                      fontWeight: "bold", 
-                      background: chartInterval === interval ? "rgba(240, 185, 11, 0.15)" : "transparent", 
-                      padding: "3px 6px", 
-                      borderRadius: 4, 
-                      cursor: "pointer",
-                      transition: "all 0.15s ease"
-                    }}
-                  >
-                    {interval}
-                  </span>
-                ))}
+                {["1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"].map((interval) => {
+                  return (
+                    <span
+                      key={interval}
+                      onClick={() => {
+                        if (typeof setChartInterval === "function") {
+                          setChartInterval(interval);
+                        }
+                      }}
+                      style={{ 
+                        fontSize: 11, 
+                        color: chartInterval === interval ? "#f0b90b" : "#848e9c", 
+                        fontWeight: "bold", 
+                        background: chartInterval === interval ? "rgba(240, 185, 11, 0.15)" : "transparent", 
+                        padding: "3px 6px", 
+                        borderRadius: 4, 
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                    >
+                      {interval}
+                    </span>
+                  );
+                })}
               </div>
               
               <span style={{ fontSize: 11, color: "#00c57a", fontWeight: "bold", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00c57a", display: "inline-block", boxShadow: "0 0 8px #00c57a" }}></span> En Vivo
               </span>
             </div>
+
             {/* 📈 COMPONENTE DE TERMINAL FINANCIERA INTEGRADA (MOTOR DEXSCREENER EMBED SANEADO) */}
             <div 
               style={{ 
@@ -1920,12 +1925,11 @@ useEffect(() => {
                 title="DexScreener Realtime Live Terminal Feed"
                 src={getDexScreenerUrl(selectedToken)}
                 style={{ width: "100%", height: "100%", border: "none", margin: 0, padding: 0 }}
-                loading="eager" // Obliga a la WebView a encender los hilos de WebSocket inmediatamente para traer las velas
-                sandbox="allow-scripts allow-same-origin allow-popups" // BLINDAJE DE ENTREGAS: Evita bloqueos o crashes de WebView
+                loading="eager" 
+                sandbox="allow-scripts allow-same-origin allow-popups" 
                 allowFullScreen
               />
             </div>
-
             {/* BOTONES DE OPERACIONES COMERCIALES (ESTILO INDUSTRIAL REFORZADO DE 4 VÍAS) */}
             <div style={{ display: "flex", gap: 8, marginTop: 14, marginBottom: 16, flexWrap: "wrap" }}>
               <button
@@ -1971,7 +1975,7 @@ useEffect(() => {
                 🔵 ENVIAR
               </button>
             </div>
-            {/* ========================================================
+{/* ========================================================
                FORMULARIO DINÁMICO ADAPTATIVO SEGÚN EL BOTÓN SELECCIONADO
             ======================================================== */}
             {tradeType === "SEND" && (
@@ -2078,10 +2082,7 @@ useEffect(() => {
 
           </div> 
         </div>
-              )
-         
-      )
-                }
+      )}
             {/* ========================================================
                FORMULARIO DINÁMICO DE INTERCAMBIO (ESTILO INDUSTRIAL PRO COMPATIBLE V6)
             ======================================================== */}
@@ -2563,8 +2564,8 @@ useEffect(() => {
           aria-label="Abrir sitio web de Rincón Colombiano"
           onClick={() => {
             if (typeof window !== "undefined") {
-              // REPARADO: Apunta de forma estable al dominio oficial verificado del restaurante
-              const officialProfileUrl = "https://rinconcolombiano.pl/";
+              // CORREGIDO: Apunta de forma exacta al enlace oficial provisto de Google Maps
+              const officialProfileUrl = "https://maps.app.goo.gl/MKzY4KzWp8NrTBjw5?g_st=ac";
               window.open(officialProfileUrl, "_blank", "noopener,noreferrer");
             }
           }}
@@ -2587,7 +2588,6 @@ useEffect(() => {
           📍 ul. Czapelska 33, Varsovia (Visitar Web Oficial 🗺️)
         </button>
       </div>
-
       {/* ========================================================
          CONSOLE DEBUG OUTPUT (VISTA DE DEPURACIÓN ANTI-DESBORDAMIENTO)
       ======================================================== */}
