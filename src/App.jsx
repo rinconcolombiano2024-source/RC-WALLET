@@ -1542,7 +1542,8 @@ useEffect(() => {
                       if (explorer && typeof window !== "undefined") {
                         window.open(explorer, "_blank", "noopener,noreferrer");
                       }
-                    }}                    style={{
+                    }}                  
+                                        style={{
                       padding: "10px 14px",
                       borderRadius: 10,
                       border: "none",
