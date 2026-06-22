@@ -1,94 +1,136 @@
-export const NETWORKS = [
-  {
-    chainId: 480,
-    name: "World Chain",
-    symbol: "ETH",
-    network: "worldchain",
-    explorer: "https://worldscan.org",
-    rpcUrls: ["https://worldchain-mainnet.g.alchemy.com/public"],
-    chainHex: "0x1e0",
-    testnet: false,
-  },
-  {
-    chainId: 1,
-    name: "Ethereum",
-    symbol: "ETH",
-    network: "ethereum",
-    explorer: "https://etherscan.io",
-    rpcUrls: ["https://ethereum-rpc.publicnode.com"],
-    chainHex: "0x1",
-    testnet: false,
-  },
-  {
-    chainId: 10,
-    name: "Optimism",
-    symbol: "ETH",
-    network: "optimism",
-    explorer: "https://optimistic.etherscan.io",
-    rpcUrls: ["https://mainnet.optimism.io"],
-    chainHex: "0xa",
-    testnet: false,
-  },
-  {
-    chainId: 8453,
-    name: "Base",
-    symbol: "ETH",
-    network: "base",
-    explorer: "https://basescan.org",
-    rpcUrls: ["https://mainnet.base.org"],
-    chainHex: "0x2105",
-    testnet: false,
-  },
-  {
-    chainId: 56,
-    name: "BNB Chain",
-    symbol: "BNB",
-    network: "binance",
-    explorer: "https://bscscan.com",
-    rpcUrls: ["https://bsc-dataseed.bnbchain.org"],
-    chainHex: "0x38",
-    testnet: false,
-  },
-];
-
 export const WORLD_CHAIN_ID = 480;
 
-export const ERC20_ABI = [
-  "function balanceOf(address) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)",
-  "function transfer(address to, uint256 amount) returns (bool)",
-];
+export const NETWORKS = Object.freeze([
+  {
+    name: "World Chain",
+    chainId: 480,
+    chainHex: "0x1e0",
+    symbol: "ETH",
+    rpcUrls: [
+      "https://worldchain-mainnet.g.alchemy.com/public",
+    ],
+    explorer: "https://worldscan.org",
+    writableWithMiniKit: true,
+  },
+  {
+    name: "Ethereum",
+    chainId: 1,
+    chainHex: "0x1",
+    symbol: "ETH",
+    rpcUrls: [
+      "https://ethereum-rpc.publicnode.com",
+      "https://cloudflare-eth.com",
+    ],
+    explorer: "https://etherscan.io",
+    writableWithMiniKit: false,
+  },
+  {
+    name: "Optimism",
+    chainId: 10,
+    chainHex: "0xa",
+    symbol: "ETH",
+    rpcUrls: [
+      "https://mainnet.optimism.io",
+      "https://optimism-rpc.publicnode.com",
+    ],
+    explorer: "https://optimistic.etherscan.io",
+    writableWithMiniKit: false,
+  },
+  {
+    name: "Base",
+    chainId: 8453,
+    chainHex: "0x2105",
+    symbol: "ETH",
+    rpcUrls: [
+      "https://mainnet.base.org",
+      "https://base-rpc.publicnode.com",
+    ],
+    explorer: "https://basescan.org",
+    writableWithMiniKit: false,
+  },
+  {
+    name: "BNB Chain",
+    chainId: 56,
+    chainHex: "0x38",
+    symbol: "BNB",
+    rpcUrls: [
+      "https://bsc-dataseed.bnbchain.org",
+      "https://bsc-rpc.publicnode.com",
+    ],
+    explorer: "https://bscscan.com",
+    writableWithMiniKit: false,
+  },
+  {
+    name: "World Chain Sepolia",
+    chainId: 4801,
+    chainHex: "0x12c1",
+    symbol: "ETH",
+    rpcUrls: [
+      "https://worldchain-sepolia.g.alchemy.com/public",
+    ],
+    explorer: "https://sepolia.worldscan.org",
+    writableWithMiniKit: false,
+    testnet: true,
+  },
+]);
 
-export const TOKENS = [
+export const TOKENS = Object.freeze([
+  {
+    symbol: "RC.PL",
+    expectedDecimals: 18,
+    projectToken: true,
+    addresses: {
+      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",
+    },
+  },
+  {
+    symbol: "WLD",
+    expectedDecimals: 18,
+    addresses: {
+      480: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
+      10: "0xdC6fF44d5d932CBD77b52E5612Ba0529DC6226F1",
+      1: "0x163f8C2467924be0ae7B5347228CABF260318753",
+    },
+  },
   {
     symbol: "USDC",
-    projectToken: false,
+    expectedDecimals: 6,
     addresses: {
-      1: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-      10: "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
-      8453: "0x833589fCD6eDb6E08f4c7C32D4f71b1566469c3d",
-      56: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+      480: "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1",
+      10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      8453: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      4801: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",
     },
   },
   {
     symbol: "USDT",
-    projectToken: false,
+    expectedDecimals: 6,
     addresses: {
-      1: "0xdac17f958d2ee523a2206206994597c13d831ec7",
       10: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
-      8453: "0xfde4C96c8593536E31F26A3d5669F4E228F88B64",
-      56: "0x55d398326f99059fF775485246999027B3197955",
+      1: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
     },
   },
   {
-    symbol: "DAI",
-    projectToken: false,
+    symbol: "WBTC",
+    expectedDecimals: 8,
     addresses: {
-      1: "0x6b175474e89094c44da98b954eedeac495271d0f",
-      10: "0xDA10009e57fb658751B6d3757cc4e4d20D1789666",
-      8453: "0x50c5725949A6F0c72E6C4a641F14DA7493d51404",
-      56: "0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3",
+      480: "0x03C7054bcb39f7b2e5B2c7AcB37583e32D70Cfa3",
     },
   },
-];
+  {
+    symbol: "WETH",
+    expectedDecimals: 18,
+    addresses: {
+      480: "0x4200000000000000000000000000000000000006",
+    },
+  },
+]);
+
+export const ERC20_ABI = Object.freeze([
+  "function balanceOf(address owner) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
+  "function name() view returns (string)",
+  "function transfer(address to, uint256 value) returns (bool)",
+]);

@@ -1,314 +1,213 @@
 import { ethers } from "ethers";
-import { ERC20_ABI, NETWORKS, TOKENS } from "./config.js";
+import { getProvider, normalizeAddress } from "./blockchain.js";
+import { NETWORKS, WORLD_CHAIN_ID } from "./config.js";
 
-const providerCache = new Map();
+export const RECOVERY_PRIMARY_TYPE = "RecoveryAuthorization";
 
-function timeout(promise, milliseconds, label) {
-  let timeoutId;
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(
-      () => reject(new Error(`${label}: tiempo de espera agotado`)),
-      milliseconds,
-    );
-  });
+export const RECOVERY_TYPES = Object.freeze({
+  RecoveryAuthorization: [
+    { name: "wallet", type: "address" },
+    { name: "targetChainId", type: "uint256" },
+    { name: "nonce", type: "bytes32" },
+    { name: "expiresAt", type: "uint256" },
+    { name: "purpose", type: "string" },
+  ],
+});
 
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    clearTimeout(timeoutId);
-  });
+export const RECOVERY_EIP712_DOMAIN = Object.freeze([
+  { name: "name", type: "string" },
+  { name: "version", type: "string" },
+  { name: "chainId", type: "uint256" },
+  { name: "verifyingContract", type: "address" },
+]);
+
+const EIP1271_ABI = [
+  "function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)",
+];
+const EIP1271_MAGIC_VALUE = "0x1626ba7e";
+
+function randomBytes32() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return ethers.hexlify(bytes);
 }
 
-export function normalizeAddress(address) {
-  if (!ethers.isAddress(address)) {
-    throw new Error("La dirección EVM no es válida");
-  }
-  return ethers.getAddress(address);
-}
-
-export function formatBalance(rawBalance, decimals, digits = 6) {
-  const value = ethers.formatUnits(rawBalance, decimals);
-  const [whole, fraction = ""] = value.split(".");
-  const trimmed = fraction.slice(0, digits).replace(/0+$/, "");
-  return trimmed ? `${whole}.${trimmed}` : whole;
-}
-
-export async function getProvider(network) {
-  if (providerCache.has(network.chainId)) {
-    return providerCache.get(network.chainId);
+export function createRecoveryTypedData(walletAddress, targetChainId) {
+  const wallet = normalizeAddress(walletAddress);
+  const chainId = Number(targetChainId);
+  const network = NETWORKS.find((item) => item.chainId === chainId);
+  if (!network || chainId === WORLD_CHAIN_ID) {
+    throw new Error("Selecciona una red externa soportada");
   }
 
-  for (const rpcUrl of network.rpcUrls) {
-    try {
-      const provider = new ethers.JsonRpcProvider(
-        rpcUrl,
-        network.chainId,
-        {
-          staticNetwork: true,
-          batchMaxCount: 1,
-        },
-      );
-      const providerNetwork = await timeout(
-        provider.getNetwork(),
-        7_000,
-        network.name,
-      );
-
-      if (Number(providerNetwork.chainId) !== network.chainId) {
-        throw new Error("El RPC respondió con una chainId distinta");
-      }
-
-      await timeout(provider.getBlockNumber(), 7_000, network.name);
-      providerCache.set(network.chainId, provider);
-      return provider;
-    } catch (error) {
-      console.warn(`[RPC] ${network.name}: ${rpcUrl}`, error);
-    }
-  }
-
-  throw new Error(`No hay un RPC disponible para ${network.name}`);
-}
-
-async function readToken(provider, network, owner, definition) {
-  const rawAddress = definition.addresses?.[network.chainId];
-  if (!rawAddress) return null;
-
-  const address = normalizeAddress(rawAddress);
-  const code = await timeout(
-    provider.getCode(address),
-    7_000,
-    `${definition.symbol} bytecode`,
-  );
-  if (!code || code === "0x") return null;
-
-  const contract = new ethers.Contract(address, ERC20_ABI, provider);
-  const [rawBalance, decimalsValue, symbolValue] = await Promise.all([
-    timeout(
-      contract.balanceOf(owner),
-      7_000,
-      `${definition.symbol} balance`,
-    ),
-    timeout(
-      contract.decimals(),
-      7_000,
-      `${definition.symbol} decimals`,
-    ),
-    timeout(contract.symbol(), 7_000, `${definition.symbol} symbol`),
-  ]);
-
-  if (rawBalance === 0n) return null;
-
-  const decimals = Number(decimalsValue);
-  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 255) {
-    throw new Error(`${definition.symbol} devolvió decimales inválidos`);
-  }
-
+  const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
   return {
-    id: `${network.chainId}:${address.toLowerCase()}`,
-    network,
-    chainId: network.chainId,
-    networkName: network.name,
-    address,
-    isNative: false,
-    symbol:
-      typeof symbolValue === "string" && symbolValue.trim()
-        ? symbolValue.trim()
-        : definition.symbol,
-    configuredSymbol: definition.symbol,
-    decimals,
-    rawBalance,
-    balance: ethers.formatUnits(rawBalance, decimals),
-    displayBalance: formatBalance(rawBalance, decimals),
-    projectToken: Boolean(definition.projectToken),
-    customToken: Boolean(definition.customToken),
+    primaryType: RECOVERY_PRIMARY_TYPE,
+    domain: {
+      name: "RC Wallet Recovery",
+      version: "1",
+      chainId,
+      verifyingContract: wallet,
+    },
+    types: {
+      EIP712Domain: RECOVERY_EIP712_DOMAIN,
+      ...RECOVERY_TYPES,
+    },
+    message: {
+      wallet,
+      targetChainId: chainId,
+      nonce: randomBytes32(),
+      expiresAt,
+      purpose: "RC Wallet cross-chain recovery compatibility test",
+    },
   };
 }
 
-async function scanNetwork(network, owner, customTokens) {
-  const provider = await getProvider(network);
-  const accountCode = await timeout(
-    provider.getCode(owner),
-    7_000,
-    `${network.name} account code`,
-  );
-  const accountKind =
-    accountCode && accountCode !== "0x" ? "contract" : "no-contract";
-
-  const assets = [];
-  const nativeBalance = await timeout(
-    provider.getBalance(owner),
-    7_000,
-    `${network.name} native balance`,
-  );
-
-  if (nativeBalance > 0n) {
-    assets.push({
-      id: `${network.chainId}:native`,
-      network,
-      chainId: network.chainId,
-      networkName: network.name,
-      address: null,
-      isNative: true,
-      symbol: network.symbol,
-      configuredSymbol: network.symbol,
-      decimals: 18,
-      rawBalance: nativeBalance,
-      balance: ethers.formatEther(nativeBalance),
-      displayBalance: formatBalance(nativeBalance, 18),
-      accountKind,
-    });
-  }
-
-  const definitions = [
-    ...TOKENS.filter((token) => token.addresses?.[network.chainId]),
-    ...customTokens
-      .filter((token) => token.chainId === network.chainId)
-      .map((token) => ({
-        symbol: token.symbol || "CUSTOM",
-        customToken: true,
-        addresses: { [network.chainId]: token.address },
-      })),
-  ];
-
-  const results = await Promise.allSettled(
-    definitions.map((definition) =>
-      readToken(provider, network, owner, definition),
-    ),
-  );
-
-  for (const result of results) {
-    if (result.status === "fulfilled" && result.value) {
-      assets.push({ ...result.value, accountKind });
-    } else if (result.status === "rejected") {
-      console.warn(`[TOKEN] ${network.name}`, result.reason);
-    }
-  }
-
-  return {
-    network,
-    accountKind,
-    assets,
-  };
-}
-
-export async function scanAllNetworks(ownerAddress, customTokens = []) {
-  const owner = normalizeAddress(ownerAddress);
-  const results = await Promise.allSettled(
-    NETWORKS.map((network) => scanNetwork(network, owner, customTokens)),
-  );
-
-  const assets = [];
-  const networks = {};
-
-  results.forEach((result, index) => {
-    const network = NETWORKS[index];
-    if (result.status === "fulfilled") {
-      assets.push(...result.value.assets);
-      networks[network.chainId] = {
-        status: "online",
-        accountKind: result.value.accountKind,
-      };
-    } else {
-      networks[network.chainId] = {
-        status: "offline",
-        error:
-          result.reason instanceof Error
-            ? result.reason.message
-            : "No se pudo consultar la red",
-      };
-    }
-  });
-
-  const uniqueAssets = [...new Map(
-    assets.map((asset) => [asset.id, asset]),
-  ).values()];
-
-  uniqueAssets.sort((left, right) => {
-    if (left.chainId === 480 && right.chainId !== 480) return -1;
-    if (right.chainId === 480 && left.chainId !== 480) return 1;
-    if (left.chainId !== right.chainId) return left.chainId - right.chainId;
-    return left.symbol.localeCompare(right.symbol);
-  });
-
-  return { owner, assets: uniqueAssets, networks };
-}
-
-export async function switchExternalNetwork(provider, network) {
-  try {
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: network.chainHex }],
-    });
-  } catch (error) {
-    if (error?.code !== 4902) throw error;
-
-    await provider.request({
-      method: "wallet_addEthereumChain",
-      params: [
-        {
-          chainId: network.chainHex,
-          chainName: network.name,
-          nativeCurrency: {
-            name: network.symbol,
-            symbol: network.symbol,
-            decimals: 18,
-          },
-          rpcUrls: network.rpcUrls,
-          blockExplorerUrls: [network.explorer],
-        },
-      ],
-    });
-  }
-}
-
-export async function sendWithExternalWallet({
-  provider,
-  asset,
-  targetAddress,
-  recipient,
-  amount,
+export function createRecoveryProofPackage({
+  typedData,
+  signature,
+  signerAddress,
 }) {
-  if (!provider?.request) {
-    throw new Error("La conexión externa no expone un proveedor EIP-1193");
-  }
-
-  const owner = normalizeAddress(targetAddress);
-  const destination = normalizeAddress(recipient);
-  if (owner === destination) {
-    throw new Error("La dirección de destino es igual a la dirección origen");
-  }
-
-  await switchExternalNetwork(provider, asset.network);
-  const browserProvider = new ethers.BrowserProvider(provider);
-  const signer = await browserProvider.getSigner();
-  const signerAddress = normalizeAddress(await signer.getAddress());
-
-  if (signerAddress !== owner) {
-    throw new Error(
-      "La wallet conectada no controla la dirección donde están los fondos",
-    );
-  }
-
-  const amountUnits = ethers.parseUnits(amount, asset.decimals);
-  if (amountUnits <= 0n) {
-    throw new Error("La cantidad debe ser mayor que cero");
-  }
-  if (amountUnits > asset.rawBalance) {
-    throw new Error("La cantidad supera el balance detectado");
-  }
-
-  let transaction;
-  if (asset.isNative) {
-    transaction = await signer.sendTransaction({
-      to: destination,
-      value: amountUnits,
-    });
-  } else {
-    const contract = new ethers.Contract(asset.address, ERC20_ABI, signer);
-    transaction = await contract.transfer(destination, amountUnits);
-  }
-
-  const receipt = await transaction.wait(1);
   return {
-    hash: transaction.hash,
-    receipt,
+    format: "rc-wallet-recovery-proof",
+    version: 1,
+    createdAt: new Date().toISOString(),
+    signerAddress: normalizeAddress(signerAddress),
+    signature,
+    typedData,
+  };
+}
+
+export async function analyzeRecoveryProof(packageInput) {
+  const proof =
+    typeof packageInput === "string"
+      ? JSON.parse(packageInput)
+      : packageInput;
+
+  if (
+    proof?.format !== "rc-wallet-recovery-proof" ||
+    proof?.version !== 1 ||
+    !proof?.typedData ||
+    !proof?.signature
+  ) {
+    throw new Error("El paquete de prueba no tiene un formato válido");
+  }
+
+  const { domain, message, primaryType } = proof.typedData;
+  const wallet = normalizeAddress(message.wallet);
+  const signerAddress = normalizeAddress(proof.signerAddress);
+  const chainId = Number(message.targetChainId);
+
+  if (
+    primaryType !== RECOVERY_PRIMARY_TYPE ||
+    Number(domain.chainId) !== chainId ||
+    normalizeAddress(domain.verifyingContract) !== wallet ||
+    signerAddress !== wallet
+  ) {
+    throw new Error("La firma, la cuenta y la red no son coherentes");
+  }
+
+  const network = NETWORKS.find((item) => item.chainId === chainId);
+  const worldNetwork = NETWORKS.find(
+    (item) => item.chainId === WORLD_CHAIN_ID,
+  );
+  if (!network || !worldNetwork || chainId === WORLD_CHAIN_ID) {
+    throw new Error("La red objetivo no está soportada");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const expired = Number(message.expiresAt) < now;
+  const digest = ethers.TypedDataEncoder.hash(
+    domain,
+    RECOVERY_TYPES,
+    message,
+  );
+
+  let recoveredEoa = null;
+  let eoaSignatureMatches = false;
+  try {
+    recoveredEoa = normalizeAddress(
+      ethers.verifyTypedData(
+        domain,
+        RECOVERY_TYPES,
+        message,
+        proof.signature,
+      ),
+    );
+    eoaSignatureMatches = recoveredEoa === wallet;
+  } catch {
+    // Smart-account signatures generally cannot be recovered as an EOA.
+  }
+
+  const [worldProvider, targetProvider] = await Promise.all([
+    getProvider(worldNetwork),
+    getProvider(network),
+  ]);
+  const [worldCode, targetCode] = await Promise.all([
+    worldProvider.getCode(wallet),
+    targetProvider.getCode(wallet),
+  ]);
+  const worldAccountKind =
+    worldCode && worldCode !== "0x" ? "contract" : "eoa-or-undeployed";
+  const targetAccountKind =
+    targetCode && targetCode !== "0x" ? "contract" : "undeployed";
+
+  let eip1271Valid = false;
+  let eip1271Error = null;
+  if (targetAccountKind === "contract") {
+    try {
+      const contract = new ethers.Contract(
+        wallet,
+        EIP1271_ABI,
+        targetProvider,
+      );
+      const magic = await contract.isValidSignature(digest, proof.signature);
+      eip1271Valid = String(magic).toLowerCase() === EIP1271_MAGIC_VALUE;
+    } catch (error) {
+      eip1271Error =
+        error instanceof Error ? error.message : "EIP-1271 falló";
+    }
+  }
+
+  let classification;
+  let nextStep;
+  if (expired) {
+    classification = "expired";
+    nextStep = "Genera una prueba nueva dentro de World App.";
+  } else if (eoaSignatureMatches) {
+    classification = "portable-eoa-signature";
+    nextStep =
+      "La firma recupera la misma EOA. Se pueden estudiar rutas por firma específicas de cada token, pero no firma una transacción EVM genérica.";
+  } else if (eip1271Valid) {
+    classification = "deployed-smart-account-signature";
+    nextStep =
+      "La cuenta objetivo reconoce la firma EIP-1271. Ya se puede diseñar una ejecución de smart account con relayer y simulación.";
+  } else if (
+    worldAccountKind === "contract" &&
+    targetAccountKind === "undeployed"
+  ) {
+    classification = "counterfactual-smart-account";
+    nextStep =
+      "La cuenta existe en World Chain pero no en la red objetivo. Hay que recuperar de forma verificable su fábrica, singleton, owners, módulos, initializer y salt antes de desplegarla.";
+  } else {
+    classification = "signature-not-portable";
+    nextStep =
+      "Esta firma no demuestra autoridad ejecutable en la red objetivo. No se debe construir un relayer todavía.";
+  }
+
+  return {
+    classification,
+    nextStep,
+    wallet,
+    targetNetwork: network.name,
+    targetChainId: chainId,
+    digest,
+    expired,
+    recoveredEoa,
+    eoaSignatureMatches,
+    worldAccountKind,
+    targetAccountKind,
+    eip1271Valid,
+    eip1271Error,
   };
 }
