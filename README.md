@@ -17,12 +17,47 @@ World App y moverlos únicamente cuando existe un firmante válido en la red.
   wallets compatibles mediante QR o enlace móvil.
 - Confirma operaciones de MiniKit consultando el `userOpHash`.
 - Genera un informe técnico de recuperación.
+- Muestra un diagnóstico de rescate por activo: recuperable, parcialmente
+  recuperable o bloqueado, indicando si falta World App, firma externa, gas o
+  soporte de smart account.
+- Permite copiar un plan de rescate del activo seleccionado para soporte,
+  auditoría o revisión manual.
+- Cobra una comisión transparente del 2% sobre el monto recuperado. La comisión
+  se muestra antes de firmar, se divide en la transacción y va a la wallet
+  administrativa configurada.
 - Incluye RC Link, una prueba EIP-712 que diagnostica si la firma de World App
   es portable a una red externa como EOA, EIP-1271 o cuenta contrafactual.
 - Muestra precio, volumen, liquidez, market cap y velas en tiempo real con
   DexScreener para el par verificable con mayor liquidez.
 - Incluye botones Comprar, Vender y Cambiar que abren el DEX correspondiente
   con los activos preseleccionados.
+- Incluye un botón Enviar siempre visible que abre el formulario de
+  transferencia del activo seleccionado.
+- Muestra QR para recibir fondos en la dirección activa.
+- Permite escanear QR de destino en el formulario de envío cuando el navegador
+  soporta lectura QR con cámara.
+- Diagnostica cuentas de Trust Wallet / MetaMask / Binance Wallet en modo solo
+  lectura o watch-only: pueden mostrar balances, pero no pueden firmar retiros.
+- Incluye Recovery Command Center: evalúa MiniKit, wallet externa, RC Link,
+  smart account contrafactual, relayer, expediente para soporte y Rescue Vault
+  futuro.
+- Genera un expediente máximo de recuperación para soporte, emisor, auditoría o
+  diseño de relayer.
+- Incluye Referral Center con botón para referir, invitar y compartir usando
+  Web Share API o copia automática del enlace.
+- Abre una pantalla interna por token al hacer clic sobre un activo: gráfica en
+  tiempo real, información de red/contrato, enlaces oficiales, explorador,
+  botones Comprar/Vender/Cambiar y Enviar/recuperar.
+- Incluye enlaces oficiales por activo, incluyendo Bitcoin/WBTC, Ethereum,
+  World, USDC, USDT, BNB Chain y RC.PL/Rincón Colombiano.
+- Incluye membresías de 1, 2, 10 y 20 USD como acceso/soporte, con invitación
+  por referido directo y reserva operativa RC del 1%.
+- Incluye formulario de opiniones de usuarios guardado localmente en el
+  navegador. Para producción debe conectarse a una base de datos o backend.
+- Incluye RC.PL Market Lab para definir precio objetivo, calcular liquidez
+  inicial aproximada, abrir el DEX para crear pool y preparar staking.
+- Usa como fuente de sesión la dirección SIWE verificada por el backend; el
+  valor cacheado de `MiniKit.user.walletAddress` no bloquea envíos válidos.
 
 ## Límite técnico
 
@@ -36,6 +71,70 @@ permanece bloqueado.
 
 No se debe “clonar” un Safe ni desplegar una cuenta con parámetros adivinados:
 eso puede crear otra dirección o una cuenta que no controla los fondos.
+
+RC Wallet no puede crear ni exportar una frase semilla para una dirección de
+World App existente. Si se genera una semilla nueva, se crea otra dirección y
+esa dirección nueva no controla los fondos antiguos.
+
+Si Trust Wallet muestra la dirección como “solo lectura” o “watch-only”, la app
+solo tiene lectura del balance. Para mover fondos debe existir una firma real de
+esa misma dirección: MiniKit en World Chain, una wallet externa que tenga la
+llave privada real, o una smart account compatible con sus propietarios/módulos.
+
+## Recovery Command Center
+
+La sección Recovery Command Center marca cada ruta como:
+
+- `Listo`: existe una ruta de firma o ejecución.
+- `Falta acción`: hay que autenticar, conectar signer, firmar RC Link o aportar
+  datos verificables.
+- `Bloqueado`: no existe firma ejecutable con la información actual.
+- `Futuro`: se puede construir infraestructura para nuevos casos, pero no mueve
+  fondos antiguos sin autoridad.
+
+Infraestructura que se puede construir:
+
+- RC Recovery Relayer para smart accounts con firma EIP-1271 válida.
+- RC Counterfactual Deployer con parámetros exactos de despliegue.
+- RC Rescue Vault para depósitos futuros con recuperación social.
+- Expediente técnico para soporte, exchange, emisor o auditoría.
+
+El repositorio incluye `contracts/RCRescueVault.sol` como plantilla preventiva.
+No debe desplegarse con fondos reales sin auditoría independiente.
+
+## Comisión de recuperación
+
+RC Wallet cobra el 2% del monto recuperado. El usuario debe aceptar esta
+comisión antes de firmar. El envío queda dividido así:
+
+- 98% a la wallet receptora indicada por el usuario.
+- 2% a la wallet administrativa de RC Wallet.
+
+La app no solicita frases semilla ni claves privadas. La comisión no se cobra
+sin firma explícita del usuario.
+
+## Membresías, referidos y opiniones
+
+La versión 4.5 incluye un modelo legal-first:
+
+- Membresías de soporte/acceso por 1, 2, 10 y 20 USD.
+- Bono de referido directo sugerido del 10% en crédito o promoción.
+- Reserva operativa RC del 1%.
+- Sin promesas de inversión, sin multinivel, sin APY garantizado y sin pagos
+  automáticos sin verificación.
+
+Esta sección prepara la experiencia comercial, pero cualquier cobro real debe
+conectarse a un backend de pagos, términos legales visibles y verificación de
+pago antes de entregar beneficios.
+
+## RC.PL, precio, pool y staking
+
+RC.PL puede mostrarse, comprarse o venderse cuando exista un pool real con
+liquidez. El “precio objetivo” configurado en la app es una guía comercial: el
+precio real se forma en el DEX según liquidez y operaciones.
+
+Para staking se necesita desplegar un contrato auditado y financiar recompensas.
+La interfaz queda preparada, pero no promete APY hasta que exista el contrato.
 
 ## RC Link
 
