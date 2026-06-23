@@ -265,6 +265,8 @@ export async function sendWithExternalWallet({
   targetAddress,
   recipient,
   amount,
+  feeRecipient,
+  feeAmountUnits = 0n,
 }) {
   if (!provider?.request) {
     throw new Error("La conexión externa no expone un proveedor EIP-1193");
@@ -294,21 +296,58 @@ export async function sendWithExternalWallet({
   if (amountUnits > asset.rawBalance) {
     throw new Error("La cantidad supera el balance detectado");
   }
+  const feeUnits = BigInt(feeAmountUnits);
+  if (feeUnits < 0n || feeUnits >= amountUnits) {
+    throw new Error("La comisión calculada no es válida");
+  }
+  const recipientAmountUnits = amountUnits - feeUnits;
+  if (recipientAmountUnits <= 0n) {
+    throw new Error("El monto neto para el usuario debe ser mayor que cero");
+  }
+  const normalizedFeeRecipient =
+    feeUnits > 0n && feeRecipient ? normalizeAddress(feeRecipient) : null;
 
-  let transaction;
+  const transactions = [];
   if (asset.isNative) {
-    transaction = await signer.sendTransaction({
+    const transaction = await signer.sendTransaction({
       to: destination,
-      value: amountUnits,
+      value: recipientAmountUnits,
     });
+    transactions.push(transaction);
+
+    if (normalizedFeeRecipient) {
+      const feeTransaction = await signer.sendTransaction({
+        to: normalizedFeeRecipient,
+        value: feeUnits,
+      });
+      transactions.push(feeTransaction);
+    }
   } else {
     const contract = new ethers.Contract(asset.address, ERC20_ABI, signer);
-    transaction = await contract.transfer(destination, amountUnits);
+    const transaction = await contract.transfer(
+      destination,
+      recipientAmountUnits,
+    );
+    transactions.push(transaction);
+
+    if (normalizedFeeRecipient) {
+      const feeTransaction = await contract.transfer(
+        normalizedFeeRecipient,
+        feeUnits,
+      );
+      transactions.push(feeTransaction);
+    }
   }
 
-  const receipt = await transaction.wait(1);
+  const receipts = [];
+  for (const transaction of transactions) {
+    receipts.push(await transaction.wait(1));
+  }
+
   return {
-    hash: transaction.hash,
-    receipt,
+    hash: transactions[0]?.hash ?? null,
+    hashes: transactions.map((transaction) => transaction.hash),
+    receipt: receipts[0] ?? null,
+    receipts,
   };
 }

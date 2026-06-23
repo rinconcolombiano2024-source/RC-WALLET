@@ -15,6 +15,14 @@ const WRAPPED_NATIVE = Object.freeze({
   8453: "0x4200000000000000000000000000000000000006",
 });
 
+const DEFAULT_QUOTE_TOKEN = Object.freeze({
+  1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+  56: "0x55d398326f99059fF775485246999027B3197955",
+  480: "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1",
+  8453: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+});
+
 const UNISWAP_CHAINS = Object.freeze({
   1: "mainnet",
   10: "optimism",
@@ -128,11 +136,13 @@ function pancakeUrl(inputCurrency, outputCurrency) {
 }
 
 export function getTradeUrl(action, asset, market) {
-  if (!asset || !market) return null;
+  if (!asset) return null;
 
-  const selectedAddress = market.selectedToken?.address;
-  const quoteAddress = market.quoteToken?.address;
-  if (!selectedAddress || !quoteAddress) return market.pairUrl;
+  const selectedAddress =
+    market?.selectedToken?.address ?? marketTokenAddress(asset);
+  const quoteAddress =
+    market?.quoteToken?.address ?? DEFAULT_QUOTE_TOKEN[asset.chainId];
+  if (!selectedAddress || !quoteAddress) return market?.pairUrl ?? null;
 
   const buying = action === "buy";
   const inputCurrency = buying ? quoteAddress : selectedAddress;
@@ -146,7 +156,9 @@ export function getTradeUrl(action, asset, market) {
   }
 
   return (
-    uniswapUrl(asset, inputCurrency, outputCurrency) ?? market.pairUrl
+    uniswapUrl(asset, inputCurrency, outputCurrency) ??
+    market?.pairUrl ??
+    null
   );
 }
 

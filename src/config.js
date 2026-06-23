@@ -1,5 +1,14 @@
 export const WORLD_CHAIN_ID = 480;
 
+export const ADMIN_FEE_WALLET = "0x0BbbD8Eba77Db629721ccDfa0c57a9EE107fdb85";
+export const RECOVERY_FEE_BPS = 200n;
+export const BPS_DENOMINATOR = 10_000n;
+
+export const RCPL_TOKEN_ADDRESS = "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8";
+export const RCPL_TARGET_PRICE_KEY = "rc_wallet_rcpl_target_price_v1";
+export const RCPL_STAKING_CONTRACT = "";
+export const RCPL_POOL_MANAGER_CONTRACT = "";
+
 export const NETWORKS = Object.freeze([
   {
     name: "World Chain",
@@ -80,7 +89,7 @@ export const TOKENS = Object.freeze([
     expectedDecimals: 18,
     projectToken: true,
     addresses: {
-      480: "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8",
+      480: RCPL_TOKEN_ADDRESS,
     },
   },
   {
