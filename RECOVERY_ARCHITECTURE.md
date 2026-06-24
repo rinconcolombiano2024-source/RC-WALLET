@@ -35,6 +35,23 @@ estas rutas:
 - Comprueba EIP-1271 cuando la cuenta ya está desplegada.
 - Solo después de una simulación válida envía la operación mediante un relayer.
 
+### Diagnóstico on-chain v6
+
+El scanner no debe limitarse a leer balances. Para cada red debe leer también:
+
+- bytecode de la dirección objetivo;
+- saldo nativo para gas;
+- métodos Safe estándar: `VERSION`, `getOwners`, `getThreshold` y
+  `getModulesPaginated`;
+- respuesta EIP-1271 mediante `isValidSignature`;
+- disponibilidad de EntryPoint ERC-4337 conocido.
+
+Estos datos permiten clasificar cada ruta como movible, parcialmente movible,
+solo lectura o pendiente de soporte. La app no debe convertir una cuenta
+watch-only en firmante; solo puede ejecutar si existe una firma válida,
+owners Safe, módulo autorizado o proveedor externo que controle exactamente la
+misma dirección.
+
 ### Relayer
 
 El relayer no debe custodiar fondos ni claves. Su función sería:

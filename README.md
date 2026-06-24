@@ -20,6 +20,13 @@ World App y moverlos únicamente cuando existe un firmante válido en la red.
 - Muestra un diagnóstico de firma por activo: movible, parcialmente movible o
   bloqueado, indicando si falta World App, firma externa, gas o
   soporte de smart account.
+- Escanea cada red para clasificar la cuenta como sin contrato, contrato o
+  Safe/smart account cuando los métodos on-chain lo permiten.
+- Lee datos Safe verificables: versión, owners, threshold y módulos visibles.
+- Prueba EIP-1271 de forma honesta: distingue entre método presente,
+  firma de prueba rechazada o contrato sin soporte confirmado.
+- Detecta EntryPoint ERC-4337 v0.6 disponible en la red para saber si una ruta
+  UserOperation podría construirse con bundler, paymaster y firma válida.
 - Permite copiar una ruta de movimiento del activo seleccionado para soporte,
   auditoría o revisión manual.
 - Cobra una comisión transparente del 2% sobre el monto movido. La comisión
