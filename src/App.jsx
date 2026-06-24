@@ -50,7 +50,7 @@ const DEFAULT_RCPL_LIQUIDITY_USD = "1000";
 const APP_TABS = Object.freeze([
   { id: "home", label: "Inicio", icon: "⌂" },
   { id: "tokens", label: "Tokens", icon: "◈" },
-  { id: "recovery", label: "Recovery", icon: "⛑" },
+  { id: "recovery", label: "Mover", icon: "⛑" },
   { id: "markets", label: "Markets", icon: "↗" },
   { id: "tools", label: "Herramientas", icon: "⚙" },
 ]);
@@ -269,7 +269,7 @@ function createRecoveryDiagnosis({
     if (authenticated && miniKitReady && worldSessionMatches) {
       return {
         level: "recoverable",
-        title: "✅ Recuperable con World App",
+        title: "✅ Movible con World App",
         route: "MiniKit / World Chain",
         action:
           "Completa la wallet receptora, el monto y firma dentro de World App. Si es ERC20, el token/contrato debe estar permitido en el Developer Portal de World.",
@@ -278,7 +278,7 @@ function createRecoveryDiagnosis({
 
     return {
       level: "partial",
-      title: "⚠️ Recuperable, falta sesión World App",
+      title: "⚠️ Movible, falta sesión World App",
       route: "Autenticación World App",
       action:
         "Pulsa “Autenticar con World App” con la misma cuenta que contiene los fondos. RC Wallet no moverá nada si la sesión no coincide.",
@@ -289,7 +289,7 @@ function createRecoveryDiagnosis({
     if (!hasNativeGas) {
       return {
         level: "partial",
-        title: "⚠️ Recuperable, falta gas",
+        title: "⚠️ Movible, falta gas",
         route: "Wallet externa + gas de red",
         action: `La wallet conectada coincide, pero para mover ${asset.symbol} en ${asset.networkName} necesitas un poco de ${asset.network.symbol} en esa misma dirección para pagar gas.`,
       };
@@ -299,7 +299,7 @@ function createRecoveryDiagnosis({
       level: accountIsContract ? "partial" : "recoverable",
       title: accountIsContract
         ? "⚠️ Posible con smart wallet compatible"
-        : "✅ Recuperable con wallet externa",
+        : "✅ Movible con wallet externa",
       route: accountIsContract
         ? "Proveedor externo de smart account"
         : "MetaMask / Trust Wallet / Binance Wallet / WalletConnect",
@@ -341,6 +341,7 @@ export default function App() {
   const mountedRef = useRef(false);
   const scanIdRef = useRef(0);
   const externalConnectionRef = useRef(null);
+  const autoLoginAttemptedRef = useRef(false);
   const sendSectionRef = useRef(null);
   const qrVideoRef = useRef(null);
   const qrStreamRef = useRef(null);
@@ -598,7 +599,7 @@ export default function App() {
         status: contractAssets.length ? "needs-action" : "future",
         title: "Smart account contrafactual",
         description:
-          "Si la dirección es una smart account aún no desplegada en la red destino, solo se puede recuperar con factory, owners, módulos, initializer y salt exactos.",
+          "Si la dirección es una smart account aún no desplegada en la red destino, solo se puede mover con factory, owners, módulos, initializer y salt exactos.",
         next:
           "Recolectar datos verificables del despliegue original. No se deben adivinar parámetros.",
       },
@@ -608,9 +609,9 @@ export default function App() {
           proofReport?.classification === "deployed-smart-account-signature"
             ? "ready"
             : "needs-action",
-        title: "Relayer RC Recovery",
+        title: "Relayer RC Movement",
         description:
-          "Infraestructura que RC Wallet puede crear para ejecutar rescates de smart accounts cuando la firma EIP-1271 sea válida.",
+          "Infraestructura que RC Wallet puede crear para ejecutar movimientos de smart accounts cuando la firma EIP-1271 sea válida.",
         next:
           proofReport?.classification === "deployed-smart-account-signature"
             ? "Diseñar simulación, relayer y contrato destino para ejecución segura."
@@ -632,7 +633,7 @@ export default function App() {
         status: "future",
         title: "RC Rescue Vault futuro",
         description:
-          "Contrato preventivo para depósitos futuros con recuperación social/firmas múltiples. Protege nuevos fondos, no rescata fondos ya atrapados.",
+          "Contrato preventivo para depósitos futuros con control social/firmas múltiples. Protege nuevos fondos, no mueve fondos ya enviados antes de existir.",
         next:
           "Crear contrato auditado, owners, guardianes, timelock y política de comisiones.",
       },
@@ -649,6 +650,90 @@ export default function App() {
   const showStatus = useCallback((message, type = "info") => {
     if (mountedRef.current) setStatus({ message, type });
   }, []);
+
+  const performWorldLogin = useCallback(
+    async (statement = "Iniciar sesión con World ID en RC Wallet") => {
+      if (!miniKitReady) {
+        throw new Error("Abre RC Wallet dentro de World App para verificar World ID");
+      }
+
+      showStatus("Solicitando verificación segura con World ID…");
+      const nonceResponse = await fetch("/api/nonce", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!nonceResponse.ok) {
+        throw new Error("No se pudo crear el nonce de autenticación");
+      }
+
+      const { nonce } = await nonceResponse.json();
+      const result = await MiniKit.walletAuth({
+        nonce,
+        statement,
+        expirationTime: new Date(Date.now() + 10 * 60 * 1000),
+      });
+
+      if (result.executedWith === "fallback") {
+        throw new Error("La verificación debe ejecutarse dentro de World App");
+      }
+
+      const verifyResponse = await fetch("/api/complete-siwe", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload: result.data, nonce }),
+      });
+      const verification = await verifyResponse.json();
+
+      if (!verifyResponse.ok || !verification.isValid) {
+        throw new Error(
+          verification.error ?? "La verificación World ID no pudo validarse",
+        );
+      }
+
+      const address = normalizeAddress(verification.address);
+      setTargetAddress(address);
+      setManualAddress(address);
+      setAuthenticatedWorldAddress(address);
+      setAuthenticated(true);
+      return address;
+    },
+    [miniKitReady, showStatus],
+  );
+
+  const confirmWorldAction = useCallback(
+    async (actionLabel) => {
+      try {
+        const verifiedAddress = await performWorldLogin(
+          `Confirmar ${actionLabel} en RC Wallet`,
+        );
+
+        if (
+          targetAddress &&
+          normalizeAddress(verifiedAddress) !== normalizeAddress(targetAddress)
+        ) {
+          showStatus(
+            "La sesión World ID verificada no coincide con la wallet activa.",
+            "error",
+          );
+          return false;
+        }
+
+        showStatus("World ID verificado. Puedes continuar.", "success");
+        return true;
+      } catch (error) {
+        console.error("[WORLD CONFIRMATION]", error);
+        showStatus(
+          error instanceof Error
+            ? error.message
+            : "La verificación World ID fue cancelada o falló",
+          "error",
+        );
+        return false;
+      }
+    },
+    [performWorldLogin, showStatus, targetAddress],
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -744,7 +829,7 @@ export default function App() {
   }, [selectedAsset]);
 
   const openTrade = useCallback(
-    (action) => {
+    async (action) => {
       const url = getTradeUrl(action, selectedAsset, market);
       if (!url) {
         showStatus(
@@ -754,9 +839,18 @@ export default function App() {
         return;
       }
 
+      const label =
+        action === "buy"
+          ? "compra de activo"
+          : action === "sell"
+            ? "venta de activo"
+            : "cambio de activo";
+      const confirmed = await confirmWorldAction(label);
+      if (!confirmed) return;
+
       window.open(url, "_blank", "noopener,noreferrer");
     },
-    [market, selectedAsset, showStatus],
+    [confirmWorldAction, market, selectedAsset, showStatus],
   );
 
   const openSendForm = useCallback(() => {
@@ -779,51 +873,8 @@ export default function App() {
 
   const loginWithWorldApp = useCallback(async () => {
     try {
-      if (!miniKitReady) {
-        showStatus("Abre RC Wallet dentro de World App.", "warning");
-        return;
-      }
-
-      showStatus("Solicitando autenticación segura a World App…");
-      const nonceResponse = await fetch("/api/nonce", {
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (!nonceResponse.ok) {
-        throw new Error("No se pudo crear el nonce de autenticación");
-      }
-
-      const { nonce } = await nonceResponse.json();
-      const result = await MiniKit.walletAuth({
-        nonce,
-        statement: "Iniciar sesión en RC Wallet Recovery",
-        expirationTime: new Date(Date.now() + 10 * 60 * 1000),
-      });
-
-      if (result.executedWith === "fallback") {
-        throw new Error("La autenticación debe ejecutarse dentro de World App");
-      }
-
-      const verifyResponse = await fetch("/api/complete-siwe", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload: result.data, nonce }),
-      });
-      const verification = await verifyResponse.json();
-
-      if (!verifyResponse.ok || !verification.isValid) {
-        throw new Error(
-          verification.error ?? "La firma SIWE no pudo verificarse",
-        );
-      }
-
-      const address = normalizeAddress(verification.address);
-      setTargetAddress(address);
-      setManualAddress(address);
-      setAuthenticatedWorldAddress(address);
-      setAuthenticated(true);
-      showStatus("World App autenticada correctamente.", "success");
+      await performWorldLogin("Iniciar sesión con World ID en RC Wallet");
+      showStatus("Sesión World ID iniciada correctamente.", "success");
     } catch (error) {
       console.error("[WORLD AUTH]", error);
       showStatus(
@@ -831,7 +882,31 @@ export default function App() {
         "error",
       );
     }
-  }, [miniKitReady, showStatus]);
+  }, [performWorldLogin, showStatus]);
+
+  useEffect(() => {
+    if (
+      !miniKitReady ||
+      authenticated ||
+      autoLoginAttemptedRef.current ||
+      !MiniKit.user?.walletAddress
+    ) {
+      return;
+    }
+
+    autoLoginAttemptedRef.current = true;
+    void performWorldLogin("Reconectar sesión World ID en RC Wallet")
+      .then(() => {
+        showStatus("Sesión World ID reconectada.", "success");
+      })
+      .catch((error) => {
+        console.warn("[WORLD RECONNECT]", error);
+        showStatus(
+          "Sesión guardada detectada. Pulsa “Iniciar sesión con World ID” para validarla.",
+          "warning",
+        );
+      });
+  }, [authenticated, miniKitReady, performWorldLogin, showStatus]);
 
   const useManualAddress = useCallback(() => {
     try {
@@ -905,7 +980,7 @@ export default function App() {
       );
     } else {
       showStatus(
-        `La wallet conectada (${compactAddress(connectedExternalAddress)}) no coincide con la dirección que contiene los fondos. No se habilitarán retiros.`,
+        `La wallet conectada (${compactAddress(connectedExternalAddress)}) no coincide con la dirección que contiene los fondos. No se habilitará movimiento de activos.`,
         "warning",
       );
     }
@@ -924,6 +999,9 @@ export default function App() {
             "Primero carga la dirección que contiene los fondos",
           );
         }
+
+        const confirmed = await confirmWorldAction("conexión de wallet externa");
+        if (!confirmed) return;
 
         setExternalConnecting(true);
         await disconnectExternalProvider(externalConnectionRef.current);
@@ -949,6 +1027,15 @@ export default function App() {
         externalConnectionRef.current = connection;
         setConnectedExternalAddress(connection.account);
         setExternalConnectionName(connection.name);
+
+        const connectedMatches =
+          normalizeAddress(connection.account) === normalizeAddress(targetAddress);
+        showStatus(
+          connectedMatches
+            ? "Wallet externa conectada y coincide con la wallet activa."
+            : "La wallet externa conectada no controla esta dirección. Si es solo lectura/watch-only, no puede firmar movimientos.",
+          connectedMatches ? "success" : "warning",
+        );
       } catch (error) {
         showStatus(
           error instanceof Error
@@ -960,7 +1047,7 @@ export default function App() {
         if (mountedRef.current) setExternalConnecting(false);
       }
     },
-    [showStatus, targetAddress],
+    [confirmWorldAction, showStatus, targetAddress],
   );
 
   const disconnectExternal = useCallback(async () => {
@@ -1311,7 +1398,7 @@ export default function App() {
       authenticatedWorldAddress: authenticatedWorldAddress || null,
       externalSigner: connectedExternalAddress || null,
       externalSignerMatches: externalMatches,
-      recoveryFee: {
+      movementFee: {
         wallet: ADMIN_FEE_WALLET,
         percent: percentFromBps(RECOVERY_FEE_BPS),
         basisPoints: Number(RECOVERY_FEE_BPS),
@@ -1324,7 +1411,7 @@ export default function App() {
         symbol: asset.symbol,
         balance: asset.balance,
         tokenAddress: asset.address,
-        recovery: createRecoveryDiagnosis({
+        movement: createRecoveryDiagnosis({
           asset,
           authenticated,
           miniKitReady,
@@ -1338,7 +1425,7 @@ export default function App() {
     };
 
     await navigator.clipboard.writeText(JSON.stringify(report, null, 2));
-    showStatus("Informe de recuperación copiado.", "success");
+    showStatus("Informe de fondos disponibles copiado.", "success");
   }, [
     assets,
     authenticated,
@@ -1375,7 +1462,7 @@ export default function App() {
         nativeSymbol: selectedAsset.network.symbol,
         nativeBalance: selectedNativeGasAsset?.balance ?? "0",
       },
-      recoveryFee: {
+      movementFee: {
         wallet: ADMIN_FEE_WALLET,
         percent: percentFromBps(RECOVERY_FEE_BPS),
         breakdown: feeBreakdown,
@@ -1386,7 +1473,7 @@ export default function App() {
     };
 
     await navigator.clipboard.writeText(JSON.stringify(plan, null, 2));
-    showStatus("Plan de rescate copiado.", "success");
+    showStatus("Ruta de movimiento copiada.", "success");
   }, [
     authenticated,
     authenticatedWorldAddress,
@@ -1402,15 +1489,15 @@ export default function App() {
 
   const copyMaximumRecoveryDossier = useCallback(async () => {
     const dossier = {
-      format: "rc-wallet-maximum-recovery-dossier",
+      format: "rc-wallet-movement-dossier",
       version: 1,
       generatedAt: new Date().toISOString(),
       targetAddress,
       hardRule:
         "No se pueden mover fondos sin una firma válida de la dirección, una smart account compatible o intervención legítima del emisor/soporte. RC Wallet no crea llaves privadas retroactivas.",
       commercialModel: {
-        recoveryFeeWallet: ADMIN_FEE_WALLET,
-        recoveryFeePercent: percentFromBps(RECOVERY_FEE_BPS),
+        movementFeeWallet: ADMIN_FEE_WALLET,
+        movementFeePercent: percentFromBps(RECOVERY_FEE_BPS),
       },
       session: {
         miniKitReady,
@@ -1436,9 +1523,9 @@ export default function App() {
       })),
       buildableInfrastructure: [
         {
-          name: "RC Recovery Relayer",
+          name: "RC Movement Relayer",
           purpose:
-            "Ejecutar rescates cuando exista firma EIP-1271 válida o smart account compatible.",
+            "Ejecutar movimientos cuando exista firma EIP-1271 válida o smart account compatible.",
           requirement:
             "Prueba RC Link válida, simulación exitosa, allowlist y control de replay.",
         },
@@ -1452,15 +1539,15 @@ export default function App() {
         {
           name: "RC Rescue Vault",
           purpose:
-            "Proteger depósitos futuros con recuperación social, guardianes y timelock.",
+            "Proteger depósitos futuros con control social, guardianes y timelock.",
           requirement:
-            "Contrato auditado. No recupera fondos enviados antes de existir.",
+            "Contrato auditado. No mueve fondos enviados antes de existir.",
         },
       ],
     };
 
     await navigator.clipboard.writeText(JSON.stringify(dossier, null, 2));
-    showStatus("Expediente máximo de recuperación copiado.", "success");
+    showStatus("Expediente técnico de movimiento copiado.", "success");
   }, [
     assets,
     authenticated,
@@ -1607,7 +1694,7 @@ export default function App() {
         <header className="hero">
           <div className="hero__mark">RC</div>
           <div>
-            <h1>RC Wallet Recovery</h1>
+            <h1>RC Wallet</h1>
             <p>
               Detecta activos EVM y habilita movimientos únicamente cuando
               existe una firma válida para la red correspondiente.
@@ -1799,7 +1886,7 @@ export default function App() {
               type="button"
               onClick={openSendForm}
             >
-              Enviar / recuperar {selectedAsset.symbol}
+              Enviar / mover {selectedAsset.symbol}
             </button>
           </section>
         )}
@@ -1813,7 +1900,7 @@ export default function App() {
               aria-labelledby="send-confirm-title"
             >
               <span className="eyebrow">Confirmación manual</span>
-              <h2 id="send-confirm-title">Enviar / recuperar fondos</h2>
+              <h2 id="send-confirm-title">Enviar / mover fondos</h2>
               <dl>
                 <div>
                   <dt>Token</dt>
@@ -1874,7 +1961,11 @@ export default function App() {
                   className="button button--primary"
                   type="button"
                   disabled={sending}
-                  onClick={() => {
+                  onClick={async () => {
+                    const confirmed = await confirmWorldAction(
+                      "envío de activos",
+                    );
+                    if (!confirmed) return;
                     setShowSendConfirm(false);
                     void send();
                   }}
@@ -1932,14 +2023,14 @@ export default function App() {
                 type="button"
                 onClick={() => setActiveTab("recovery")}
               >
-                Recuperar
+                Mover
               </button>
             </div>
           </section>
 
         <section className="exchange-dashboard">
           <div className="metric-card metric-card--hero">
-            <span>Recovery Wallet</span>
+            <span>Fondos disponibles</span>
             <strong>{portfolioSummary.totalAssets}</strong>
             <small>activos detectados</small>
           </div>
@@ -1954,7 +2045,7 @@ export default function App() {
             <small>posibles fondos ocultos</small>
           </div>
           <div className="metric-card metric-card--gold">
-            <span>Comisión recovery</span>
+            <span>Comisión de movimiento</span>
             <strong>{percentFromBps(RECOVERY_FEE_BPS)}%</strong>
             <small>visible antes de firmar</small>
           </div>
@@ -2043,7 +2134,7 @@ export default function App() {
             disabled={!miniKitReady}
           >
             {miniKitReady
-              ? "Autenticar con World App"
+              ? "Iniciar sesión con World ID"
               : "Abrir dentro de World App"}
           </button>
 
@@ -2111,6 +2202,46 @@ export default function App() {
             </p>
           </div>
         </section>
+        </section>
+
+        <section className={viewClass("tools")}>
+          <section className="card">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Historial</span>
+                <h2>Última operación local</h2>
+              </div>
+            </div>
+            {lastTransaction ? (
+              <div className="transaction-result">
+                <strong>
+                  {lastTransaction.pending
+                    ? "Operación pendiente"
+                    : "Operación confirmada"}
+                </strong>
+                <span>{lastTransaction.network?.name}</span>
+                {lastTransaction.hash ? (
+                  <a
+                    href={explorerTransactionUrl(
+                      lastTransaction.network,
+                      lastTransaction.hash,
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Abrir explorer
+                  </a>
+                ) : (
+                  <code>{lastTransaction.userOpHash}</code>
+                )}
+              </div>
+            ) : (
+              <p className="empty">
+                Aún no hay operaciones en esta sesión. Cuando envíes o muevas
+                activos, el último resultado aparecerá aquí.
+              </p>
+            )}
+          </section>
         </section>
 
         {!targetAddress && (
@@ -2447,7 +2578,7 @@ export default function App() {
               <div>
                 <span className="eyebrow">Paso 4</span>
                 <h2>
-                  Enviar / Recuperar {selectedAsset.symbol} en{" "}
+                  Enviar / mover {selectedAsset.symbol} en{" "}
                   {selectedAsset.networkName}
                 </h2>
               </div>
@@ -2462,7 +2593,7 @@ export default function App() {
                 className={`rescue-diagnosis rescue-diagnosis--${selectedRecoveryDiagnosis.level}`}
               >
                 <div>
-                  <span className="eyebrow">Diagnóstico de rescate</span>
+                  <span className="eyebrow">Diagnóstico de firma</span>
                   <strong>{selectedRecoveryDiagnosis.title}</strong>
                   <p>{selectedRecoveryDiagnosis.action}</p>
                 </div>
@@ -2495,7 +2626,7 @@ export default function App() {
                   type="button"
                   onClick={copySelectedRescuePlan}
                 >
-                  Copiar plan de rescate
+                  Copiar ruta de movimiento
                 </button>
               </div>
             )}
@@ -2526,7 +2657,7 @@ export default function App() {
                     disabled={externalConnecting}
                     onClick={() => connectExternal("injected")}
                   >
-                    Conectar extensión del navegador
+                    Conectar wallet externa
                   </button>
                   {walletConnectConfigured && (
                     <button
@@ -2535,7 +2666,7 @@ export default function App() {
                       disabled={externalConnecting}
                       onClick={() => connectExternal("walletconnect")}
                     >
-                      Trust / MetaMask / Binance por QR
+                      WalletConnect: Trust, MetaMask, Rabby, Coinbase, Binance
                     </button>
                   )}
                   {connectedExternalAddress && (
@@ -2621,7 +2752,7 @@ export default function App() {
             )}
 
             <label className="label" htmlFor="amount">
-              Cantidad total a recuperar
+              Cantidad total a mover
             </label>
             <div className="input-row">
               <input
@@ -2656,13 +2787,13 @@ export default function App() {
 
             <div className="fee-box">
               <div className="fee-box__header">
-                <span>Comisión RC Wallet Recovery</span>
+                <span>Comisión RC Wallet</span>
                 <strong>{percentFromBps(RECOVERY_FEE_BPS)}%</strong>
               </div>
               {feeBreakdown ? (
                 <dl>
                   <div>
-                    <dt>Total a recuperar</dt>
+                    <dt>Total a mover</dt>
                     <dd>
                       {feeBreakdown.gross} {selectedAsset.symbol}
                     </dd>
@@ -2692,7 +2823,7 @@ export default function App() {
                 <span>
                   Acepto que RC Wallet cobre el {percentFromBps(
                     RECOVERY_FEE_BPS,
-                  )}% del monto recuperado. La comisión se firma en la wallet y
+                  )}% del monto movido. La comisión se firma en la wallet y
                   queda visible en blockchain.
                 </span>
               </label>
@@ -2881,8 +3012,8 @@ export default function App() {
         <section className="card command-card">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Recovery Command Center</span>
-              <h2>Máximo rescate posible</h2>
+              <span className="eyebrow">Centro de rutas</span>
+              <h2>Mejor ruta técnica posible</h2>
             </div>
             <span className="badge badge--green">v4.3</span>
           </div>
@@ -2911,7 +3042,7 @@ export default function App() {
           <div className="builder-box">
             <strong>Lo que sí podemos crear</strong>
             <ul>
-              <li>Relayer RC Recovery para smart accounts con firma válida.</li>
+              <li>Relayer RC Movement para smart accounts con firma válida.</li>
               <li>Deployer contrafactual con parámetros exactos verificados.</li>
               <li>RC Rescue Vault para proteger depósitos futuros.</li>
               <li>Expediente técnico para soporte, emisor, exchange o auditoría.</li>
@@ -2928,7 +3059,7 @@ export default function App() {
             type="button"
             onClick={copyMaximumRecoveryDossier}
           >
-            Copiar expediente máximo
+            Copiar expediente técnico
           </button>
         </section>
 
@@ -3096,7 +3227,7 @@ export default function App() {
         </section>
 
         <footer>
-          RC Wallet Recovery · Sin custodia · Nunca compartas tu frase semilla
+          RC Wallet · Sin custodia · Nunca compartas tu frase semilla
         </footer>
       </div>
 

@@ -47,7 +47,7 @@ export async function connectInjectedProvider(handlers) {
   const provider = window.ethereum;
   if (!provider?.request) {
     throw new Error(
-      "No se detectó MetaMask, Trust Wallet, Binance Wallet u otra extensión EVM",
+      "No se detectó MetaMask, Trust Wallet, Rabby, Coinbase Wallet, Binance Wallet u otra wallet EVM",
     );
   }
 
