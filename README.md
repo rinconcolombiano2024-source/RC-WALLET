@@ -43,21 +43,34 @@ World App y moverlos únicamente cuando existe un firmante válido en la red.
   futuro.
 - Genera un expediente máximo de recuperación para soporte, emisor, auditoría o
   diseño de relayer.
-- Incluye Referral Center con botón para referir, invitar y compartir usando
-  Web Share API o copia automática del enlace.
+- Presenta la app como wallet móvil con navegación inferior fija: Inicio,
+  Tokens, Recovery, Markets y Herramientas.
 - Abre una pantalla interna por token al hacer clic sobre un activo: gráfica en
   tiempo real, información de red/contrato, enlaces oficiales, explorador,
   botones Comprar/Vender/Cambiar y Enviar/recuperar.
 - Incluye enlaces oficiales por activo, incluyendo Bitcoin/WBTC, Ethereum,
   World, USDC, USDT, BNB Chain y RC.PL/Rincón Colombiano.
-- Incluye membresías de 1, 2, 10 y 20 USD como acceso/soporte, con invitación
-  por referido directo y reserva operativa RC del 1%.
-- Incluye formulario de opiniones de usuarios guardado localmente en el
-  navegador. Para producción debe conectarse a una base de datos o backend.
+- Incluye modal de confirmación antes de enviar fondos con token, red, destino,
+  monto, comisión RC, fee de red y tipo de firma requerida.
 - Incluye RC.PL Market Lab para definir precio objetivo, calcular liquidez
   inicial aproximada, abrir el DEX para crear pool y preparar staking.
 - Usa como fuente de sesión la dirección SIWE verificada por el backend; el
   valor cacheado de `MiniKit.user.walletAddress` no bloquea envíos válidos.
+
+## Navegación móvil v5
+
+RC Wallet ya no se organiza como una página larga. La interfaz principal queda
+dividida en cinco pantallas:
+
+- `Inicio`: balance/resumen, wallet activa, acciones rápidas, tokens
+  principales y publicidad local compacta existente.
+- `Tokens`: scanner, filtros por red, búsqueda por token/red/contrato y lista
+  completa de activos detectados, incluyendo balances pequeños.
+- `Recovery`: diagnóstico de recuperabilidad, envío, WalletConnect, RC Link,
+  EIP-1271/Safe/ERC-4337 y expediente técnico.
+- `Markets`: gráficas, comprar, vender, cambiar y RC.PL Market Lab.
+- `Herramientas`: login World App, análisis manual de dirección, QR de
+  recepción y advertencias de seguridad.
 
 ## Límite técnico
 
@@ -112,20 +125,6 @@ comisión antes de firmar. El envío queda dividido así:
 
 La app no solicita frases semilla ni claves privadas. La comisión no se cobra
 sin firma explícita del usuario.
-
-## Membresías, referidos y opiniones
-
-La versión 4.5 incluye un modelo legal-first:
-
-- Membresías de soporte/acceso por 1, 2, 10 y 20 USD.
-- Bono de referido directo sugerido del 10% en crédito o promoción.
-- Reserva operativa RC del 1%.
-- Sin promesas de inversión, sin multinivel, sin APY garantizado y sin pagos
-  automáticos sin verificación.
-
-Esta sección prepara la experiencia comercial, pero cualquier cobro real debe
-conectarse a un backend de pagos, términos legales visibles y verificación de
-pago antes de entregar beneficios.
 
 ## RC.PL, precio, pool y staking
 
