@@ -44,10 +44,16 @@ import {
 
 const ERC20_INTERFACE = new ethers.Interface(ERC20_ABI);
 const CUSTOM_TOKENS_KEY = "rc_wallet_custom_tokens_v1";
-const REFERRAL_CODE_KEY = "rc_wallet_referral_code_v1";
-const FEEDBACK_KEY = "rc_wallet_feedback_v1";
 const DEFAULT_RCPL_TARGET_PRICE = "0.10";
 const DEFAULT_RCPL_LIQUIDITY_USD = "1000";
+
+const APP_TABS = Object.freeze([
+  { id: "home", label: "Inicio", icon: "⌂" },
+  { id: "tokens", label: "Tokens", icon: "◈" },
+  { id: "recovery", label: "Recovery", icon: "⛑" },
+  { id: "markets", label: "Markets", icon: "↗" },
+  { id: "tools", label: "Herramientas", icon: "⚙" },
+]);
 
 const TOKEN_OFFICIAL_LINKS = Object.freeze({
   "RC.PL": [
@@ -70,50 +76,12 @@ const TOKEN_OFFICIAL_LINKS = Object.freeze({
   WETH: [{ label: "Ethereum oficial", url: "https://ethereum.org" }],
   ETH: [{ label: "Ethereum oficial", url: "https://ethereum.org" }],
   BNB: [{ label: "BNB Chain oficial", url: "https://www.bnbchain.org" }],
-});
-
-const MEMBERSHIP_TIERS = Object.freeze([
-  {
-    amountUsd: 1,
-    name: "Starter",
-    benefit: "Apoya RC Wallet y desbloquea insignia básica.",
-  },
-  {
-    amountUsd: 2,
-    name: "Supporter",
-    benefit: "Acceso preferente a reportes y novedades.",
-  },
-  {
-    amountUsd: 10,
-    name: "Recovery Pro",
-    benefit: "Prioridad en expediente de recuperación y soporte guiado.",
-  },
-  {
-    amountUsd: 20,
-    name: "VIP Recovery",
-    benefit: "Máxima prioridad, expediente completo y beneficios RC.PL.",
-  },
-]);
-
-const REFERRAL_REWARD_MODEL = Object.freeze({
-  referrerCreditPct: 10,
-  platformReservePct: 1,
-  note:
-    "Bonos promocionales por compra directa. Sin niveles múltiples, sin promesa de inversión y sujeto a términos legales.",
+  GOLD: [{ label: "Precio oro XAU", url: "https://www.gold.org" }],
 });
 
 function readCustomTokens() {
   try {
     const parsed = JSON.parse(localStorage.getItem(CUSTOM_TOKENS_KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function readFeedback() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(FEEDBACK_KEY) ?? "[]");
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -145,24 +113,6 @@ function readStoredValue(key, fallback) {
     return localStorage.getItem(key) || fallback;
   } catch {
     return fallback;
-  }
-}
-
-function getOrCreateReferralCode() {
-  try {
-    const existing = localStorage.getItem(REFERRAL_CODE_KEY);
-    if (existing) return existing;
-
-    const bytes = new Uint8Array(4);
-    crypto.getRandomValues(bytes);
-    const code = `RC-${Array.from(bytes)
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("")
-      .toUpperCase()}`;
-    localStorage.setItem(REFERRAL_CODE_KEY, code);
-    return code;
-  } catch {
-    return "RC-WALLET";
   }
 }
 
@@ -396,6 +346,7 @@ export default function App() {
   const qrStreamRef = useRef(null);
   const qrScanActiveRef = useRef(false);
 
+  const [activeTab, setActiveTab] = useState("home");
   const [miniKitReady, setMiniKitReady] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [authenticatedWorldAddress, setAuthenticatedWorldAddress] =
@@ -414,9 +365,11 @@ export default function App() {
   const [customChainId, setCustomChainId] = useState(1);
   const [customTokenAddress, setCustomTokenAddress] = useState("");
   const [search, setSearch] = useState("");
+  const [networkFilter, setNetworkFilter] = useState("all");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
   const [feeAccepted, setFeeAccepted] = useState(false);
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [sending, setSending] = useState(false);
   const [qrScanning, setQrScanning] = useState(false);
@@ -436,11 +389,6 @@ export default function App() {
   const [rcplLiquidityUsd, setRcplLiquidityUsd] = useState(
     DEFAULT_RCPL_LIQUIDITY_USD,
   );
-  const [referralCode] = useState(getOrCreateReferralCode);
-  const [feedbackList, setFeedbackList] = useState(readFeedback);
-  const [feedbackName, setFeedbackName] = useState("");
-  const [feedbackRating, setFeedbackRating] = useState("5");
-  const [feedbackText, setFeedbackText] = useState("");
   const [status, setStatus] = useState({
     type: "info",
     message:
@@ -459,13 +407,20 @@ export default function App() {
 
   const filteredAssets = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return assets;
     return assets.filter(
-      (asset) =>
-        asset.symbol.toLowerCase().includes(query) ||
-        asset.networkName.toLowerCase().includes(query),
+      (asset) => {
+        const matchesNetwork =
+          networkFilter === "all" || String(asset.chainId) === networkFilter;
+        const matchesQuery =
+          !query ||
+          asset.symbol.toLowerCase().includes(query) ||
+          asset.networkName.toLowerCase().includes(query) ||
+          asset.address?.toLowerCase().includes(query);
+
+        return matchesNetwork && matchesQuery;
+      },
     );
-  }, [assets, search]);
+  }, [assets, networkFilter, search]);
 
   const externalMatches = useMemo(() => {
     if (!targetAddress || !connectedExternalAddress) return false;
@@ -532,6 +487,28 @@ export default function App() {
       externalAssets,
     };
   }, [assets, networkStates]);
+
+  const homeAssets = useMemo(() => assets.slice(0, 5), [assets]);
+
+  const viewClass = useCallback(
+    (tabId) => `app-view ${activeTab === tabId ? "app-view--active" : ""}`,
+    [activeTab],
+  );
+
+  const estimateAssetValue = useCallback(
+    (asset) => {
+      if (
+        asset.id === selectedAssetId &&
+        market?.priceUsd &&
+        Number.isFinite(Number(asset.balance))
+      ) {
+        return formatUsd(Number(asset.balance) * Number(market.priceUsd));
+      }
+
+      return "Pendiente de mercado";
+    },
+    [market, selectedAssetId],
+  );
 
   const rcplAsset = useMemo(
     () => assets.find((asset) => asset.symbol === "RC.PL") ?? null,
@@ -673,88 +650,6 @@ export default function App() {
     if (mountedRef.current) setStatus({ message, type });
   }, []);
 
-  const referralLink = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    const url = new URL(window.location.href);
-    url.searchParams.set("ref", referralCode);
-    return url.toString();
-  }, [referralCode]);
-
-  const shareReferral = useCallback(async () => {
-    const title = "RC Wallet Recovery";
-    const text =
-      "Detecta y recupera fondos enviados a redes equivocadas con RC Wallet.";
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title,
-          text,
-          url: referralLink,
-        });
-        showStatus("Invitación compartida.", "success");
-        return;
-      }
-
-      await navigator.clipboard.writeText(`${text}\n${referralLink}`);
-      showStatus("Enlace de invitación copiado.", "success");
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-      try {
-        await navigator.clipboard.writeText(referralLink);
-        showStatus("Enlace de invitación copiado.", "success");
-      } catch {
-        showStatus("No se pudo compartir. Copia el enlace manualmente.", "warning");
-      }
-    }
-  }, [referralLink, showStatus]);
-
-  const copyMembershipInvite = useCallback(
-    async (tier) => {
-      const message = [
-        `RC Wallet Membership ${tier.name} - ${tier.amountUsd} USD`,
-        tier.benefit,
-        `Mi código de referido: ${referralCode}`,
-        `Enlace: ${referralLink}`,
-        "",
-        `Modelo legal-first: bono directo de ${REFERRAL_REWARD_MODEL.referrerCreditPct}% para referido validado y reserva RC del ${REFERRAL_REWARD_MODEL.platformReservePct}%. Sin promesas de inversión.`,
-      ].join("\n");
-
-      try {
-        await navigator.clipboard.writeText(message);
-        showStatus("Invitación de membresía copiada.", "success");
-      } catch {
-        showStatus(
-          "No se pudo copiar automáticamente. Usa el botón principal de compartir o copia el enlace de referido.",
-          "warning",
-        );
-      }
-    },
-    [referralCode, referralLink, showStatus],
-  );
-
-  const submitFeedback = useCallback(() => {
-    const cleanText = feedbackText.trim();
-    if (cleanText.length < 5) {
-      showStatus("Escribe una opinión un poco más completa.", "warning");
-      return;
-    }
-
-    const feedback = {
-      id: crypto.randomUUID?.() ?? `${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      name: feedbackName.trim() || "Usuario RC",
-      rating: Number(feedbackRating),
-      text: cleanText.slice(0, 420),
-    };
-
-    setFeedbackList((current) => [feedback, ...current].slice(0, 8));
-    setFeedbackName("");
-    setFeedbackRating("5");
-    setFeedbackText("");
-    showStatus("Gracias. Opinión guardada en esta versión.", "success");
-  }, [feedbackName, feedbackRating, feedbackText, showStatus]);
-
   useEffect(() => {
     mountedRef.current = true;
     const result = MiniKit.install();
@@ -784,14 +679,11 @@ export default function App() {
   }, [customTokens]);
 
   useEffect(() => {
-    localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedbackList));
-  }, [feedbackList]);
-
-  useEffect(() => {
     setRecipient("");
     setAmount("");
     setFeeAccepted(false);
     setLastTransaction(null);
+    setShowSendConfirm(false);
   }, [selectedAssetId]);
 
   useEffect(() => {
@@ -856,7 +748,7 @@ export default function App() {
       const url = getTradeUrl(action, selectedAsset, market);
       if (!url) {
         showStatus(
-          "No hay una ruta DEX verificable para este activo.",
+          "Función preparada: requiere proveedor de liquidez, DEX u onramp compatible para este activo.",
           "warning",
         );
         return;
@@ -869,11 +761,12 @@ export default function App() {
 
   const openSendForm = useCallback(() => {
     setTokenScreenOpen(false);
-    sendSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    setActiveTab("recovery");
     window.setTimeout(() => {
+      sendSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
       document.getElementById("recipient")?.focus();
     }, 450);
   }, []);
@@ -1701,7 +1594,12 @@ export default function App() {
         })()
       : externalMatches);
 
-  const canSubmitRecovery = Boolean(canSendSelected && feeAccepted && feeBreakdown);
+  const canSubmitRecovery = Boolean(
+    canSendSelected &&
+      feeAccepted &&
+      feeBreakdown &&
+      ethers.isAddress(recipient),
+  );
 
   return (
     <main className="page">
@@ -1906,119 +1804,138 @@ export default function App() {
           </section>
         )}
 
-        <section className="referral-card">
-          <div>
-            <span className="eyebrow">Referidos</span>
-            <h2>Invita y comparte RC Wallet</h2>
-            <p>
-              Comparte tu enlace para que otros usuarios detecten fondos
-              ocultos y usen RC Wallet Recovery.
-            </p>
-            <code>{referralCode}</code>
-          </div>
-          <button
-            className="button referral-card__button"
-            type="button"
-            onClick={shareReferral}
-          >
-            Referir / Invitar / Compartir
-          </button>
-        </section>
-
-        <section className="card membership-card">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Membresías</span>
-              <h2>Referral legal-first</h2>
-            </div>
-            <span className="badge badge--amber">Sin inversión</span>
-          </div>
-          <p className="link-copy">
-            Las membresías son acceso/soporte, no promesa de ganancias. El
-            referido debe ser directo, con reglas claras, sin niveles múltiples
-            y con verificación de pago antes de entregar beneficios.
-          </p>
-          <div className="membership-grid">
-            {MEMBERSHIP_TIERS.map((tier) => (
-              <div className="membership-tier" key={tier.amountUsd}>
-                <span>{tier.name}</span>
-                <strong>{formatUsd(tier.amountUsd)}</strong>
-                <p>{tier.benefit}</p>
+        {showSendConfirm && selectedAsset && feeBreakdown && (
+          <div className="modal-backdrop" role="presentation">
+            <section
+              className="confirm-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="send-confirm-title"
+            >
+              <span className="eyebrow">Confirmación manual</span>
+              <h2 id="send-confirm-title">Enviar / recuperar fondos</h2>
+              <dl>
+                <div>
+                  <dt>Token</dt>
+                  <dd>{selectedAsset.symbol}</dd>
+                </div>
+                <div>
+                  <dt>Red</dt>
+                  <dd>{selectedAsset.networkName}</dd>
+                </div>
+                <div>
+                  <dt>Destino</dt>
+                  <dd>{compactAddress(recipient)}</dd>
+                </div>
+                <div>
+                  <dt>Cantidad total</dt>
+                  <dd>
+                    {feeBreakdown.gross} {selectedAsset.symbol}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Recibe destino</dt>
+                  <dd>
+                    {feeBreakdown.recipient} {selectedAsset.symbol}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Comisión RC</dt>
+                  <dd>
+                    {feeBreakdown.fee} {selectedAsset.symbol}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Firma requerida</dt>
+                  <dd>
+                    {selectedAsset.chainId === WORLD_CHAIN_ID
+                      ? "MiniKit / World App"
+                      : "Wallet externa firmante exacta"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Fee de red</dt>
+                  <dd>La wallet lo calcula antes de firmar</dd>
+                </div>
+              </dl>
+              <p>
+                RC Wallet no mueve fondos sin tu firma. Revisa red, destino y
+                monto antes de continuar.
+              </p>
+              <div className="button-row">
                 <button
                   className="button button--secondary"
                   type="button"
-                  onClick={() => copyMembershipInvite(tier)}
+                  onClick={() => setShowSendConfirm(false)}
                 >
-                  Invitar a esta membresía
+                  Cancelar
+                </button>
+                <button
+                  className="button button--primary"
+                  type="button"
+                  disabled={sending}
+                  onClick={() => {
+                    setShowSendConfirm(false);
+                    void send();
+                  }}
+                >
+                  Confirmar y firmar
                 </button>
               </div>
-            ))}
+            </section>
           </div>
-          <div className="legal-model">
-            <strong>Modelo recomendado</strong>
-            <span>
-              Bono referido directo: {REFERRAL_REWARD_MODEL.referrerCreditPct}%
-              en crédito/promoción. Reserva RC:{" "}
-              {REFERRAL_REWARD_MODEL.platformReservePct}% para operación.
-            </span>
-            <small>{REFERRAL_REWARD_MODEL.note}</small>
-          </div>
-        </section>
+        )}
 
-        <section className="card feedback-card">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Opiniones</span>
-              <h2>Comentarios de usuarios</h2>
+        <section className={viewClass("home")}>
+          <section className="home-wallet-card">
+            <span className="eyebrow">Wallet activa</span>
+            <h2>{targetAddress ? compactAddress(targetAddress) : "Conecta World App"}</h2>
+            <p>
+              {targetAddress
+                ? "Escanea tus fondos en World Chain y redes EVM externas."
+                : "Autentica World App o analiza una dirección EVM para empezar."}
+            </p>
+            <div className="quick-actions">
+              <button
+                className="quick-action"
+                type="button"
+                onClick={openSendForm}
+                disabled={!selectedAsset}
+              >
+                Enviar
+              </button>
+              <button
+                className="quick-action"
+                type="button"
+                onClick={() => setActiveTab("tools")}
+              >
+                Recibir
+              </button>
+              <button
+                className="quick-action"
+                type="button"
+                onClick={() => openTrade("buy")}
+                disabled={!selectedAsset}
+              >
+                Comprar
+              </button>
+              <button
+                className="quick-action"
+                type="button"
+                onClick={() => openTrade("sell")}
+                disabled={!selectedAsset}
+              >
+                Vender
+              </button>
+              <button
+                className="quick-action quick-action--primary"
+                type="button"
+                onClick={() => setActiveTab("recovery")}
+              >
+                Recuperar
+              </button>
             </div>
-            <span className="badge badge--green">{feedbackList.length}</span>
-          </div>
-          <div className="feedback-form">
-            <input
-              className="input"
-              value={feedbackName}
-              onChange={(event) => setFeedbackName(event.target.value)}
-              placeholder="Tu nombre o alias"
-            />
-            <select
-              className="input"
-              value={feedbackRating}
-              onChange={(event) => setFeedbackRating(event.target.value)}
-            >
-              <option value="5">★★★★★ Excelente</option>
-              <option value="4">★★★★ Buena</option>
-              <option value="3">★★★ Normal</option>
-              <option value="2">★★ Necesita mejorar</option>
-              <option value="1">★ Mala</option>
-            </select>
-            <textarea
-              className="input feedback-textarea"
-              value={feedbackText}
-              onChange={(event) => setFeedbackText(event.target.value)}
-              placeholder="Cuéntanos qué mejorarías o qué te ayudó..."
-            />
-            <button
-              className="button button--primary"
-              type="button"
-              onClick={submitFeedback}
-            >
-              Enviar opinión
-            </button>
-          </div>
-          {feedbackList.length > 0 && (
-            <div className="feedback-list">
-              {feedbackList.map((feedback) => (
-                <article key={feedback.id}>
-                  <strong>
-                    {"★".repeat(feedback.rating)}
-                    {"☆".repeat(5 - feedback.rating)} · {feedback.name}
-                  </strong>
-                  <p>{feedback.text}</p>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+          </section>
 
         <section className="exchange-dashboard">
           <div className="metric-card metric-card--hero">
@@ -2043,6 +1960,71 @@ export default function App() {
           </div>
         </section>
 
+          <section className="card token-summary-card">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Resumen</span>
+                <h2>Tokens principales</h2>
+              </div>
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() => setActiveTab("tokens")}
+              >
+                Ver todos
+              </button>
+            </div>
+            {homeAssets.length === 0 ? (
+              <p className="empty">
+                Aún no hay activos detectados. Conecta o analiza una dirección
+                y ejecuta el escáner multicadena.
+              </p>
+            ) : (
+              <div className="mini-asset-list">
+                {homeAssets.map((asset) => (
+                  <button
+                    className="mini-asset"
+                    type="button"
+                    key={asset.id}
+                    onClick={() => openTokenScreen(asset.id)}
+                  >
+                    <span className="token-logo">{asset.symbol.slice(0, 3)}</span>
+                    <span>
+                      <strong>{asset.symbol}</strong>
+                      <small>{asset.networkName}</small>
+                    </span>
+                    <b>{asset.displayBalance}</b>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="local-card local-card--compact">
+            <div>
+              <span className="eyebrow">Publicidad local</span>
+              <h2>Rincón Colombiano</h2>
+              <p className="local-card__lead">
+                ul. Czapelska 33, Varsovia · Cupón visible en caja.
+              </p>
+            </div>
+            <button
+              className="button local-card__button"
+              type="button"
+              onClick={() =>
+                window.open(
+                  "https://maps.app.goo.gl/MKzY4KzWp8NrTBjw5?g_st=ac",
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
+            >
+              Abrir mapa
+            </button>
+          </section>
+        </section>
+
+        <section className={viewClass("tools")}>
         <section className="card">
           <div className="section-heading">
             <div>
@@ -2129,9 +2111,36 @@ export default function App() {
             </p>
           </div>
         </section>
+        </section>
+
+        {!targetAddress && (
+          <section className={viewClass("tokens")}>
+            <section className="card">
+              <div className="section-heading">
+                <div>
+                  <span className="eyebrow">Tokens</span>
+                  <h2>Conecta una dirección para escanear</h2>
+                </div>
+              </div>
+              <p className="empty">
+                RC Wallet necesita la dirección EVM de World App o una
+                dirección manual para detectar WLD, PUF, GOLD, SUSHI, RCOL,
+                MADS, GoldenPUF, USDC, USDT, WETH, WBTC y contratos ERC-20
+                personalizados.
+              </p>
+              <button
+                className="button button--primary"
+                type="button"
+                onClick={() => setActiveTab("tools")}
+              >
+                Conectar / analizar dirección
+              </button>
+            </section>
+          </section>
+        )}
 
         {targetAddress && (
-          <>
+          <section className={viewClass("tokens")}>
             <section className="card">
               <div className="section-heading">
                 <div>
@@ -2205,6 +2214,11 @@ export default function App() {
                   </button>
                 </div>
               </details>
+              <p className="fine-print">
+                PUF y GoldenPUF se pueden escanear como ERC-20 personalizado
+                cuando tengas el contrato oficial verificado. RC Wallet no
+                inventa direcciones de tokens.
+              </p>
             </section>
 
             <section className="card">
@@ -2220,8 +2234,21 @@ export default function App() {
                 className="input input--search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar token o red"
+                placeholder="Buscar token, red o contrato"
               />
+
+              <select
+                className="input input--search"
+                value={networkFilter}
+                onChange={(event) => setNetworkFilter(event.target.value)}
+              >
+                <option value="all">Todas las redes</option>
+                {NETWORKS.filter((network) => !network.testnet).map((network) => (
+                  <option value={String(network.chainId)} key={network.chainId}>
+                    {network.name}
+                  </option>
+                ))}
+              </select>
 
               {filteredAssets.length === 0 ? (
                 <p className="empty">
@@ -2238,6 +2265,9 @@ export default function App() {
                         key={asset.id}
                         onClick={() => openTokenScreen(asset.id)}
                       >
+                        <span className="token-logo">
+                          {asset.symbol.slice(0, 3)}
+                        </span>
                         <div>
                           <span className="asset__network">
                             {asset.networkName}
@@ -2250,6 +2280,7 @@ export default function App() {
                               ? "Moneda nativa"
                               : compactAddress(asset.address)}
                           </small>
+                          <small>Valor estimado: {estimateAssetValue(asset)}</small>
                         </div>
                         <RecoveryBadge
                           asset={asset}
@@ -2284,11 +2315,12 @@ export default function App() {
                 </button>
               </div>
             </section>
-          </>
+          </section>
         )}
 
         {selectedAsset && (
           <>
+          <section className={viewClass("markets")}>
           <section className="card market-card">
             <div className="section-heading">
               <div>
@@ -2403,7 +2435,9 @@ export default function App() {
               Enviar {selectedAsset.symbol}
             </button>
           </section>
+          </section>
 
+          <section className={viewClass("recovery")}>
           <section
             className="card card--recovery"
             id="send-funds"
@@ -2669,7 +2703,7 @@ export default function App() {
               className="button button--primary"
               type="button"
               disabled={!canSubmitRecovery || sending}
-              onClick={send}
+              onClick={() => setShowSendConfirm(true)}
             >
               {sending
                 ? "Esperando confirmación…"
@@ -2727,9 +2761,11 @@ export default function App() {
               </div>
             )}
           </section>
+          </section>
           </>
         )}
 
+        <section className={viewClass("markets")}>
         <section className="card rcpl-card">
           <div className="section-heading">
             <div>
@@ -2839,7 +2875,9 @@ export default function App() {
             </span>
           </div>
         </section>
+        </section>
 
+        <section className={viewClass("recovery")}>
         <section className="card command-card">
           <div className="section-heading">
             <div>
@@ -3055,40 +3093,31 @@ export default function App() {
             </div>
           </div>
         </section>
-
-        <section className="card local-card">
-          <span className="eyebrow">Publicidad local</span>
-          <h2>Rincón Colombiano en Varsovia</h2>
-          <p className="local-card__lead">
-            Disfruta auténtica comida colombiana en
-            <strong> ul. Czapelska 33, Varsovia</strong>.
-          </p>
-          <div className="coupon">
-            <strong>🎁 Empanada gratis</strong>
-            <span>
-              Presenta este anuncio en la caja con una compra mínima de 50 zł.
-              Un cupón por mesa o visita.
-            </span>
-          </div>
-          <button
-            className="button local-card__button"
-            type="button"
-            onClick={() =>
-              window.open(
-                "https://maps.app.goo.gl/MKzY4KzWp8NrTBjw5?g_st=ac",
-                "_blank",
-                "noopener,noreferrer",
-              )
-            }
-          >
-            📍 Abrir Czapelska 33 en Google Maps
-          </button>
         </section>
 
         <footer>
           RC Wallet Recovery · Sin custodia · Nunca compartas tu frase semilla
         </footer>
       </div>
+
+      <nav className="bottom-nav" aria-label="Navegación principal">
+        {APP_TABS.map((tab) => (
+          <button
+            className={`bottom-nav__item ${
+              activeTab === tab.id ? "bottom-nav__item--active" : ""
+            }`}
+            type="button"
+            key={tab.id}
+            onClick={() => {
+              setTokenScreenOpen(false);
+              setActiveTab(tab.id);
+            }}
+          >
+            <span>{tab.icon}</span>
+            <small>{tab.label}</small>
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }

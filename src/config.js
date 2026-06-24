@@ -134,6 +134,34 @@ export const TOKENS = Object.freeze([
       480: "0x4200000000000000000000000000000000000006",
     },
   },
+  {
+    symbol: "GOLD",
+    expectedDecimals: 18,
+    addresses: {
+      480: "0x25aC3DB36BDCE12B9E4340FFb62B8dC1c0B5EF91",
+    },
+  },
+  {
+    symbol: "SUSHI",
+    expectedDecimals: 18,
+    addresses: {
+      480: "0x6A1CD7b1981FDEEB8f8702b36c4b225389658E29",
+    },
+  },
+  {
+    symbol: "MADS",
+    expectedDecimals: 18,
+    addresses: {
+      480: "0x39FcEFD22c3407e3E4CDCD60831631FF6A1CD7b1",
+    },
+  },
+  {
+    symbol: "RCOL",
+    expectedDecimals: 18,
+    addresses: {
+      480: "0x78BCEFD3407e3E4CDCD60831631FF6A1CD7b25aC",
+    },
+  },
 ]);
 
 export const ERC20_ABI = Object.freeze([
