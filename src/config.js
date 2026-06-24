@@ -57,16 +57,37 @@ export const WORLD_CHAIN_BRIDGES = Object.freeze([
     name: "Alchemy Bridge",
     url: "https://worldchain-mainnet.bridge.alchemy.com",
     type: "native",
+    note: "Bridge nativo de World Chain para depositar y retirar activos.",
   },
   {
     name: "Superbridge",
     url: "https://superbridge.app/world-chain",
     type: "native",
+    note: "Interfaz Superchain para ETH y ERC20 entre Ethereum y World Chain.",
   },
   {
     name: "Across",
     url: "https://app.across.to",
     type: "third-party",
+    note: "Proveedor recomendado por World para rutas WLD entre World Chain y otras redes.",
+  },
+  {
+    name: "Brid.gg",
+    url: "https://brid.gg",
+    type: "third-party",
+    note: "Bridge para Ethereum y OP Chains, incluyendo World Chain.",
+  },
+  {
+    name: "Synapse",
+    url: "https://synapseprotocol.com",
+    type: "third-party",
+    note: "Bridge externo para transferencias entre redes compatibles.",
+  },
+  {
+    name: "Thirdweb Universal Bridge",
+    url: "https://portal.thirdweb.com/connect/pay",
+    type: "third-party",
+    note: "Ruta universal para onramp, swap y bridge en redes EVM compatibles.",
   },
 ]);
 

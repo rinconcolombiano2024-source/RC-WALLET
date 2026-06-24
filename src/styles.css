@@ -1314,6 +1314,137 @@ summary:focus-visible {
     #101318;
 }
 
+.bridge-card {
+  border-color: rgba(82, 150, 255, 0.35);
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.2), transparent 20rem),
+    linear-gradient(145deg, #0e141d, #090f17);
+}
+
+.bridge-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.bridge-node,
+.bridge-readiness {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 13px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bridge-node span,
+.bridge-node strong,
+.bridge-node small,
+.bridge-readiness span,
+.bridge-readiness strong,
+.bridge-readiness small {
+  display: block;
+}
+
+.bridge-node span,
+.bridge-readiness span {
+  color: #62a9ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.bridge-node strong,
+.bridge-readiness strong {
+  margin-top: 5px;
+  color: #f8fafc;
+  font-size: 15px;
+}
+
+.bridge-node small,
+.bridge-readiness small {
+  margin-top: 5px;
+  color: #9aa8ba;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.bridge-select {
+  margin-top: 0;
+}
+
+.bridge-readiness {
+  margin-bottom: 12px;
+}
+
+.bridge-readiness--ready {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(6, 78, 59, 0.22);
+}
+
+.bridge-readiness--needs-action {
+  border-color: rgba(245, 158, 11, 0.38);
+  background: rgba(120, 53, 15, 0.2);
+}
+
+.bridge-readiness p {
+  margin: 8px 0 0;
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.bridge-connect {
+  width: 100%;
+  margin: 0 0 12px;
+}
+
+.bridge-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.bridge-provider {
+  min-height: 86px;
+  border: 1px solid rgba(82, 150, 255, 0.22);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(7, 12, 20, 0.88);
+  color: #dbeafe;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bridge-provider strong,
+.bridge-provider span {
+  display: block;
+}
+
+.bridge-provider strong {
+  color: #fff;
+  font-size: 13px;
+}
+
+.bridge-provider span {
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.bridge-warning {
+  margin: 12px 0 0;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 14px;
+  padding: 11px;
+  background: rgba(245, 158, 11, 0.08);
+  color: #fde68a;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .command-card {
   border-color: #245f91;
   background:
@@ -1811,6 +1942,8 @@ footer {
   }
 
   .exchange-dashboard,
+  .bridge-grid,
+  .bridge-provider-grid,
   .diagnostic-grid,
   .home-login-actions,
   .rcpl-grid,

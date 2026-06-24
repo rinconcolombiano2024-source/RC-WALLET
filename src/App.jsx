@@ -173,6 +173,89 @@ function routeStatusLabel(status) {
   return "Bloqueado";
 }
 
+function bridgeDestinationOptionsFor(asset) {
+  if (!asset) return NETWORKS.filter((network) => !network.testnet);
+  return NETWORKS.filter(
+    (network) => !network.testnet && network.chainId !== asset.chainId,
+  );
+}
+
+function defaultBridgeDestinationChainId(asset) {
+  if (!asset) return WORLD_CHAIN_ID;
+  return asset.chainId === WORLD_CHAIN_ID ? 1 : WORLD_CHAIN_ID;
+}
+
+function createBridgePlan({
+  asset,
+  destinationNetwork,
+  targetAddress,
+  authenticated,
+  authenticatedWorldAddress,
+  externalMatches,
+  connectedExternalAddress,
+  nativeGasAsset,
+}) {
+  if (!asset || !destinationNetwork) return null;
+
+  const sourceIsWorldChain = asset.chainId === WORLD_CHAIN_ID;
+  const hasGas = asset.isNative || Boolean(nativeGasAsset?.rawBalance > 0n);
+  const worldSessionReady = Boolean(
+    authenticated && safeSameAddress(authenticatedWorldAddress, targetAddress),
+  );
+  const signerReady = sourceIsWorldChain ? worldSessionReady : externalMatches;
+  const signerRequirement = sourceIsWorldChain
+    ? "Firma World App / MiniKit en World Chain"
+    : "Wallet externa que controle exactamente la misma direccion origen";
+  const signerStatus = sourceIsWorldChain
+    ? worldSessionReady
+      ? "Sesion World App coincide con la direccion origen"
+      : "Falta iniciar sesion World App con la direccion origen"
+    : externalMatches
+      ? "Wallet externa coincidente conectada"
+      : connectedExternalAddress
+        ? "Wallet externa conectada, pero no coincide con la direccion origen"
+        : "Falta conectar wallet externa firmante";
+
+  return {
+    format: "rc-wallet-assisted-bridge-plan",
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    status: signerReady && hasGas ? "ready" : "needs-action",
+    source: {
+      network: asset.networkName,
+      chainId: asset.chainId,
+      symbol: asset.symbol,
+      balance: asset.balance,
+      tokenAddress: asset.isNative ? "native" : asset.address,
+      holder: targetAddress || null,
+    },
+    destination: {
+      network: destinationNetwork.name,
+      chainId: destinationNetwork.chainId,
+      receiver: targetAddress || null,
+    },
+    signer: {
+      requirement: signerRequirement,
+      status: signerStatus,
+      connectedExternalAddress: connectedExternalAddress || null,
+      externalSignerMatches: externalMatches,
+    },
+    gas: {
+      requiredOn: asset.networkName,
+      nativeSymbol: asset.network.symbol,
+      detectedNativeBalance: asset.isNative
+        ? asset.balance
+        : (nativeGasAsset?.balance ?? "0"),
+      enoughGasDetected: hasGas,
+    },
+    providerRule:
+      "RC Wallet abre proveedores de bridge reales. El proveedor valida soporte de red/token y la firma ocurre fuera de RC Wallet.",
+    safety:
+      "No se puede hacer bridge sin firma valida en la red origen. RC Wallet no crea llaves privadas ni semillas retroactivas.",
+    providers: WORLD_CHAIN_BRIDGES,
+  };
+}
+
 function qrImageUrl(value, size = 260) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}`;
 }
@@ -509,6 +592,8 @@ export default function App() {
   const [assets, setAssets] = useState([]);
   const [networkStates, setNetworkStates] = useState({});
   const [selectedAssetId, setSelectedAssetId] = useState("");
+  const [bridgeDestinationChainId, setBridgeDestinationChainId] =
+    useState(WORLD_CHAIN_ID);
   const [tokenScreenOpen, setTokenScreenOpen] = useState(false);
   const [customTokens, setCustomTokens] = useState(readCustomTokens);
   const [customChainId, setCustomChainId] = useState(1);
@@ -589,6 +674,45 @@ export default function App() {
         ? getNativeGasAsset(assets, selectedAsset.chainId)
         : null,
     [assets, selectedAsset],
+  );
+
+  const bridgeDestinationOptions = useMemo(
+    () => bridgeDestinationOptionsFor(selectedAsset),
+    [selectedAsset],
+  );
+
+  const bridgeDestinationNetwork = useMemo(
+    () =>
+      bridgeDestinationOptions.find(
+        (network) => network.chainId === Number(bridgeDestinationChainId),
+      ) ??
+      bridgeDestinationOptions[0] ??
+      null,
+    [bridgeDestinationChainId, bridgeDestinationOptions],
+  );
+
+  const selectedBridgePlan = useMemo(
+    () =>
+      createBridgePlan({
+        asset: selectedAsset,
+        destinationNetwork: bridgeDestinationNetwork,
+        targetAddress,
+        authenticated,
+        authenticatedWorldAddress,
+        externalMatches,
+        connectedExternalAddress,
+        nativeGasAsset: selectedNativeGasAsset,
+      }),
+    [
+      authenticated,
+      authenticatedWorldAddress,
+      bridgeDestinationNetwork,
+      connectedExternalAddress,
+      externalMatches,
+      selectedAsset,
+      selectedNativeGasAsset,
+      targetAddress,
+    ],
   );
 
   const selectedRecoveryDiagnosis = useMemo(
@@ -812,6 +936,20 @@ export default function App() {
             : "Primero debe existir una prueba RC Link válida en la red objetivo.",
       },
       {
+        id: "bridge",
+        status: selectedBridgePlan
+          ? selectedBridgePlan.status
+          : assets.length
+            ? "needs-action"
+            : "future",
+        title: "Bridge oficial asistido",
+        description:
+          "Ruta para llevar fondos entre World Chain, Ethereum, Optimism, Base y otras redes usando proveedores reales de puente.",
+        next: selectedBridgePlan
+          ? `Preparar ${selectedBridgePlan.source.symbol} de ${selectedBridgePlan.source.network} a ${bridgeDestinationNetwork?.name ?? "red destino"}. La firma ocurre en el proveedor externo.`
+          : "Selecciona un activo detectado para preparar la ruta de puente.",
+      },
+      {
         id: "support-dossier",
         status: externalAssets.length ? "ready" : "needs-action",
         title: "Expediente para soporte / emisor",
@@ -835,10 +973,12 @@ export default function App() {
   }, [
     assets,
     authenticated,
+    bridgeDestinationNetwork,
     connectedExternalAddress,
     externalMatches,
     miniKitReady,
     recoveryNetworkDiagnostics,
+    selectedBridgePlan,
     proofReport,
   ]);
 
@@ -969,6 +1109,11 @@ export default function App() {
     setLastTransaction(null);
     setShowSendConfirm(false);
   }, [selectedAssetId]);
+
+  useEffect(() => {
+    if (!selectedAsset) return;
+    setBridgeDestinationChainId(defaultBridgeDestinationChainId(selectedAsset));
+  }, [selectedAsset]);
 
   useEffect(() => {
     setFeeAccepted(false);
@@ -1226,7 +1371,7 @@ export default function App() {
             "Wallet externa conectada. Se usará esta dirección para escanear y firmar activos externos.",
             "success",
           );
-          return;
+          return true;
         }
 
         const connectedMatches = safeSameAddress(
@@ -1239,6 +1384,7 @@ export default function App() {
             : "La wallet externa conectada no controla esta dirección. Si es solo lectura/watch-only, no puede firmar movimientos.",
           connectedMatches ? "success" : "warning",
         );
+        return true;
       } catch (error) {
         showStatus(
           error instanceof Error
@@ -1246,6 +1392,7 @@ export default function App() {
             : "No se pudo conectar la wallet",
           "error",
         );
+        return false;
       } finally {
         if (mountedRef.current) setExternalConnecting(false);
       }
@@ -1260,6 +1407,28 @@ export default function App() {
     setExternalConnectionName("");
     showStatus("Wallet externa desconectada.");
   }, [showStatus]);
+
+  const connectBestExternalWallet = useCallback(async () => {
+    // Ruta original: si RC Wallet se abre dentro del navegador de Trust,
+    // MetaMask, Binance Wallet, Coinbase o Rabby, window.ethereum sí existe.
+    if (window.ethereum?.request) {
+      const injectedConnected = await connectExternal("injected");
+      if (injectedConnected) return;
+    }
+
+    // Ruta móvil dentro de World App: normalmente no hay window.ethereum.
+    if (walletConnectConfigured) {
+      const walletConnectConnected = await connectExternal("walletconnect");
+      if (walletConnectConnected) return;
+    }
+
+    showStatus(
+      window.ethereum?.request
+        ? "La wallet del navegador no conectó. Si estás dentro de World App, usa WalletConnect con VITE_REOWN_PROJECT_ID configurado."
+        : "No hay wallet inyectada y WalletConnect no está activo en esta versión. Configura VITE_REOWN_PROJECT_ID en Vercel Production y haz Redeploy sin caché.",
+      "error",
+    );
+  }, [connectExternal, showStatus, walletConnectConfigured]);
 
   const stopQrScanner = useCallback(() => {
     qrScanActiveRef.current = false;
@@ -1737,6 +1906,7 @@ export default function App() {
       },
       proofReport,
       routes: maximumRecoveryRoutes,
+      selectedBridgePlan,
       networks: networkStates,
       networkDiagnostics: serializeNetworkDiagnostics(
         recoveryNetworkDiagnostics,
@@ -1808,9 +1978,52 @@ export default function App() {
     networkStates,
     proofReport,
     recoveryNetworkDiagnostics,
+    selectedBridgePlan,
     showStatus,
     targetAddress,
   ]);
+
+  const openBridgeProvider = useCallback(
+    (provider) => {
+      if (!selectedAsset || !bridgeDestinationNetwork || !selectedBridgePlan) {
+        showStatus("Selecciona primero un activo detectado para preparar el puente.", "warning");
+        return;
+      }
+
+      const needsExternalSigner = selectedAsset.chainId !== WORLD_CHAIN_ID;
+      const signerWarning =
+        needsExternalSigner && !externalMatches
+          ? "Atencion: el bridge se abrira, pero no podra mover fondos hasta conectar una wallet que firme exactamente la direccion origen."
+          : `Abriendo ${provider.name}. Revisa origen ${selectedAsset.networkName}, destino ${bridgeDestinationNetwork.name}, token ${selectedAsset.symbol} y firma solo si todo coincide.`;
+
+      showStatus(signerWarning, needsExternalSigner && !externalMatches ? "warning" : "info");
+      window.open(provider.url, "_blank", "noopener,noreferrer");
+    },
+    [
+      bridgeDestinationNetwork,
+      externalMatches,
+      selectedAsset,
+      selectedBridgePlan,
+      showStatus,
+    ],
+  );
+
+  const copyBridgePlan = useCallback(async () => {
+    if (!selectedBridgePlan) {
+      showStatus("Selecciona un activo detectado para copiar el plan de puente.", "warning");
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(JSON.stringify(selectedBridgePlan, null, 2));
+      showStatus("Plan de bridge copiado.", "success");
+    } catch (error) {
+      showStatus(
+        error instanceof Error ? error.message : "No se pudo copiar el plan de bridge",
+        "error",
+      );
+    }
+  }, [selectedBridgePlan, showStatus]);
 
   const generateRecoveryProof = useCallback(async () => {
     try {
@@ -2251,11 +2464,7 @@ export default function App() {
                 className="button button--secondary"
                 type="button"
                 disabled={externalConnecting}
-                onClick={() =>
-                  connectExternal(
-                    walletConnectConfigured ? "walletconnect" : "injected",
-                  )
-                }
+                onClick={connectBestExternalWallet}
               >
                 {externalConnecting
                   ? "Conectando wallet…"
@@ -3054,11 +3263,7 @@ export default function App() {
                     className="button button--secondary"
                     type="button"
                     disabled={externalConnecting}
-                    onClick={() =>
-                      connectExternal(
-                        walletConnectConfigured ? "walletconnect" : "injected",
-                      )
-                    }
+                    onClick={connectBestExternalWallet}
                   >
                     {walletConnectConfigured
                       ? "Conectar por WalletConnect"
@@ -3415,6 +3620,130 @@ export default function App() {
         </section>
 
         <section className={viewClass("recovery")}>
+        <section className="card bridge-card">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Bridge asistido</span>
+              <h2>Puente oficial para mover entre redes</h2>
+            </div>
+            <span className="badge badge--blue">Proveedor externo</span>
+          </div>
+
+          <p className="link-copy">
+            RC Wallet prepara la ruta de puente con proveedores reales. La firma
+            no se simula: debe ocurrir en World App si el origen es World Chain
+            o en una wallet externa que controle exactamente la direccion origen.
+          </p>
+
+          {!selectedAsset || !selectedBridgePlan ? (
+            <p className="empty">
+              Selecciona un activo detectado en Tokens o Markets para preparar
+              el puente.
+            </p>
+          ) : (
+            <>
+              <div className="bridge-grid">
+                <div className="bridge-node">
+                  <span>Origen</span>
+                  <strong>{selectedAsset.networkName}</strong>
+                  <small>
+                    {selectedAsset.displayBalance} {selectedAsset.symbol}
+                  </small>
+                </div>
+                <label className="label bridge-select" htmlFor="bridge-destination">
+                  Red destino
+                  <select
+                    id="bridge-destination"
+                    className="input"
+                    value={bridgeDestinationNetwork?.chainId ?? ""}
+                    onChange={(event) =>
+                      setBridgeDestinationChainId(Number(event.target.value))
+                    }
+                  >
+                    {bridgeDestinationOptions.map((network) => (
+                      <option key={network.chainId} value={network.chainId}>
+                        {network.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div
+                className={`bridge-readiness bridge-readiness--${selectedBridgePlan.status}`}
+              >
+                <span>Firma requerida</span>
+                <strong>{selectedBridgePlan.signer.requirement}</strong>
+                <p>{selectedBridgePlan.signer.status}</p>
+                <small>
+                  Gas en {selectedBridgePlan.gas.requiredOn}:{" "}
+                  {selectedBridgePlan.gas.detectedNativeBalance}{" "}
+                  {selectedBridgePlan.gas.nativeSymbol}
+                </small>
+              </div>
+
+              {selectedAsset.chainId === WORLD_CHAIN_ID &&
+                !safeSameAddress(authenticatedWorldAddress, targetAddress) && (
+                  <button
+                    className="button button--secondary bridge-connect"
+                    type="button"
+                    onClick={loginWithWorldApp}
+                  >
+                    Iniciar sesion World App para bridge
+                  </button>
+                )}
+
+              {selectedAsset.chainId !== WORLD_CHAIN_ID && !externalMatches && (
+                <button
+                  className="button button--secondary bridge-connect"
+                  type="button"
+                  disabled={externalConnecting}
+                  onClick={connectBestExternalWallet}
+                >
+                  Conectar wallet firmante para bridge
+                </button>
+              )}
+
+              <div className="bridge-provider-grid">
+                {WORLD_CHAIN_BRIDGES.map((provider) => (
+                  <button
+                    className="bridge-provider"
+                    type="button"
+                    key={provider.name}
+                    onClick={() => openBridgeProvider(provider)}
+                  >
+                    <strong>{provider.name}</strong>
+                    <span>{provider.note}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="button-row">
+                <button
+                  className="button button--secondary"
+                  type="button"
+                  onClick={copyBridgePlan}
+                >
+                  Copiar plan bridge
+                </button>
+                <button
+                  className="button button--secondary"
+                  type="button"
+                  onClick={copyMaximumRecoveryDossier}
+                >
+                  Copiar expediente completo
+                </button>
+              </div>
+
+              <p className="bridge-warning">
+                Importante: el bridge solo funciona si el proveedor soporta ese
+                token y si existe firma valida en la red origen. Si la wallet
+                esta en modo solo lectura, el proveedor tambien la bloqueara.
+              </p>
+            </>
+          )}
+        </section>
+
         <section className="card command-card">
           <div className="section-heading">
             <div>
