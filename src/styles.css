@@ -1590,6 +1590,137 @@ summary:focus-visible {
   min-width: 104px;
 }
 
+.badge--blue {
+  border-color: rgba(82, 150, 255, 0.35);
+  background: rgba(52, 119, 246, 0.16);
+  color: #8ab8ff;
+}
+
+.diagnostic-card {
+  border-color: rgba(82, 150, 255, 0.22);
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 34%),
+    rgba(8, 13, 20, 0.94);
+}
+
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.diagnostic-network {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.diagnostic-network--funds {
+  border-color: rgba(52, 211, 153, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.06);
+}
+
+.diagnostic-network__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.diagnostic-network__head strong,
+.diagnostic-network__head span {
+  display: block;
+}
+
+.diagnostic-network__head strong {
+  color: #f8fafc;
+}
+
+.diagnostic-network__head span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.diagnostic-network dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.diagnostic-network dl div {
+  display: grid;
+  gap: 2px;
+  border-radius: 14px;
+  padding: 9px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.diagnostic-network dt {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diagnostic-network dd {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.capability-row,
+.requirement-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.capability-row {
+  margin-top: 12px;
+}
+
+.capability {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #7c8797;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.capability--on {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+}
+
+.diagnostic-note {
+  margin: 12px 0 0;
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fde68a;
+  font-size: 12px;
+}
+
+.requirement-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.requirement-list li {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
 .bottom-nav {
   position: fixed;
   z-index: 70;
@@ -1673,6 +1804,7 @@ footer {
   }
 
   .exchange-dashboard,
+  .diagnostic-grid,
   .rcpl-grid,
   .rcpl-math,
   .token-info-grid,

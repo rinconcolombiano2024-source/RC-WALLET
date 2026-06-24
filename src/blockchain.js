@@ -1,7 +1,16 @@
 import { ethers } from "ethers";
-import { ERC20_ABI, NETWORKS, TOKENS } from "./config.js";
+import {
+  ERC1271_ABI,
+  ERC20_ABI,
+  ERC4337_ENTRYPOINTS,
+  NETWORKS,
+  SAFE_INTROSPECTION_ABI,
+  TOKENS,
+} from "./config.js";
 
 const providerCache = new Map();
+const ERC1271_MAGIC_VALUE = "0x1626ba7e";
+const SAFE_SENTINEL = "0x0000000000000000000000000000000000000001";
 
 function timeout(promise, milliseconds, label) {
   let timeoutId;
@@ -67,6 +76,204 @@ export async function getProvider(network) {
   throw new Error(`No hay un RPC disponible para ${network.name}`);
 }
 
+async function inspectSafeAccount(provider, owner, hasCode) {
+  if (!hasCode) {
+    return {
+      detected: false,
+      reason: "No hay contrato desplegado en esta red",
+    };
+  }
+
+  const contract = new ethers.Contract(owner, SAFE_INTROSPECTION_ABI, provider);
+  const [ownersResult, thresholdResult, versionResult] = await Promise.allSettled([
+    timeout(contract.getOwners(), 7_000, "Safe owners"),
+    timeout(contract.getThreshold(), 7_000, "Safe threshold"),
+    timeout(contract.VERSION(), 7_000, "Safe version"),
+  ]);
+
+  if (
+    ownersResult.status !== "fulfilled" ||
+    thresholdResult.status !== "fulfilled"
+  ) {
+    return {
+      detected: false,
+      reason: "El contrato no expone métodos Safe estándar",
+    };
+  }
+
+  const owners = Array.isArray(ownersResult.value)
+    ? ownersResult.value.filter(ethers.isAddress).map((address) =>
+        ethers.getAddress(address),
+      )
+    : [];
+  const threshold = Number(thresholdResult.value);
+
+  if (!owners.length || !Number.isFinite(threshold) || threshold <= 0) {
+    return {
+      detected: false,
+      reason: "Los métodos Safe respondieron con datos no válidos",
+    };
+  }
+
+  let modules = [];
+  let modulesReadable = false;
+  try {
+    const page = await timeout(
+      contract.getModulesPaginated(SAFE_SENTINEL, 10),
+      7_000,
+      "Safe modules",
+    );
+    const moduleList = Array.isArray(page?.[0]) ? page[0] : [];
+    modules = moduleList.filter(ethers.isAddress).map((address) =>
+      ethers.getAddress(address),
+    );
+    modulesReadable = true;
+  } catch (error) {
+    console.warn("[SAFE MODULES]", error);
+  }
+
+  return {
+    detected: true,
+    version:
+      versionResult.status === "fulfilled" && versionResult.value
+        ? String(versionResult.value)
+        : "desconocida",
+    owners,
+    threshold,
+    modules,
+    modulesReadable,
+    recoveryRequirement:
+      "Para mover fondos debe firmar el número requerido de owners o existir un módulo autorizado",
+  };
+}
+
+async function inspectErc1271(provider, owner, hasCode) {
+  if (!hasCode) {
+    return {
+      checked: false,
+      supported: false,
+      reason: "EIP-1271 solo aplica a cuentas contrato",
+    };
+  }
+
+  const iface = new ethers.Interface(ERC1271_ABI);
+  try {
+    const data = iface.encodeFunctionData("isValidSignature", [
+      ethers.ZeroHash,
+      "0x",
+    ]);
+    const raw = await timeout(
+      provider.call({ to: owner, data }),
+      7_000,
+      "EIP-1271",
+    );
+    const [response] = iface.decodeFunctionResult("isValidSignature", raw);
+    const normalizedResponse = String(response).toLowerCase();
+
+    return {
+      checked: true,
+      supported: true,
+      validForEmptyTest: normalizedResponse === ERC1271_MAGIC_VALUE,
+      response: normalizedResponse,
+      note:
+        normalizedResponse === ERC1271_MAGIC_VALUE
+          ? "El contrato aceptó la firma de prueba vacía; requiere revisión de seguridad"
+          : "El método existe, pero la firma de prueba no autoriza movimiento",
+    };
+  } catch (error) {
+    return {
+      checked: true,
+      supported: false,
+      reason:
+        error instanceof Error
+          ? error.message
+          : "El contrato no respondió a isValidSignature",
+    };
+  }
+}
+
+async function inspectEntryPoints(provider) {
+  const results = await Promise.allSettled(
+    ERC4337_ENTRYPOINTS.map(async (entryPoint) => {
+      const address = normalizeAddress(entryPoint.address);
+      const code = await timeout(
+        provider.getCode(address),
+        7_000,
+        entryPoint.label,
+      );
+
+      return {
+        ...entryPoint,
+        address,
+        deployed: Boolean(code && code !== "0x"),
+      };
+    }),
+  );
+
+  return results.map((result, index) => {
+    const entryPoint = ERC4337_ENTRYPOINTS[index];
+    if (result.status === "fulfilled") return result.value;
+
+    return {
+      ...entryPoint,
+      deployed: false,
+      error:
+        result.reason instanceof Error
+          ? result.reason.message
+          : "No se pudo consultar EntryPoint",
+    };
+  });
+}
+
+async function inspectAccount(provider, network, owner, accountCode, nativeBalance) {
+  const hasCode = Boolean(accountCode && accountCode !== "0x");
+  const [safe, erc1271, entryPoints] = await Promise.all([
+    inspectSafeAccount(provider, owner, hasCode),
+    inspectErc1271(provider, owner, hasCode),
+    inspectEntryPoints(provider),
+  ]);
+
+  const entryPointAvailable = entryPoints.some((entryPoint) =>
+    Boolean(entryPoint.deployed),
+  );
+  const codeHash = hasCode ? ethers.keccak256(accountCode) : null;
+  const kind = safe.detected
+    ? "safe-smart-account"
+    : hasCode
+      ? "contract"
+      : "no-contract";
+
+  return {
+    address: owner,
+    chainId: network.chainId,
+    networkName: network.name,
+    kind,
+    hasCode,
+    codeHash,
+    nativeGas: {
+      symbol: network.symbol,
+      hasBalance: nativeBalance > 0n,
+      balance: ethers.formatEther(nativeBalance),
+      displayBalance: formatBalance(nativeBalance, 18),
+      wei: nativeBalance.toString(),
+    },
+    safe,
+    erc1271,
+    erc4337: {
+      entryPointAvailable,
+      entryPoints,
+      requirement:
+        "ERC-4337 además requiere bundler, paymaster opcional y firma válida según la smart account",
+    },
+    routeHints: {
+      miniKit: Boolean(network.writableWithMiniKit),
+      externalSignerRequired: !network.writableWithMiniKit,
+      safeOrModuleRequired: hasCode,
+      deterministicDeploymentUnknown: !hasCode,
+    },
+  };
+}
+
 async function readToken(provider, network, owner, definition) {
   const rawAddress = definition.addresses?.[network.chainId];
   if (!rawAddress) return null;
@@ -124,20 +331,28 @@ async function readToken(provider, network, owner, definition) {
 
 async function scanNetwork(network, owner, customTokens) {
   const provider = await getProvider(network);
-  const accountCode = await timeout(
-    provider.getCode(owner),
-    7_000,
-    `${network.name} account code`,
+  const [accountCode, nativeBalance] = await Promise.all([
+    timeout(
+      provider.getCode(owner),
+      7_000,
+      `${network.name} account code`,
+    ),
+    timeout(
+      provider.getBalance(owner),
+      7_000,
+      `${network.name} native balance`,
+    ),
+  ]);
+  const accountState = await inspectAccount(
+    provider,
+    network,
+    owner,
+    accountCode,
+    nativeBalance,
   );
-  const accountKind =
-    accountCode && accountCode !== "0x" ? "contract" : "no-contract";
+  const accountKind = accountState.kind;
 
   const assets = [];
-  const nativeBalance = await timeout(
-    provider.getBalance(owner),
-    7_000,
-    `${network.name} native balance`,
-  );
 
   if (nativeBalance > 0n) {
     assets.push({
@@ -154,6 +369,7 @@ async function scanNetwork(network, owner, customTokens) {
       balance: ethers.formatEther(nativeBalance),
       displayBalance: formatBalance(nativeBalance, 18),
       accountKind,
+      accountState,
     });
   }
 
@@ -176,7 +392,7 @@ async function scanNetwork(network, owner, customTokens) {
 
   for (const result of results) {
     if (result.status === "fulfilled" && result.value) {
-      assets.push({ ...result.value, accountKind });
+      assets.push({ ...result.value, accountKind, accountState });
     } else if (result.status === "rejected") {
       console.warn(`[TOKEN] ${network.name}`, result.reason);
     }
@@ -185,6 +401,7 @@ async function scanNetwork(network, owner, customTokens) {
   return {
     network,
     accountKind,
+    accountState,
     assets,
   };
 }
@@ -205,6 +422,7 @@ export async function scanAllNetworks(ownerAddress, customTokens = []) {
       networks[network.chainId] = {
         status: "online",
         accountKind: result.value.accountKind,
+        accountState: result.value.accountState,
       };
     } else {
       networks[network.chainId] = {

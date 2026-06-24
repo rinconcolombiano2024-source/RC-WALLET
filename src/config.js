@@ -9,6 +9,67 @@ export const RCPL_TARGET_PRICE_KEY = "rc_wallet_rcpl_target_price_v1";
 export const RCPL_STAKING_CONTRACT = "";
 export const RCPL_POOL_MANAGER_CONTRACT = "";
 
+export const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+
+export const ERC4337_ENTRYPOINTS = Object.freeze([
+  {
+    version: "v0.6",
+    address: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
+    label: "EntryPoint ERC-4337 v0.6",
+  },
+]);
+
+export const RECOVERY_ROUTE_CATALOG = Object.freeze([
+  {
+    id: "world-minikit",
+    name: "World App MiniKit",
+    requirement: "World Chain, sesión World App válida y allowlist en Developer Portal",
+  },
+  {
+    id: "external-signer",
+    name: "Wallet externa EIP-1193 / WalletConnect",
+    requirement: "La wallet debe firmar exactamente desde la misma dirección donde están los fondos",
+  },
+  {
+    id: "safe-multichain",
+    name: "Safe / contrato espejo determinístico",
+    requirement: "Owners, threshold, factory, singleton, initializer y salt verificables",
+  },
+  {
+    id: "erc-1271",
+    name: "Firma de contrato EIP-1271",
+    requirement: "El contrato debe validar firmas mediante isValidSignature",
+  },
+  {
+    id: "erc-4337",
+    name: "ERC-4337 UserOperation",
+    requirement: "EntryPoint, bundler, módulo compatible y firma válida de owners",
+  },
+  {
+    id: "bridge",
+    name: "Bridge / salida a exchange",
+    requirement: "Firma válida en la red origen y gas suficiente",
+  },
+]);
+
+export const WORLD_CHAIN_BRIDGES = Object.freeze([
+  {
+    name: "Alchemy Bridge",
+    url: "https://worldchain-mainnet.bridge.alchemy.com",
+    type: "native",
+  },
+  {
+    name: "Superbridge",
+    url: "https://superbridge.app/world-chain",
+    type: "native",
+  },
+  {
+    name: "Across",
+    url: "https://app.across.to",
+    type: "third-party",
+  },
+]);
+
 export const NETWORKS = Object.freeze([
   {
     name: "World Chain",
@@ -170,4 +231,15 @@ export const ERC20_ABI = Object.freeze([
   "function symbol() view returns (string)",
   "function name() view returns (string)",
   "function transfer(address to, uint256 value) returns (bool)",
+]);
+
+export const SAFE_INTROSPECTION_ABI = Object.freeze([
+  "function VERSION() view returns (string)",
+  "function getOwners() view returns (address[])",
+  "function getThreshold() view returns (uint256)",
+  "function getModulesPaginated(address start, uint256 pageSize) view returns (address[] array, address next)",
+]);
+
+export const ERC1271_ABI = Object.freeze([
+  "function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)",
 ]);

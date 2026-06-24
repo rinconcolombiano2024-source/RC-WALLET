@@ -18,11 +18,14 @@ import {
   BPS_DENOMINATOR,
   ERC20_ABI,
   NETWORKS,
+  PERMIT2_ADDRESS,
   RCPL_POOL_MANAGER_CONTRACT,
   RCPL_STAKING_CONTRACT,
   RCPL_TARGET_PRICE_KEY,
   RECOVERY_FEE_BPS,
+  RECOVERY_ROUTE_CATALOG,
   WORLD_CHAIN_ID,
+  WORLD_CHAIN_BRIDGES,
 } from "./config.js";
 import {
   analyzeRecoveryProof,
@@ -46,6 +49,7 @@ const ERC20_INTERFACE = new ethers.Interface(ERC20_ABI);
 const CUSTOM_TOKENS_KEY = "rc_wallet_custom_tokens_v1";
 const DEFAULT_RCPL_TARGET_PRICE = "0.10";
 const DEFAULT_RCPL_LIQUIDITY_USD = "1000";
+const WORLD_ID_STATEMENT = "Iniciar sesión en RC Wallet Recovery";
 
 const APP_TABS = Object.freeze([
   { id: "home", label: "Inicio", icon: "⌂" },
@@ -245,6 +249,67 @@ function safeSameAddress(left, right) {
   }
 }
 
+function accountKindLabel(kind) {
+  switch (kind) {
+    case "safe-smart-account":
+      return "Safe / smart account";
+    case "contract":
+      return "Contrato / smart account";
+    case "no-contract":
+      return "Sin contrato en esta red";
+    default:
+      return "No analizado";
+  }
+}
+
+function describeAccountRoute(accountState) {
+  if (!accountState) {
+    return "Pendiente de escaneo";
+  }
+
+  if (accountState.safe?.detected) {
+    return `Safe ${accountState.safe.version || ""} · ${accountState.safe.threshold}/${accountState.safe.owners.length} firmas`;
+  }
+
+  if (accountState.hasCode) {
+    if (accountState.erc1271?.supported) {
+      return "Contrato con respuesta EIP-1271";
+    }
+    if (accountState.erc4337?.entryPointAvailable) {
+      return "Contrato con red compatible ERC-4337";
+    }
+    return "Contrato sin interfaz de firma confirmada";
+  }
+
+  return "Firma externa exacta requerida";
+}
+
+function serializeNetworkDiagnostics(diagnostics) {
+  return diagnostics.map((diagnostic) => ({
+    network: diagnostic.network.name,
+    chainId: diagnostic.network.chainId,
+    status: diagnostic.state?.status ?? "pending",
+    account: diagnostic.accountLabel,
+    route: diagnostic.routeSummary,
+    hasFunds: diagnostic.hasFunds,
+    assetCount: diagnostic.assetCount,
+    hasGas: diagnostic.hasGas,
+    safeDetected: diagnostic.safeDetected,
+    erc1271Supported: diagnostic.erc1271Supported,
+    entryPointAvailable: diagnostic.entryPointAvailable,
+    nativeGas: diagnostic.accountState?.nativeGas ?? null,
+    safe: diagnostic.accountState?.safe ?? null,
+    erc1271: diagnostic.accountState?.erc1271 ?? null,
+    erc4337: diagnostic.accountState?.erc4337 ?? null,
+    assets: diagnostic.assets.map((asset) => ({
+      symbol: asset.symbol,
+      balance: asset.balance,
+      contract: asset.address,
+      native: asset.isNative,
+    })),
+  }));
+}
+
 function createRecoveryDiagnosis({
   asset,
   authenticated,
@@ -257,13 +322,19 @@ function createRecoveryDiagnosis({
 }) {
   if (!asset) return null;
 
+  const accountState = asset.accountState;
   const worldSessionMatches = safeSameAddress(
     authenticatedWorldAddress,
     targetAddress,
   );
   const hasNativeGas =
     asset.isNative || Boolean(nativeGasAsset?.rawBalance > 0n);
-  const accountIsContract = asset.accountKind === "contract";
+  const accountIsContract = Boolean(accountState?.hasCode);
+  const safeDetected = Boolean(accountState?.safe?.detected);
+  const erc1271Supported = Boolean(accountState?.erc1271?.supported);
+  const entryPointAvailable = Boolean(
+    accountState?.erc4337?.entryPointAvailable,
+  );
 
   if (asset.chainId === WORLD_CHAIN_ID) {
     if (authenticated && miniKitReady && worldSessionMatches) {
@@ -273,6 +344,11 @@ function createRecoveryDiagnosis({
         route: "MiniKit / World Chain",
         action:
           "Completa la wallet receptora, el monto y firma dentro de World App. Si es ERC20, el token/contrato debe estar permitido en el Developer Portal de World.",
+        requirements: [
+          "Sesión World App coincidente",
+          "MiniKit disponible",
+          "Token/contrato permitido en Developer Portal",
+        ],
       };
     }
 
@@ -282,6 +358,10 @@ function createRecoveryDiagnosis({
       route: "Autenticación World App",
       action:
         "Pulsa “Autenticar con World App” con la misma cuenta que contiene los fondos. RC Wallet no moverá nada si la sesión no coincide.",
+      requirements: [
+        "Abrir dentro de World App",
+        "Firmar SIWE con la misma dirección",
+      ],
     };
   }
 
@@ -292,6 +372,25 @@ function createRecoveryDiagnosis({
         title: "⚠️ Movible, falta gas",
         route: "Wallet externa + gas de red",
         action: `La wallet conectada coincide, pero para mover ${asset.symbol} en ${asset.networkName} necesitas un poco de ${asset.network.symbol} en esa misma dirección para pagar gas.`,
+        requirements: [
+          `Enviar ${asset.network.symbol} a la misma dirección`,
+          "Mantener la wallet externa conectada",
+        ],
+      };
+    }
+
+    if (safeDetected) {
+      return {
+        level: "partial",
+        title: "⚠️ Safe detectada: requiere owners",
+        route: describeAccountRoute(accountState),
+        action:
+          "La dirección parece una Safe. La recuperación es posible solo si la wallet conectada puede ejecutar desde esa Safe o si se reúnen las firmas requeridas de owners/módulos.",
+        requirements: [
+          `${accountState.safe.threshold} firma(s) de owner`,
+          "Safe desplegada o desplegable en esta red",
+          "Gas disponible para ejecutar",
+        ],
       };
     }
 
@@ -301,11 +400,18 @@ function createRecoveryDiagnosis({
         ? "⚠️ Posible con smart wallet compatible"
         : "✅ Movible con wallet externa",
       route: accountIsContract
-        ? "Proveedor externo de smart account"
+        ? describeAccountRoute(accountState)
         : "MetaMask / Trust Wallet / Binance Wallet / WalletConnect",
       action: accountIsContract
         ? "La dirección tiene bytecode. Solo funcionará si la wallet externa puede ejecutar transacciones desde esa smart account exacta."
         : "Completa destinatario y monto. RC Wallet abrirá la firma en la wallet externa conectada.",
+      requirements: accountIsContract
+        ? [
+            "Proveedor capaz de ejecutar la smart account",
+            erc1271Supported ? "EIP-1271 responde" : "Firma de contrato no confirmada",
+            entryPointAvailable ? "EntryPoint detectado" : "Bundler/EntryPoint no confirmado",
+          ]
+        : ["Wallet externa misma dirección", "Gas de red", "Confirmación manual"],
     };
   }
 
@@ -316,20 +422,35 @@ function createRecoveryDiagnosis({
       route: "Firma externa no coincidente",
       action:
         "Si Trust Wallet la muestra como solo lectura/watch-only, no tiene la llave para firmar. Desconecta y prueba con una wallet que controle exactamente la misma dirección, no una cuenta importada solo para mirar.",
+      requirements: [
+        "La dirección firmante debe ser idéntica",
+        "No sirve modo observar/watch-only",
+      ],
     };
   }
 
   return {
     level: accountIsContract ? "partial" : "blocked",
-    title: accountIsContract
+    title: safeDetected
+      ? "⚠️ Safe detectada, faltan firmas"
+      : accountIsContract
       ? "⚠️ Requiere propietarios o módulos de smart account"
       : "❌ Falta firmante externo exacto",
     route: accountIsContract
-      ? "Safe / ERC-4337 / soporte del proveedor"
+      ? describeAccountRoute(accountState)
       : "Wallet externa con la misma dirección",
-    action: accountIsContract
-      ? "Genera la prueba RC Link y revisa si existe compatibilidad EIP-1271. Si no existe un módulo/propietario autorizado en esa red, la app solo puede documentar el caso."
+    action: safeDetected
+      ? "RC Wallet detectó estructura Safe. Para mover fondos se necesitan owners, threshold y ejecución Safe real. Si no están disponibles, la app documenta la ruta pero no puede firmar por ti."
+      : accountIsContract
+      ? "Genera la prueba RC Link y revisa EIP-1271 / ERC-4337 / Safe. Si no existe un módulo, owner o bundler autorizado en esa red, la app solo puede documentar el caso."
       : "Conecta MetaMask, Trust Wallet, Binance Wallet o WalletConnect con la dirección exacta y con capacidad de firmar. Si la cuenta aparece como solo lectura, ninguna app puede mover los fondos.",
+    requirements: accountIsContract
+      ? [
+          safeDetected ? "Firmas de owners Safe" : "Autoridad de smart account",
+          erc1271Supported ? "EIP-1271 disponible" : "EIP-1271 no confirmado",
+          entryPointAvailable ? "EntryPoint detectado" : "ERC-4337 no confirmado",
+        ]
+      : ["Wallet externa misma dirección", "Llave privada o signer real"],
   };
 }
 
@@ -532,12 +653,46 @@ export default function App() {
     };
   }, [rcplLiquidityUsd, rcplTargetPrice]);
 
+  const recoveryNetworkDiagnostics = useMemo(
+    () =>
+      NETWORKS.map((network) => {
+        const state = networkStates[network.chainId];
+        const accountState = state?.accountState ?? null;
+        const networkAssets = assets.filter(
+          (asset) => asset.chainId === network.chainId,
+        );
+
+        return {
+          network,
+          state,
+          accountState,
+          assets: networkAssets,
+          assetCount: networkAssets.length,
+          hasFunds: networkAssets.length > 0,
+          accountLabel: accountKindLabel(accountState?.kind ?? state?.accountKind),
+          routeSummary: describeAccountRoute(accountState),
+          safeDetected: Boolean(accountState?.safe?.detected),
+          erc1271Supported: Boolean(accountState?.erc1271?.supported),
+          entryPointAvailable: Boolean(accountState?.erc4337?.entryPointAvailable),
+          hasGas: Boolean(accountState?.nativeGas?.hasBalance),
+        };
+      }),
+    [assets, networkStates],
+  );
+
   const maximumRecoveryRoutes = useMemo(() => {
     const externalAssets = assets.filter(
       (asset) => asset.chainId !== WORLD_CHAIN_ID,
     );
     const contractAssets = assets.filter(
-      (asset) => asset.accountKind === "contract",
+      (asset) => Boolean(asset.accountState?.hasCode),
+    );
+    const safeNetworks = recoveryNetworkDiagnostics.filter(
+      (diagnostic) => diagnostic.safeDetected,
+    );
+    const erc4337Networks = recoveryNetworkDiagnostics.filter(
+      (diagnostic) =>
+        diagnostic.entryPointAvailable && diagnostic.accountState?.hasCode,
     );
     const hasWorldChainAssets = assets.some(
       (asset) => asset.chainId === WORLD_CHAIN_ID,
@@ -596,12 +751,24 @@ export default function App() {
       },
       {
         id: "counterfactual",
-        status: contractAssets.length ? "needs-action" : "future",
-        title: "Smart account contrafactual",
+        status: safeNetworks.length || contractAssets.length ? "needs-action" : "future",
+        title: "Safe / contrato espejo real",
         description:
-          "Si la dirección es una smart account aún no desplegada en la red destino, solo se puede mover con factory, owners, módulos, initializer y salt exactos.",
+          "Si la dirección es Safe o smart account, RC Wallet debe verificar owners, threshold, módulos y despliegue determinístico antes de intentar mover.",
         next:
-          "Recolectar datos verificables del despliegue original. No se deben adivinar parámetros.",
+          safeNetworks.length
+            ? `Safe detectada en ${safeNetworks.map((item) => item.network.name).join(", ")}. Requiere firmas reales de owners.`
+            : "Recolectar datos verificables del despliegue original. No se deben adivinar parámetros.",
+      },
+      {
+        id: "erc-4337",
+        status: erc4337Networks.length ? "needs-action" : "future",
+        title: "ERC-4337 / UserOperation",
+        description:
+          "Ruta para smart accounts con EntryPoint, bundler, paymaster opcional y firma válida según el contrato.",
+        next: erc4337Networks.length
+          ? `EntryPoint detectado en ${erc4337Networks.map((item) => item.network.name).join(", ")}. Falta confirmar bundler, módulo y firma.`
+          : "Sin EntryPoint confirmado en las redes escaneadas.",
       },
       {
         id: "recovery-relayer",
@@ -644,6 +811,7 @@ export default function App() {
     connectedExternalAddress,
     externalMatches,
     miniKitReady,
+    recoveryNetworkDiagnostics,
     proofReport,
   ]);
 
@@ -652,12 +820,12 @@ export default function App() {
   }, []);
 
   const performWorldLogin = useCallback(
-    async (statement = "Iniciar sesión con World ID en RC Wallet") => {
+    async (contextLabel = "sesión World ID") => {
       if (!miniKitReady) {
         throw new Error("Abre RC Wallet dentro de World App para verificar World ID");
       }
 
-      showStatus("Solicitando verificación segura con World ID…");
+      showStatus(`Solicitando verificación segura con World ID: ${contextLabel}…`);
       const nonceResponse = await fetch("/api/nonce", {
         credentials: "include",
         cache: "no-store",
@@ -669,7 +837,7 @@ export default function App() {
       const { nonce } = await nonceResponse.json();
       const result = await MiniKit.walletAuth({
         nonce,
-        statement,
+        statement: WORLD_ID_STATEMENT,
         expirationTime: new Date(Date.now() + 10 * 60 * 1000),
       });
 
@@ -1404,10 +1572,14 @@ export default function App() {
         basisPoints: Number(RECOVERY_FEE_BPS),
       },
       networks: networkStates,
+      networkDiagnostics: serializeNetworkDiagnostics(
+        recoveryNetworkDiagnostics,
+      ),
       assets: assets.map((asset) => ({
         network: asset.networkName,
         chainId: asset.chainId,
         accountKind: asset.accountKind,
+        accountRoute: describeAccountRoute(asset.accountState),
         symbol: asset.symbol,
         balance: asset.balance,
         tokenAddress: asset.address,
@@ -1434,6 +1606,7 @@ export default function App() {
     externalMatches,
     miniKitReady,
     networkStates,
+    recoveryNetworkDiagnostics,
     showStatus,
     targetAddress,
   ]);
@@ -1448,6 +1621,8 @@ export default function App() {
         network: selectedAsset.networkName,
         chainId: selectedAsset.chainId,
         accountKind: selectedAsset.accountKind,
+        accountRoute: describeAccountRoute(selectedAsset.accountState),
+        accountState: selectedAsset.accountState,
         symbol: selectedAsset.symbol,
         balance: selectedAsset.balance,
         tokenAddress: selectedAsset.address,
@@ -1509,6 +1684,16 @@ export default function App() {
       proofReport,
       routes: maximumRecoveryRoutes,
       networks: networkStates,
+      networkDiagnostics: serializeNetworkDiagnostics(
+        recoveryNetworkDiagnostics,
+      ),
+      protocolCatalog: RECOVERY_ROUTE_CATALOG,
+      permit2: {
+        address: PERMIT2_ADDRESS,
+        use:
+          "Permisos ERC20 para swaps reales cuando el token, la red y la wallet lo soporten",
+      },
+      bridges: WORLD_CHAIN_BRIDGES,
       assets: assets.map((asset) => ({
         id: asset.id,
         network: asset.networkName,
@@ -1519,6 +1704,7 @@ export default function App() {
         tokenAddress: asset.address,
         isNative: asset.isNative,
         accountKind: asset.accountKind,
+        accountRoute: describeAccountRoute(asset.accountState),
         explorer: explorerAddressUrl(asset.network, targetAddress),
       })),
       buildableInfrastructure: [
@@ -1558,6 +1744,7 @@ export default function App() {
     miniKitReady,
     networkStates,
     proofReport,
+    recoveryNetworkDiagnostics,
     showStatus,
     targetAddress,
   ]);
@@ -1750,8 +1937,8 @@ export default function App() {
               <div>
                 <span>Cuenta</span>
                 <strong>
-                  {selectedAsset.accountKind === "contract"
-                    ? "Smart account"
+                  {selectedAsset.accountState?.hasCode
+                    ? accountKindLabel(selectedAsset.accountState.kind)
                     : "EOA / sin contrato"}
                 </strong>
               </div>
@@ -2096,7 +2283,7 @@ export default function App() {
               <span className="eyebrow">Publicidad local</span>
               <h2>Rincón Colombiano</h2>
               <p className="local-card__lead">
-                ul. Czapelska 33, Varsovia · Cupón visible en caja.
+                Reclama una empanada gratis mostrando esta pantalla  por compras superiores a 50 zł en nuestro local de comida colombiana en Czapelska 33 y disfruta el mejor sabor de la cocina colombiana.
               </p>
             </div>
             <button
@@ -2569,6 +2756,108 @@ export default function App() {
           </section>
 
           <section className={viewClass("recovery")}>
+          <section className="card diagnostic-card">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Diagnóstico real por red</span>
+                <h2>Firma, gas, Safe y ERC-4337</h2>
+              </div>
+              <span className="badge badge--blue">On-chain</span>
+            </div>
+
+            <p className="link-copy">
+              RC Wallet revisa cada red con lecturas reales. Si una cuenta es
+              solo lectura, la app lo documenta; si existe ruta firmable,
+              muestra la condición exacta que falta.
+            </p>
+
+            <div className="diagnostic-grid">
+              {recoveryNetworkDiagnostics.map((diagnostic) => (
+                <article
+                  className={`diagnostic-network ${
+                    diagnostic.hasFunds ? "diagnostic-network--funds" : ""
+                  }`}
+                  key={diagnostic.network.chainId}
+                >
+                  <div className="diagnostic-network__head">
+                    <div>
+                      <strong>{diagnostic.network.name}</strong>
+                      <span>{diagnostic.accountLabel}</span>
+                    </div>
+                    <span
+                      className={`dot ${
+                        diagnostic.state?.status === "online"
+                          ? "dot--green"
+                          : "dot--amber"
+                      }`}
+                    />
+                  </div>
+
+                  <dl>
+                    <div>
+                      <dt>Fondos</dt>
+                      <dd>{diagnostic.assetCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Gas</dt>
+                      <dd>
+                        {diagnostic.accountState?.nativeGas
+                          ? `${diagnostic.accountState.nativeGas.displayBalance} ${diagnostic.network.symbol}`
+                          : "No leído"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Ruta</dt>
+                      <dd>{diagnostic.routeSummary}</dd>
+                    </div>
+                  </dl>
+
+                  <div className="capability-row">
+                    <span
+                      className={
+                        diagnostic.safeDetected
+                          ? "capability capability--on"
+                          : "capability"
+                      }
+                    >
+                      Safe
+                    </span>
+                    <span
+                      className={
+                        diagnostic.erc1271Supported
+                          ? "capability capability--on"
+                          : "capability"
+                      }
+                    >
+                      EIP-1271
+                    </span>
+                    <span
+                      className={
+                        diagnostic.entryPointAvailable
+                          ? "capability capability--on"
+                          : "capability"
+                      }
+                    >
+                      ERC-4337
+                    </span>
+                  </div>
+
+                  {diagnostic.accountState?.safe?.detected && (
+                    <p className="diagnostic-note">
+                      Safe {diagnostic.accountState.safe.version}:{" "}
+                      {diagnostic.accountState.safe.threshold}/
+                      {diagnostic.accountState.safe.owners.length} firmas.
+                    </p>
+                  )}
+
+                  {diagnostic.state?.error && (
+                    <p className="warning-copy">{diagnostic.state.error}</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+
           <section
             className="card card--recovery"
             id="send-funds"
@@ -2596,6 +2885,13 @@ export default function App() {
                   <span className="eyebrow">Diagnóstico de firma</span>
                   <strong>{selectedRecoveryDiagnosis.title}</strong>
                   <p>{selectedRecoveryDiagnosis.action}</p>
+                  {selectedRecoveryDiagnosis.requirements?.length > 0 && (
+                    <ul className="requirement-list">
+                      {selectedRecoveryDiagnosis.requirements.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 <dl>
                   <div>
@@ -2615,8 +2911,8 @@ export default function App() {
                   <div>
                     <dt>Cuenta</dt>
                     <dd>
-                      {selectedAsset.accountKind === "contract"
-                        ? "Contrato / smart account"
+                      {selectedAsset.accountState?.hasCode
+                        ? accountKindLabel(selectedAsset.accountState.kind)
                         : "EOA o sin contrato"}
                     </dd>
                   </div>
@@ -2691,7 +2987,7 @@ export default function App() {
                     {externalConnectionName}: {connectedExternalAddress}
                   </p>
                 )}
-                {selectedAsset.accountKind === "contract" && (
+                {selectedAsset.accountState?.hasCode && (
                   <p className="warning-copy">
                     La dirección tiene bytecode en esta red. Es una cuenta de
                     contrato y requiere sus propietarios o módulos originales;
