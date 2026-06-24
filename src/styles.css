@@ -1603,6 +1603,13 @@ summary:focus-visible {
     rgba(8, 13, 20, 0.94);
 }
 
+.home-login-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
 .diagnostic-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1805,6 +1812,7 @@ footer {
 
   .exchange-dashboard,
   .diagnostic-grid,
+  .home-login-actions,
   .rcpl-grid,
   .rcpl-math,
   .token-info-grid,

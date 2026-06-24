@@ -5,7 +5,9 @@ import { NETWORKS } from "./config.js";
 export const reownProjectId =
   import.meta.env.VITE_REOWN_PROJECT_ID?.trim() ?? "";
 
-export const walletConnectConfigured = Boolean(reownProjectId);
+export const walletConnectConfigured = Boolean(
+  reownProjectId && reownProjectId !== "your_reown_walletconnect_project_id",
+);
 
 function normalizeChainId(chainId) {
   if (typeof chainId === "number") return chainId;
@@ -17,13 +19,21 @@ function normalizeChainId(chainId) {
 
 function firstAccount(provider) {
   const accounts = provider?.accounts ?? [];
-  return accounts[0] ? normalizeAddress(accounts[0]) : "";
+  if (!accounts[0]) {
+    throw new Error("La wallet externa no entregó ninguna cuenta para firmar");
+  }
+  return normalizeAddress(accounts[0]);
 }
 
 function attachProviderListeners(provider, handlers = {}) {
   const onAccountsChanged = (accounts) => {
-    const account = accounts?.[0];
-    handlers.onAccount?.(account ? normalizeAddress(account) : "");
+    try {
+      const account = accounts?.[0];
+      handlers.onAccount?.(account ? normalizeAddress(account) : "");
+    } catch (error) {
+      console.warn("[WALLET ACCOUNT]", error);
+      handlers.onAccount?.("");
+    }
   };
   const onChainChanged = (chainId) => {
     handlers.onChain?.(normalizeChainId(chainId));
@@ -47,13 +57,16 @@ export async function connectInjectedProvider(handlers) {
   const provider = window.ethereum;
   if (!provider?.request) {
     throw new Error(
-      "No se detectó MetaMask, Trust Wallet, Rabby, Coinbase Wallet, Binance Wallet u otra wallet EVM",
+      "No se detectó wallet inyectada en este navegador. En World App usa WalletConnect/Reown para abrir Trust Wallet, MetaMask, Binance Wallet o Coinbase Wallet.",
     );
   }
 
   const accounts = await provider.request({
     method: "eth_requestAccounts",
   });
+  if (!accounts?.[0]) {
+    throw new Error("La wallet externa no entregó ninguna cuenta para firmar");
+  }
   const chainId = await provider.request({
     method: "eth_chainId",
   });

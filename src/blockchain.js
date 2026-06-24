@@ -28,7 +28,9 @@ function timeout(promise, milliseconds, label) {
 
 export function normalizeAddress(address) {
   if (!ethers.isAddress(address)) {
-    throw new Error("La dirección EVM no es válida");
+    throw new Error(
+      "Introduce una dirección EVM completa: debe empezar por 0x y tener 42 caracteres",
+    );
   }
   return ethers.getAddress(address);
 }

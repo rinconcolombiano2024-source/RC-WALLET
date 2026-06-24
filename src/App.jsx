@@ -188,20 +188,24 @@ function extractEvmAddressFromQr(value) {
 
 async function pollWorldUserOperation(userOpHash, attempts = 30) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const response = await fetch(
-      `https://developer.world.org/api/v2/minikit/userop/${userOpHash}`,
-      { cache: "no-store" },
-    );
-    if (!response.ok) {
-      throw new Error(`No se pudo consultar la operación (${response.status})`);
-    }
-
-    const result = await response.json();
-    if (result.status === "success" && result.transaction_hash) {
-      return result;
-    }
-    if (result.status === "failed") {
-      throw new Error("La operación falló antes de confirmarse");
+    try {
+      const response = await fetch(
+        `https://developer.world.org/api/v2/minikit/userop/${userOpHash}`,
+        { cache: "no-store" },
+      );
+      if (response.ok) {
+        const result = await response.json();
+        if (result.status === "success" && result.transaction_hash) {
+          return result;
+        }
+        if (result.status === "failed") {
+          throw new Error("La operación falló antes de confirmarse");
+        }
+      }
+    } catch (error) {
+      if (attempt === attempts - 1) {
+        console.warn("[WORLD USEROP POLL]", error);
+      }
     }
 
     await new Promise((resolve) => setTimeout(resolve, 3_000));
@@ -246,6 +250,29 @@ function safeSameAddress(left, right) {
     return Boolean(left && right && normalizeAddress(left) === normalizeAddress(right));
   } catch {
     return false;
+  }
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    const copied = document.execCommand("copy");
+    if (!copied) throw new Error("No se pudo copiar al portapapeles");
+  } finally {
+    document.body.removeChild(textarea);
   }
 }
 
@@ -928,7 +955,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(CUSTOM_TOKENS_KEY, JSON.stringify(customTokens));
+    try {
+      localStorage.setItem(CUSTOM_TOKENS_KEY, JSON.stringify(customTokens));
+    } catch (error) {
+      console.warn("[LOCAL STORAGE] custom tokens", error);
+    }
   }, [customTokens]);
 
   useEffect(() => {
@@ -944,7 +975,11 @@ export default function App() {
   }, [amount, recipient]);
 
   useEffect(() => {
-    localStorage.setItem(RCPL_TARGET_PRICE_KEY, rcplTargetPrice);
+    try {
+      localStorage.setItem(RCPL_TARGET_PRICE_KEY, rcplTargetPrice);
+    } catch (error) {
+      console.warn("[LOCAL STORAGE] RC.PL target price", error);
+    }
   }, [rcplTargetPrice]);
 
   useEffect(() => {
@@ -1007,18 +1042,13 @@ export default function App() {
         return;
       }
 
-      const label =
-        action === "buy"
-          ? "compra de activo"
-          : action === "sell"
-            ? "venta de activo"
-            : "cambio de activo";
-      const confirmed = await confirmWorldAction(label);
-      if (!confirmed) return;
-
+      showStatus(
+        "Abriendo proveedor externo. La compra/venta real se firma fuera de RC Wallet.",
+        "info",
+      );
       window.open(url, "_blank", "noopener,noreferrer");
     },
-    [confirmWorldAction, market, selectedAsset, showStatus],
+    [market, selectedAsset, showStatus],
   );
 
   const openSendForm = useCallback(() => {
@@ -1162,15 +1192,6 @@ export default function App() {
   const connectExternal = useCallback(
     async (method) => {
       try {
-        if (!targetAddress) {
-          throw new Error(
-            "Primero carga la dirección que contiene los fondos",
-          );
-        }
-
-        const confirmed = await confirmWorldAction("conexión de wallet externa");
-        if (!confirmed) return;
-
         setExternalConnecting(true);
         await disconnectExternalProvider(externalConnectionRef.current);
 
@@ -1196,8 +1217,22 @@ export default function App() {
         setConnectedExternalAddress(connection.account);
         setExternalConnectionName(connection.name);
 
-        const connectedMatches =
-          normalizeAddress(connection.account) === normalizeAddress(targetAddress);
+        if (!targetAddress) {
+          setTargetAddress(connection.account);
+          setManualAddress(connection.account);
+          setAuthenticatedWorldAddress("");
+          setAuthenticated(false);
+          showStatus(
+            "Wallet externa conectada. Se usará esta dirección para escanear y firmar activos externos.",
+            "success",
+          );
+          return;
+        }
+
+        const connectedMatches = safeSameAddress(
+          connection.account,
+          targetAddress,
+        );
         showStatus(
           connectedMatches
             ? "Wallet externa conectada y coincide con la wallet activa."
@@ -1215,7 +1250,7 @@ export default function App() {
         if (mountedRef.current) setExternalConnecting(false);
       }
     },
-    [confirmWorldAction, showStatus, targetAddress],
+    [showStatus, targetAddress],
   );
 
   const disconnectExternal = useCallback(async () => {
@@ -1352,14 +1387,19 @@ export default function App() {
       // `MiniKit.user.walletAddress` is cached client state. The address
       // verified by SIWE on the backend is the authoritative session address.
       const cachedAddress = MiniKit.user?.walletAddress;
-      if (
-        cachedAddress &&
-        normalizeAddress(cachedAddress) !==
-          normalizeAddress(authenticatedWorldAddress)
-      ) {
-        console.warn(
-          "[WORLD SESSION] MiniKit cache differs from verified SIWE address",
-        );
+      if (cachedAddress) {
+        try {
+          if (
+            normalizeAddress(cachedAddress) !==
+            normalizeAddress(authenticatedWorldAddress)
+          ) {
+            console.warn(
+              "[WORLD SESSION] MiniKit cache differs from verified SIWE address",
+            );
+          }
+        } catch (error) {
+          console.warn("[WORLD SESSION] Ignoring invalid cached MiniKit address", error);
+        }
       }
 
       const feeRecipient = normalizeAddress(ADMIN_FEE_WALLET);
@@ -1596,8 +1636,15 @@ export default function App() {
       })),
     };
 
-    await navigator.clipboard.writeText(JSON.stringify(report, null, 2));
-    showStatus("Informe de fondos disponibles copiado.", "success");
+    try {
+      await copyTextToClipboard(JSON.stringify(report, null, 2));
+      showStatus("Informe de fondos disponibles copiado.", "success");
+    } catch (error) {
+      showStatus(
+        error instanceof Error ? error.message : "No se pudo copiar el informe",
+        "error",
+      );
+    }
   }, [
     assets,
     authenticated,
@@ -1647,8 +1694,15 @@ export default function App() {
         "RC Wallet no pide frase semilla. La comisión se muestra y debe aceptarse antes de firmar.",
     };
 
-    await navigator.clipboard.writeText(JSON.stringify(plan, null, 2));
-    showStatus("Ruta de movimiento copiada.", "success");
+    try {
+      await copyTextToClipboard(JSON.stringify(plan, null, 2));
+      showStatus("Ruta de movimiento copiada.", "success");
+    } catch (error) {
+      showStatus(
+        error instanceof Error ? error.message : "No se pudo copiar la ruta",
+        "error",
+      );
+    }
   }, [
     authenticated,
     authenticatedWorldAddress,
@@ -1732,8 +1786,17 @@ export default function App() {
       ],
     };
 
-    await navigator.clipboard.writeText(JSON.stringify(dossier, null, 2));
-    showStatus("Expediente técnico de movimiento copiado.", "success");
+    try {
+      await copyTextToClipboard(JSON.stringify(dossier, null, 2));
+      showStatus("Expediente técnico de movimiento copiado.", "success");
+    } catch (error) {
+      showStatus(
+        error instanceof Error
+          ? error.message
+          : "No se pudo copiar el expediente",
+        "error",
+      );
+    }
   }, [
     assets,
     authenticated,
@@ -2149,10 +2212,12 @@ export default function App() {
                   type="button"
                   disabled={sending}
                   onClick={async () => {
-                    const confirmed = await confirmWorldAction(
-                      "envío de activos",
-                    );
-                    if (!confirmed) return;
+                    if (selectedAsset.chainId === WORLD_CHAIN_ID) {
+                      const confirmed = await confirmWorldAction(
+                        "envío de activos",
+                      );
+                      if (!confirmed) return;
+                    }
                     setShowSendConfirm(false);
                     void send();
                   }}
@@ -2173,6 +2238,35 @@ export default function App() {
                 ? "Escanea tus fondos en World Chain y redes EVM externas."
                 : "Autentica World App o analiza una dirección EVM para empezar."}
             </p>
+            <div className="home-login-actions">
+              <button
+                className="button button--primary"
+                type="button"
+                onClick={loginWithWorldApp}
+                disabled={!miniKitReady}
+              >
+                {miniKitReady ? "Ingresar con World ID" : "Abrir en World App"}
+              </button>
+              <button
+                className="button button--secondary"
+                type="button"
+                disabled={externalConnecting}
+                onClick={() =>
+                  connectExternal(
+                    walletConnectConfigured ? "walletconnect" : "injected",
+                  )
+                }
+              >
+                {externalConnecting
+                  ? "Conectando wallet…"
+                  : "Conectar wallet externa"}
+              </button>
+            </div>
+            {connectedExternalAddress && (
+              <p className={externalMatches ? "match" : "mismatch"}>
+                Externa: {compactAddress(connectedExternalAddress)}
+              </p>
+            )}
             <div className="quick-actions">
               <button
                 className="quick-action"
@@ -2367,8 +2461,17 @@ export default function App() {
                     className="button button--secondary"
                     type="button"
                     onClick={async () => {
-                      await navigator.clipboard.writeText(targetAddress);
-                      showStatus("Dirección copiada.", "success");
+                      try {
+                        await copyTextToClipboard(targetAddress);
+                        showStatus("Dirección copiada.", "success");
+                      } catch (error) {
+                        showStatus(
+                          error instanceof Error
+                            ? error.message
+                            : "No se pudo copiar la dirección",
+                          "error",
+                        );
+                      }
                     }}
                   >
                     Copiar dirección
@@ -2951,18 +3054,24 @@ export default function App() {
                     className="button button--secondary"
                     type="button"
                     disabled={externalConnecting}
-                    onClick={() => connectExternal("injected")}
+                    onClick={() =>
+                      connectExternal(
+                        walletConnectConfigured ? "walletconnect" : "injected",
+                      )
+                    }
                   >
-                    Conectar wallet externa
+                    {walletConnectConfigured
+                      ? "Conectar por WalletConnect"
+                      : "Conectar wallet del navegador"}
                   </button>
                   {walletConnectConfigured && (
                     <button
                       className="button button--secondary"
                       type="button"
                       disabled={externalConnecting}
-                      onClick={() => connectExternal("walletconnect")}
+                      onClick={() => connectExternal("injected")}
                     >
-                      WalletConnect: Trust, MetaMask, Rabby, Coinbase, Binance
+                      Wallet del navegador / extensión
                     </button>
                   )}
                   {connectedExternalAddress && (
@@ -2977,9 +3086,10 @@ export default function App() {
                 </div>
                 {!walletConnectConfigured && (
                   <p className="warning-copy">
-                    Para QR y enlaces móviles configura
-                    <code> VITE_REOWN_PROJECT_ID</code>. El conector de
-                    extensión seguirá disponible.
+                    Para conectar Trust Wallet, MetaMask móvil, Binance Wallet
+                    o Coinbase Wallet desde World App debes configurar
+                    <code> VITE_REOWN_PROJECT_ID</code> en Vercel. Sin eso solo
+                    funcionará una wallet inyectada dentro del navegador.
                   </p>
                 )}
                 {connectedExternalAddress && (
@@ -3421,8 +3531,17 @@ export default function App() {
                 className="button button--secondary"
                 type="button"
                 onClick={async () => {
-                  await navigator.clipboard.writeText(proofPackage);
-                  showStatus("Paquete de prueba copiado.", "success");
+                  try {
+                    await copyTextToClipboard(proofPackage);
+                    showStatus("Paquete de prueba copiado.", "success");
+                  } catch (error) {
+                    showStatus(
+                      error instanceof Error
+                        ? error.message
+                        : "No se pudo copiar la prueba",
+                      "error",
+                    );
+                  }
                 }}
               >
                 Copiar paquete
@@ -3474,11 +3593,21 @@ export default function App() {
               <button
                 className="button button--secondary"
                 type="button"
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    JSON.stringify(proofReport, null, 2),
-                  )
-                }
+                onClick={async () => {
+                  try {
+                    await copyTextToClipboard(
+                      JSON.stringify(proofReport, null, 2),
+                    );
+                    showStatus("Análisis copiado.", "success");
+                  } catch (error) {
+                    showStatus(
+                      error instanceof Error
+                        ? error.message
+                        : "No se pudo copiar el análisis",
+                      "error",
+                    );
+                  }
+                }}
               >
                 Copiar diagnóstico
               </button>
