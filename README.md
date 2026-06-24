@@ -1,4 +1,4 @@
-# RC Wallet Recovery
+# RC Wallet
 
 Mini App y aplicación web para detectar balances asociados a una dirección de
 World App y moverlos únicamente cuando existe un firmante válido en la red.
@@ -11,20 +11,22 @@ World App y moverlos únicamente cuando existe un firmante válido en la red.
 - Detecta monedas nativas y una lista controlada de contratos ERC-20.
 - Permite añadir contratos ERC-20 personalizados.
 - Envía activos de World Chain mediante MiniKit.
-- Permite retiros externos si una wallet inyectada expone exactamente la misma
+- Permite movimientos externos si una wallet inyectada expone exactamente la misma
   dirección que contiene los fondos.
-- Admite WalletConnect para MetaMask, Trust Wallet, Binance Wallet y otras
-  wallets compatibles mediante QR o enlace móvil.
+- Admite WalletConnect para MetaMask, Trust Wallet, Rabby, Coinbase Wallet,
+  Binance Wallet y otras wallets compatibles mediante QR o enlace móvil.
 - Confirma operaciones de MiniKit consultando el `userOpHash`.
-- Genera un informe técnico de recuperación.
-- Muestra un diagnóstico de rescate por activo: recuperable, parcialmente
-  recuperable o bloqueado, indicando si falta World App, firma externa, gas o
+- Genera un informe técnico de fondos disponibles.
+- Muestra un diagnóstico de firma por activo: movible, parcialmente movible o
+  bloqueado, indicando si falta World App, firma externa, gas o
   soporte de smart account.
-- Permite copiar un plan de rescate del activo seleccionado para soporte,
+- Permite copiar una ruta de movimiento del activo seleccionado para soporte,
   auditoría o revisión manual.
-- Cobra una comisión transparente del 2% sobre el monto recuperado. La comisión
+- Cobra una comisión transparente del 2% sobre el monto movido. La comisión
   se muestra antes de firmar, se divide en la transacción y va a la wallet
   administrativa configurada.
+- Solicita verificación World ID/MiniKit antes de acciones sensibles: enviar,
+  comprar, vender, cambiar y conectar wallet externa.
 - Incluye RC Link, una prueba EIP-712 que diagnostica si la firma de World App
   es portable a una red externa como EOA, EIP-1271 o cuenta contrafactual.
 - Muestra precio, volumen, liquidez, market cap y velas en tiempo real con
@@ -37,17 +39,17 @@ World App y moverlos únicamente cuando existe un firmante válido en la red.
 - Permite escanear QR de destino en el formulario de envío cuando el navegador
   soporta lectura QR con cámara.
 - Diagnostica cuentas de Trust Wallet / MetaMask / Binance Wallet en modo solo
-  lectura o watch-only: pueden mostrar balances, pero no pueden firmar retiros.
-- Incluye Recovery Command Center: evalúa MiniKit, wallet externa, RC Link,
+  lectura o watch-only: pueden mostrar balances, pero no pueden firmar movimientos.
+- Incluye Centro de rutas: evalúa MiniKit, wallet externa, RC Link,
   smart account contrafactual, relayer, expediente para soporte y Rescue Vault
   futuro.
-- Genera un expediente máximo de recuperación para soporte, emisor, auditoría o
+- Genera un expediente técnico de movimiento para soporte, emisor, auditoría o
   diseño de relayer.
 - Presenta la app como wallet móvil con navegación inferior fija: Inicio,
-  Tokens, Recovery, Markets y Herramientas.
+  Tokens, Mover, Markets y Herramientas.
 - Abre una pantalla interna por token al hacer clic sobre un activo: gráfica en
   tiempo real, información de red/contrato, enlaces oficiales, explorador,
-  botones Comprar/Vender/Cambiar y Enviar/recuperar.
+  botones Comprar/Vender/Cambiar y Enviar/mover.
 - Incluye enlaces oficiales por activo, incluyendo Bitcoin/WBTC, Ethereum,
   World, USDC, USDT, BNB Chain y RC.PL/Rincón Colombiano.
 - Incluye modal de confirmación antes de enviar fondos con token, red, destino,
@@ -66,7 +68,7 @@ dividida en cinco pantallas:
   principales y publicidad local compacta existente.
 - `Tokens`: scanner, filtros por red, búsqueda por token/red/contrato y lista
   completa de activos detectados, incluyendo balances pequeños.
-- `Recovery`: diagnóstico de recuperabilidad, envío, WalletConnect, RC Link,
+- `Mover`: diagnóstico de firma, envío, WalletConnect, RC Link,
   EIP-1271/Safe/ERC-4337 y expediente técnico.
 - `Markets`: gráficas, comprar, vender, cambiar y RC.PL Market Lab.
 - `Herramientas`: login World App, análisis manual de dirección, QR de
@@ -79,7 +81,7 @@ en Ethereum, Optimism, Base o BNB Chain no significa que World App pueda
 firmarlos.
 
 Para una red externa, la aplicación exige que el proveedor conectado exponga
-exactamente la dirección analizada. Si no coincide, el botón de recuperación
+exactamente la dirección analizada. Si no coincide, el botón de movimiento
 permanece bloqueado.
 
 No se debe “clonar” un Safe ni desplegar una cuenta con parámetros adivinados:
@@ -94,9 +96,9 @@ solo tiene lectura del balance. Para mover fondos debe existir una firma real de
 esa misma dirección: MiniKit en World Chain, una wallet externa que tenga la
 llave privada real, o una smart account compatible con sus propietarios/módulos.
 
-## Recovery Command Center
+## Centro de rutas
 
-La sección Recovery Command Center marca cada ruta como:
+La sección Centro de rutas marca cada ruta como:
 
 - `Listo`: existe una ruta de firma o ejecución.
 - `Falta acción`: hay que autenticar, conectar signer, firmar RC Link o aportar
@@ -107,17 +109,17 @@ La sección Recovery Command Center marca cada ruta como:
 
 Infraestructura que se puede construir:
 
-- RC Recovery Relayer para smart accounts con firma EIP-1271 válida.
+- RC Movement Relayer para smart accounts con firma EIP-1271 válida.
 - RC Counterfactual Deployer con parámetros exactos de despliegue.
-- RC Rescue Vault para depósitos futuros con recuperación social.
+- RC Rescue Vault para depósitos futuros con control social.
 - Expediente técnico para soporte, exchange, emisor o auditoría.
 
 El repositorio incluye `contracts/RCRescueVault.sol` como plantilla preventiva.
 No debe desplegarse con fondos reales sin auditoría independiente.
 
-## Comisión de recuperación
+## Comisión de movimiento
 
-RC Wallet cobra el 2% del monto recuperado. El usuario debe aceptar esta
+RC Wallet cobra el 2% del monto movido. El usuario debe aceptar esta
 comisión antes de firmar. El envío queda dividido así:
 
 - 98% a la wallet receptora indicada por el usuario.
@@ -142,16 +144,16 @@ La sección RC Link permite:
 1. Seleccionar la red externa.
 2. Firmar dentro de World App una autorización EIP-712 que no mueve fondos.
 3. Copiar el paquete a la versión web.
-4. Comprobar bytecode, recuperación ECDSA y validación EIP-1271.
+4. Comprobar bytecode, firma ECDSA y validación EIP-1271.
 
 El resultado define la siguiente fase:
 
 - `portable-eoa-signature`: estudiar métodos por firma del token.
 - `deployed-smart-account-signature`: construir una ejecución con relayer.
-- `counterfactual-smart-account`: recuperar primero los parámetros exactos de
+- `counterfactual-smart-account`: localizar primero los parámetros exactos de
   despliegue.
 - `signature-not-portable`: la conexión World App → web no entrega autoridad
-  suficiente y no debe intentarse el retiro.
+  suficiente y no debe intentarse el movimiento.
 
 ## Desarrollo
 
