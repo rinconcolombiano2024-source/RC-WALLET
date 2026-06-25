@@ -179,7 +179,7 @@ cp .env.example .env.local
 Completa:
 
 ```text
-VITE_REOWN_PROJECT_ID=tu_project_id
+VITE_REOWN_PROJECT_ID=aa5427a18f0efc9d533439359b0031b3
 ```
 
 Las rutas `/api/nonce` y `/api/complete-siwe` son funciones de Vercel. Para
