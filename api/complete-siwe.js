@@ -1,11 +1,13 @@
 import { verifySiweMessage } from "@worldcoin/minikit-js/siwe";
 
 const WORLD_ID_STATEMENTS = [
-  "Iniciar sesión en RC Wallet Externa",
-  "Iniciar sesión con World ID en RC Wallet Externa",
-  "Verificar dirección World App en RC Wallet Externa",
   "Iniciar sesión en RC Wallet Recovery",
   "Iniciar sesión con World ID en RC Wallet",
+  "Reconectar sesión World ID en RC Wallet",
+  "Confirmar envío de activos en RC Wallet",
+  "Confirmar compra/venta/cambio de activo en RC Wallet",
+  "Confirmar conexión de wallet externa en RC Wallet",
+  "Confirmar enlace de wallet externa en RC Wallet",
 ];
 
 function readCookie(cookieHeader, name) {
@@ -25,7 +27,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const cookieNonce = readCookie(req.headers.cookie, "rc_external_siwe_nonce");
+  const cookieNonce = readCookie(req.headers.cookie, "rc_siwe_nonce");
   const { payload, nonce } = req.body ?? {};
 
   if (!cookieNonce || !nonce || nonce !== cookieNonce || !payload) {
@@ -62,7 +64,7 @@ export default async function handler(req, res) {
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     res.setHeader(
       "Set-Cookie",
-      `rc_external_siwe_nonce=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`,
+      `rc_siwe_nonce=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`,
     );
     res.setHeader("Cache-Control", "no-store");
 
