@@ -9,6 +9,7 @@ import { ethers } from "ethers";
 import { MiniKit } from "@worldcoin/minikit-js";
 import {
   formatBalance,
+  isValidEvmAddressInput,
   normalizeAddress,
   scanAllNetworks,
   sendWithExternalWallet,
@@ -205,15 +206,15 @@ function createBridgePlan({
   const signerReady = sourceIsWorldChain ? worldSessionReady : externalMatches;
   const signerRequirement = sourceIsWorldChain
     ? "Firma World App / MiniKit en World Chain"
-    : "Wallet externa que controle exactamente la misma direccion origen";
+    : "Wallet externa que controle exactamente la misma dirección origen";
   const signerStatus = sourceIsWorldChain
     ? worldSessionReady
-      ? "Sesion World App coincide con la direccion origen"
-      : "Falta iniciar sesion World App con la direccion origen"
+      ? "Sesión World App coincide con la dirección origen"
+      : "Falta iniciar sesión World App con la dirección origen"
     : externalMatches
       ? "Wallet externa coincidente conectada"
       : connectedExternalAddress
-        ? "Wallet externa conectada, pero no coincide con la direccion origen"
+        ? "Wallet externa conectada, pero no coincide con la dirección origen"
         : "Falta conectar wallet externa firmante";
 
   return {
@@ -251,7 +252,7 @@ function createBridgePlan({
     providerRule:
       "RC Wallet abre proveedores de bridge reales. El proveedor valida soporte de red/token y la firma ocurre fuera de RC Wallet.",
     safety:
-      "No se puede hacer bridge sin firma valida en la red origen. RC Wallet no crea llaves privadas ni semillas retroactivas.",
+      "No se puede hacer bridge sin firma válida en la red origen. RC Wallet no crea llaves privadas ni semillas retroactivas.",
     providers: WORLD_CHAIN_BRIDGES,
   };
 }
@@ -261,12 +262,11 @@ function qrImageUrl(value, size = 260) {
 }
 
 function extractEvmAddressFromQr(value) {
-  const rawValue = String(value ?? "").trim();
-  const match = rawValue.match(/0x[a-fA-F0-9]{40}/);
-  if (!match) {
+  try {
+    return normalizeAddress(value);
+  } catch {
     throw new Error("El QR no contiene una dirección EVM válida");
   }
-  return normalizeAddress(match[0]);
 }
 
 async function pollWorldUserOperation(userOpHash, attempts = 30) {
@@ -1993,7 +1993,7 @@ export default function App() {
       const needsExternalSigner = selectedAsset.chainId !== WORLD_CHAIN_ID;
       const signerWarning =
         needsExternalSigner && !externalMatches
-          ? "Atencion: el bridge se abrira, pero no podra mover fondos hasta conectar una wallet que firme exactamente la direccion origen."
+          ? "Atención: el bridge se abrirá, pero no podrá mover fondos hasta conectar una wallet que firme exactamente la dirección origen."
           : `Abriendo ${provider.name}. Revisa origen ${selectedAsset.networkName}, destino ${bridgeDestinationNetwork.name}, token ${selectedAsset.symbol} y firma solo si todo coincide.`;
 
       showStatus(signerWarning, needsExternalSigner && !externalMatches ? "warning" : "info");
@@ -2148,7 +2148,7 @@ export default function App() {
     canSendSelected &&
       feeAccepted &&
       feeBreakdown &&
-      ethers.isAddress(recipient),
+      isValidEvmAddressInput(recipient),
   );
 
   return (
@@ -2586,7 +2586,7 @@ export default function App() {
               <span className="eyebrow">Publicidad local</span>
               <h2>Rincón Colombiano</h2>
               <p className="local-card__lead">
-                Reclama una empanada gratis mostrando esta pantalla  por compras superiores a 50 zł en nuestro local de comida colombiana en Czapelska 33 y disfruta el mejor sabor de la cocina colombiana.
+                Reclama una empanada gratis mostrando esta pantalla por compras superiores a 50 zł en nuestro local de comida colombiana en Czapelska 33 y disfruta el mejor sabor de la cocina colombiana.
               </p>
             </div>
             <button
@@ -3632,7 +3632,7 @@ export default function App() {
           <p className="link-copy">
             RC Wallet prepara la ruta de puente con proveedores reales. La firma
             no se simula: debe ocurrir en World App si el origen es World Chain
-            o en una wallet externa que controle exactamente la direccion origen.
+            o en una wallet externa que controle exactamente la dirección origen.
           </p>
 
           {!selectedAsset || !selectedBridgePlan ? (
@@ -3689,7 +3689,7 @@ export default function App() {
                     type="button"
                     onClick={loginWithWorldApp}
                   >
-                    Iniciar sesion World App para bridge
+                    Iniciar sesión World App para bridge
                   </button>
                 )}
 
@@ -3737,8 +3737,8 @@ export default function App() {
 
               <p className="bridge-warning">
                 Importante: el bridge solo funciona si el proveedor soporta ese
-                token y si existe firma valida en la red origen. Si la wallet
-                esta en modo solo lectura, el proveedor tambien la bloqueara.
+                token y si existe firma válida en la red origen. Si la wallet
+                está en modo solo lectura, el proveedor también la bloqueará.
               </p>
             </>
           )}

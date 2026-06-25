@@ -18,7 +18,6 @@ export const RECOVERY_EIP712_DOMAIN = Object.freeze([
   { name: "name", type: "string" },
   { name: "version", type: "string" },
   { name: "chainId", type: "uint256" },
-  { name: "verifyingContract", type: "address" },
 ]);
 
 const EIP1271_ABI = [
@@ -46,8 +45,7 @@ export function createRecoveryTypedData(walletAddress, targetChainId) {
     domain: {
       name: "RC Wallet Recovery",
       version: "1",
-      chainId,
-      verifyingContract: wallet,
+      chainId: WORLD_CHAIN_ID,
     },
     types: {
       EIP712Domain: RECOVERY_EIP712_DOMAIN,
@@ -97,11 +95,13 @@ export async function analyzeRecoveryProof(packageInput) {
   const wallet = normalizeAddress(message.wallet);
   const signerAddress = normalizeAddress(proof.signerAddress);
   const chainId = Number(message.targetChainId);
+  const domainChainId = Number(domain.chainId);
 
   if (
     primaryType !== RECOVERY_PRIMARY_TYPE ||
-    Number(domain.chainId) !== chainId ||
-    normalizeAddress(domain.verifyingContract) !== wallet ||
+    domainChainId !== WORLD_CHAIN_ID ||
+    (domain.verifyingContract &&
+      normalizeAddress(domain.verifyingContract) !== wallet) ||
     signerAddress !== wallet
   ) {
     throw new Error("La firma, la cuenta y la red no son coherentes");

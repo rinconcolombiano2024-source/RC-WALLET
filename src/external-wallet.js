@@ -2,8 +2,10 @@ import EthereumProvider from "@walletconnect/ethereum-provider";
 import { normalizeAddress } from "./blockchain.js";
 import { NETWORKS } from "./config.js";
 
+const DEFAULT_REOWN_PROJECT_ID = "aa5427a18f0efc9d533439359b0031b3";
+
 export const reownProjectId =
-  import.meta.env.VITE_REOWN_PROJECT_ID?.trim() ?? "";
+  import.meta.env.VITE_REOWN_PROJECT_ID?.trim() || DEFAULT_REOWN_PROJECT_ID;
 
 export const walletConnectConfigured = Boolean(
   reownProjectId && reownProjectId !== "your_reown_walletconnect_project_id",
@@ -93,6 +95,24 @@ export async function connectWalletConnectProvider(handlers) {
     projectId: reownProjectId,
     chains: [1],
     optionalChains: NETWORKS.map((network) => network.chainId),
+    methods: [
+      "eth_sendTransaction",
+      "personal_sign",
+      "eth_signTypedData",
+      "eth_signTypedData_v4",
+      "wallet_switchEthereumChain",
+      "wallet_addEthereumChain",
+    ],
+    optionalMethods: [
+      "eth_sendTransaction",
+      "personal_sign",
+      "eth_signTypedData",
+      "eth_signTypedData_v4",
+      "wallet_switchEthereumChain",
+      "wallet_addEthereumChain",
+    ],
+    events: ["accountsChanged", "chainChanged", "disconnect"],
+    optionalEvents: ["accountsChanged", "chainChanged", "disconnect"],
     showQrModal: true,
     metadata: {
       name: "RC Wallet Recovery",

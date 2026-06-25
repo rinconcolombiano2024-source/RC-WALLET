@@ -26,13 +26,36 @@ function timeout(promise, milliseconds, label) {
   });
 }
 
+function cleanAddressInput(address) {
+  return String(address ?? "")
+    .trim()
+    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
+function extractAddressCandidate(address) {
+  const cleaned = cleanAddressInput(address);
+  const match = cleaned.match(/0x[a-fA-F0-9]{40}/i);
+  if (match?.[0]) return `0x${match[0].slice(2)}`;
+  return cleaned.startsWith("0X") ? `0x${cleaned.slice(2)}` : cleaned;
+}
+
 export function normalizeAddress(address) {
-  if (!ethers.isAddress(address)) {
+  const candidate = extractAddressCandidate(address);
+  if (!/^0x[a-fA-F0-9]{40}$/.test(candidate)) {
     throw new Error(
       "Introduce una dirección EVM completa: debe empezar por 0x y tener 42 caracteres",
     );
   }
-  return ethers.getAddress(address);
+  return ethers.getAddress(candidate.toLowerCase());
+}
+
+export function isValidEvmAddressInput(address) {
+  try {
+    normalizeAddress(address);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function formatBalance(rawBalance, decimals, digits = 6) {
