@@ -29,7 +29,7 @@ function timeout(promise, milliseconds, label) {
 function cleanAddressInput(address) {
   return String(address ?? "")
     .trim()
-    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+    .replace(/[\s\u200B-\u200D\uFEFF]/g, "");
 }
 
 function extractAddressCandidate(address) {

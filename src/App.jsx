@@ -1112,10 +1112,14 @@ export default function App() {
   useEffect(() => {
     mountedRef.current = true;
     try {
-      const result = MiniKit.install();
-      setMiniKitReady(Boolean(result?.success));
+      const result =
+        typeof MiniKit.install === "function"
+          ? MiniKit.install()
+          : { success: Boolean(MiniKit.isInstalled?.()) };
+      const installed = Boolean(result?.success ?? MiniKit.isInstalled?.());
+      setMiniKitReady(installed);
 
-      if (result?.success && MiniKit.user?.walletAddress) {
+      if (installed && MiniKit.user?.walletAddress) {
         try {
           const address = normalizeAddress(MiniKit.user.walletAddress);
           setTargetAddress(address);
