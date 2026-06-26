@@ -201,7 +201,7 @@ npx vercel dev
 ## Seguridad
 
 - No pide frases semilla ni claves privadas.
-- No cobra comisión de aplicación.
+- No cobra comisiones ocultas: la comisión RC del 2% se muestra y debe aceptarse antes de firmar.
 - No mezcla transacciones de cadenas diferentes.
 - No trata un `userOpHash` como hash final.
 - Las direcciones de tokens no verificadas no están habilitadas por defecto.

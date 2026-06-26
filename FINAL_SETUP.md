@@ -21,8 +21,9 @@ VITE_REOWN_PROJECT_ID=aa5427a18f0efc9d533439359b0031b3
 Sin esa variable seguirá disponible una extensión inyectada, pero no el selector
 QR para Trust Wallet, MetaMask Mobile, Binance Wallet y otras wallets móviles.
 
-La versión 3.2 usa WalletConnect directamente y no incluye Wagmi, Viem ni React
-Query. Esto reduce conflictos de dependencias durante el despliegue.
+La versión actual usa WalletConnect directamente y no incluye Wagmi ni React
+Query. Incluye Viem como dependencia compatible con MiniKit v2 para evitar
+errores de resolución durante el despliegue.
 
 La versión 3.3 añade el terminal de mercado: gráficas DexScreener, precio,
 volumen, liquidez, market cap y accesos Comprar, Vender y Cambiar mediante el
