@@ -137,6 +137,23 @@ function miniKitHexQuantity(valueUnits) {
   return `0x${value.toString(16)}`;
 }
 
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function waitForMiniKitReady(timeoutMs = 2_500) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (Boolean(MiniKit.isInstalled?.())) {
+      return true;
+    }
+    await wait(100);
+  }
+
+  return Boolean(MiniKit.isInstalled?.());
+}
+
 function buildFeeBreakdown(asset, amountValue) {
   if (!asset) return null;
   const cleanAmount = normalizeAmount(amountValue);
@@ -614,6 +631,8 @@ export default function App() {
   const scanIdRef = useRef(0);
   const externalConnectionRef = useRef(null);
   const autoLoginAttemptedRef = useRef(false);
+  const authenticatedRef = useRef(false);
+  const authenticatedWorldAddressRef = useRef("");
   const sendSectionRef = useRef(null);
   const qrVideoRef = useRef(null);
   const qrStreamRef = useRef(null);
@@ -1029,7 +1048,10 @@ export default function App() {
 
   const performWorldLogin = useCallback(
     async (contextLabel = "sesión World ID") => {
-      if (!miniKitReady) {
+      const ready = await waitForMiniKitReady();
+      setMiniKitReady(ready);
+
+      if (!ready) {
         throw new Error("Abre RC Wallet dentro de World App para verificar World ID");
       }
       if (typeof MiniKit.walletAuth !== "function") {
@@ -1078,9 +1100,11 @@ export default function App() {
       setManualAddress(address);
       setAuthenticatedWorldAddress(address);
       setAuthenticated(true);
+      authenticatedWorldAddressRef.current = address;
+      authenticatedRef.current = true;
       return address;
     },
-    [miniKitReady, showStatus],
+    [showStatus],
   );
 
   const confirmWorldAction = useCallback(
@@ -1298,6 +1322,8 @@ export default function App() {
       setTargetAddress(address);
       setAuthenticatedWorldAddress("");
       setAuthenticated(false);
+      authenticatedWorldAddressRef.current = "";
+      authenticatedRef.current = false;
       showStatus(
         "Dirección cargada en modo de análisis. Esto no demuestra control sobre sus fondos.",
         "warning",
@@ -1408,6 +1434,8 @@ export default function App() {
           setManualAddress(connection.account);
           setAuthenticatedWorldAddress("");
           setAuthenticated(false);
+          authenticatedWorldAddressRef.current = "";
+          authenticatedRef.current = false;
           showStatus(
             "Wallet externa conectada. Se usará esta dirección para escanear y firmar activos externos.",
             "success",
@@ -1575,7 +1603,13 @@ export default function App() {
 
   const sendFromWorldChain = useCallback(
     async (asset, destination, recipientAmountUnits, feeAmountUnits) => {
-      if (!authenticated || !miniKitReady) {
+      const ready = await waitForMiniKitReady();
+      setMiniKitReady(ready);
+      const sessionAuthenticated = authenticatedRef.current || authenticated;
+      const sessionWorldAddress =
+        authenticatedWorldAddressRef.current || authenticatedWorldAddress;
+
+      if (!sessionAuthenticated || !ready) {
         throw new Error(
           "Debes autenticar la misma cuenta dentro de World App",
         );
@@ -1588,8 +1622,8 @@ export default function App() {
       }
 
       if (
-        !authenticatedWorldAddress ||
-        normalizeAddress(authenticatedWorldAddress) !==
+        !sessionWorldAddress ||
+        normalizeAddress(sessionWorldAddress) !==
           normalizeAddress(targetAddress)
       ) {
         throw new Error(
@@ -1604,7 +1638,7 @@ export default function App() {
         try {
           if (
             normalizeAddress(cachedAddress) !==
-            normalizeAddress(authenticatedWorldAddress)
+            normalizeAddress(sessionWorldAddress)
           ) {
             console.warn(
               "[WORLD SESSION] MiniKit cache differs from verified SIWE address",
@@ -2497,9 +2531,8 @@ export default function App() {
                 className="button button--primary"
                 type="button"
                 onClick={loginWithWorldApp}
-                disabled={!miniKitReady}
               >
-                {miniKitReady ? "Ingresar con World ID" : "Abrir en World App"}
+                {miniKitReady ? "Ingresar con World ID" : "Conectar World ID"}
               </button>
               <button
                 className="button button--secondary"
@@ -2662,11 +2695,10 @@ export default function App() {
             className="button button--primary"
             type="button"
             onClick={loginWithWorldApp}
-            disabled={!miniKitReady}
           >
             {miniKitReady
               ? "Iniciar sesión con World ID"
-              : "Abrir dentro de World App"}
+              : "Conectar World ID"}
           </button>
 
           <div className="separator">
