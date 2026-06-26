@@ -1120,13 +1120,9 @@ export default function App() {
       setMiniKitReady(installed);
 
       if (installed && MiniKit.user?.walletAddress) {
-        try {
-          const address = normalizeAddress(MiniKit.user.walletAddress);
-          setTargetAddress(address);
-          setManualAddress(address);
-        } catch {
-          // Cached MiniKit state is only a convenience; SIWE still verifies login.
-        }
+        // Do not auto-load the cached address here. Loading a target address
+        // triggers scanning and QR rendering; inside World App that must happen
+        // only after an explicit user action to avoid leaving the Mini App.
       }
     } catch (error) {
       console.warn("[MINIKIT INSTALL]", error);
@@ -1286,18 +1282,11 @@ export default function App() {
     }
 
     autoLoginAttemptedRef.current = true;
-    void performWorldLogin("Reconectar sesión World ID en RC Wallet")
-      .then(() => {
-        showStatus("Sesión World ID reconectada.", "success");
-      })
-      .catch((error) => {
-        console.warn("[WORLD RECONNECT]", error);
-        showStatus(
-          "Sesión guardada detectada. Pulsa “Iniciar sesión con World ID” para validarla.",
-          "warning",
-        );
-      });
-  }, [authenticated, miniKitReady, performWorldLogin, showStatus]);
+    showStatus(
+      "Sesión guardada detectada. Pulsa “Iniciar sesión con World ID” para validarla.",
+      "info",
+    );
+  }, [authenticated, miniKitReady, showStatus]);
 
   const useManualAddress = useCallback(() => {
     try {
