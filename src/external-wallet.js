@@ -1,4 +1,3 @@
-import EthereumProvider from "@walletconnect/ethereum-provider";
 import { normalizeAddress } from "./blockchain.js";
 import { NETWORKS } from "./config.js";
 
@@ -91,6 +90,9 @@ export async function connectWalletConnectProvider(handlers) {
   }
 
   const origin = window.location.origin;
+  const { default: EthereumProvider } = await import(
+    "@walletconnect/ethereum-provider"
+  );
   const provider = await EthereumProvider.init({
     projectId: reownProjectId,
     chains: [1],

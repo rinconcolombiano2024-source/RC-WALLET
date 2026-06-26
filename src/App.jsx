@@ -129,6 +129,14 @@ function percentFromBps(bps) {
   return Number(bps) / 100;
 }
 
+function miniKitHexQuantity(valueUnits) {
+  const value = BigInt(valueUnits);
+  if (value < 0n) {
+    throw new Error("El valor de la transacción no puede ser negativo");
+  }
+  return `0x${value.toString(16)}`;
+}
+
 function buildFeeBreakdown(asset, amountValue) {
   if (!asset) return null;
   const cleanAmount = normalizeAmount(amountValue);
@@ -1112,11 +1120,7 @@ export default function App() {
   useEffect(() => {
     mountedRef.current = true;
     try {
-      const result =
-        typeof MiniKit.install === "function"
-          ? MiniKit.install()
-          : { success: Boolean(MiniKit.isInstalled?.()) };
-      const installed = Boolean(result?.success ?? MiniKit.isInstalled?.());
+      const installed = Boolean(MiniKit.isInstalled?.());
       setMiniKitReady(installed);
 
       if (installed && MiniKit.user?.walletAddress) {
@@ -1617,20 +1621,20 @@ export default function App() {
       if (asset.isNative) {
         transactions.push({
             to: destination,
-            value: recipientAmountUnits.toString(),
+            value: miniKitHexQuantity(recipientAmountUnits),
             data: "0x",
         });
         if (feeAmountUnits > 0n) {
           transactions.push({
             to: feeRecipient,
-            value: feeAmountUnits.toString(),
+            value: miniKitHexQuantity(feeAmountUnits),
             data: "0x",
           });
         }
       } else {
         transactions.push({
             to: asset.address,
-            value: "0",
+            value: miniKitHexQuantity(0n),
             data: ERC20_INTERFACE.encodeFunctionData("transfer", [
               destination,
               recipientAmountUnits,
@@ -1639,7 +1643,7 @@ export default function App() {
         if (feeAmountUnits > 0n) {
           transactions.push({
             to: asset.address,
-            value: "0",
+            value: miniKitHexQuantity(0n),
             data: ERC20_INTERFACE.encodeFunctionData("transfer", [
               feeRecipient,
               feeAmountUnits,
