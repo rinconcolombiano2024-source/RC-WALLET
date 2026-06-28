@@ -47,6 +47,10 @@ import {
 } from "./market.js";
 
 const ERC20_INTERFACE = new ethers.Interface(ERC20_ABI);
+const PERMIT2_INTERFACE = new ethers.Interface([
+  "function approve(address token, address spender, uint160 amount, uint48 expiration)",
+  "function transferFrom(address from, address to, uint160 amount, address token)",
+]);
 const CUSTOM_TOKENS_KEY = "rc_wallet_custom_tokens_v1";
 const DEFAULT_RCPL_TARGET_PRICE = "0.10";
 const DEFAULT_RCPL_LIQUIDITY_USD = "1000";
@@ -135,6 +139,19 @@ function miniKitHexQuantity(valueUnits) {
     throw new Error("El valor de la transacción no puede ser negativo");
   }
   return `0x${value.toString(16)}`;
+}
+
+function permit2Amount(valueUnits) {
+  const value = BigInt(valueUnits);
+  const maxUint160 = (1n << 160n) - 1n;
+  if (value < 0n || value > maxUint160) {
+    throw new Error("El monto excede el límite compatible con Permit2");
+  }
+  return value;
+}
+
+function permit2Expiration(minutes = 20) {
+  return Math.floor(Date.now() / 1000) + minutes * 60;
 }
 
 function wait(milliseconds) {
@@ -227,9 +244,9 @@ function describeMiniKitSendError(result, asset) {
       return "World App bloqueó la operación como contrato no permitido. Esta operación es nativa; revisa en World Developer Portal que tu Mini App tenga permisos de transacción activos para World Chain.";
     }
 
-    const contractAddress = asset?.address || "contrato del token";
+    const tokenAddress = asset?.address || "contrato del token";
     const tokenSymbol = asset?.symbol || "token";
-    return `World App bloqueó la operación: contrato no permitido. Agrega ${tokenSymbol} en World Developer Portal > Mini App > Permissions > Transactions. Contrato: ${contractAddress}. Función usada: transfer(address,uint256).`;
+    return `World App bloqueó la operación: contrato no permitido. Para mover ${tokenSymbol}, agrega Permit2 como Contract Entrypoint y agrega el token en Permit2 Tokens. Permit2: ${PERMIT2_ADDRESS}. Token: ${tokenAddress}. Funciones Permit2 usadas: approve(address,address,uint160,uint48) y transferFrom(address,address,uint160,address).`;
   }
 
   if (code === "invalid_contract" || code === "disallowed_operation") {
@@ -1685,21 +1702,45 @@ export default function App() {
           });
         }
       } else {
+        const tokenAddress = normalizeAddress(asset.address);
+        const permit2Address = normalizeAddress(PERMIT2_ADDRESS);
+        const senderAddress = normalizeAddress(targetAddress);
+        const totalPermitAmount = permit2Amount(
+          recipientAmountUnits + feeAmountUnits,
+        );
+        const recipientPermitAmount = permit2Amount(recipientAmountUnits);
+        const feePermitAmount = permit2Amount(feeAmountUnits);
+        const expiration = permit2Expiration();
+
         transactions.push({
-            to: asset.address,
-            value: miniKitHexQuantity(0n),
-            data: ERC20_INTERFACE.encodeFunctionData("transfer", [
-              destination,
-              recipientAmountUnits,
-            ]),
+          to: permit2Address,
+          value: miniKitHexQuantity(0n),
+          data: PERMIT2_INTERFACE.encodeFunctionData("approve", [
+            tokenAddress,
+            senderAddress,
+            totalPermitAmount,
+            expiration,
+          ]),
+        });
+        transactions.push({
+          to: permit2Address,
+          value: miniKitHexQuantity(0n),
+          data: PERMIT2_INTERFACE.encodeFunctionData("transferFrom", [
+            senderAddress,
+            destination,
+            recipientPermitAmount,
+            tokenAddress,
+          ]),
         });
         if (feeAmountUnits > 0n) {
           transactions.push({
-            to: asset.address,
+            to: permit2Address,
             value: miniKitHexQuantity(0n),
-            data: ERC20_INTERFACE.encodeFunctionData("transfer", [
+            data: PERMIT2_INTERFACE.encodeFunctionData("transferFrom", [
+              senderAddress,
               feeRecipient,
-              feeAmountUnits,
+              feePermitAmount,
+              tokenAddress,
             ]),
           });
         }
