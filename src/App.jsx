@@ -235,6 +235,16 @@ function describeMiniKitSendError(result, asset) {
   )}`.toLowerCase();
 
   if (
+    code === "invalid_token" ||
+    rawErrorText.includes("invalid_token") ||
+    rawErrorText.includes("invalid token")
+  ) {
+    const tokenAddress = asset?.address || "contrato del token";
+    const tokenSymbol = asset?.symbol || "token";
+    return `World App bloqueó ${tokenSymbol}: token no permitido para Permit2. Para mover este ERC20, agrega el token en World Developer Portal > Mini App > Permissions > Transactions > Permit2 Tokens. Token: ${tokenAddress}. También confirma que Permit2 esté agregado como Contract Entrypoint: ${PERMIT2_ADDRESS}. Usa el mismo entorno donde estás probando la app: Production o Preview.`;
+  }
+
+  if (
     code === "invalid_contract" ||
     code === "disallowed_operation" ||
     rawErrorText.includes("invalid_contract") ||
@@ -1714,7 +1724,6 @@ export default function App() {
 
         transactions.push({
           to: permit2Address,
-          value: miniKitHexQuantity(0n),
           data: PERMIT2_INTERFACE.encodeFunctionData("approve", [
             tokenAddress,
             senderAddress,
@@ -1724,7 +1733,6 @@ export default function App() {
         });
         transactions.push({
           to: permit2Address,
-          value: miniKitHexQuantity(0n),
           data: PERMIT2_INTERFACE.encodeFunctionData("transferFrom", [
             senderAddress,
             destination,
@@ -1735,7 +1743,6 @@ export default function App() {
         if (feeAmountUnits > 0n) {
           transactions.push({
             to: permit2Address,
-            value: miniKitHexQuantity(0n),
             data: PERMIT2_INTERFACE.encodeFunctionData("transferFrom", [
               senderAddress,
               feeRecipient,
