@@ -150,8 +150,8 @@ function permit2Amount(valueUnits) {
   return value;
 }
 
-function permit2Expiration(minutes = 20) {
-  return Math.floor(Date.now() / 1000) + minutes * 60;
+function permit2Expiration() {
+  return 0;
 }
 
 function wait(milliseconds) {
