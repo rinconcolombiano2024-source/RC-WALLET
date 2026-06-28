@@ -199,8 +199,8 @@ function routeStatusLabel(status) {
   return "Bloqueado";
 }
 
-function describeMiniKitSendError(result) {
-  const code =
+function describeMiniKitSendError(result, asset) {
+  const rawCode =
     result?.data?.error_code ||
     result?.data?.errorCode ||
     result?.data?.code ||
@@ -212,6 +212,25 @@ function describeMiniKitSendError(result) {
     result?.data?.message ||
     result?.message ||
     "";
+  const code = String(rawCode).toLowerCase();
+  const rawErrorText = `${code} ${message} ${JSON.stringify(
+    result?.data ?? {},
+  )}`.toLowerCase();
+
+  if (
+    code === "invalid_contract" ||
+    code === "disallowed_operation" ||
+    rawErrorText.includes("invalid_contract") ||
+    rawErrorText.includes("disallowed_operation")
+  ) {
+    if (asset?.isNative) {
+      return "World App bloqueó la operación como contrato no permitido. Esta operación es nativa; revisa en World Developer Portal que tu Mini App tenga permisos de transacción activos para World Chain.";
+    }
+
+    const contractAddress = asset?.address || "contrato del token";
+    const tokenSymbol = asset?.symbol || "token";
+    return `World App bloqueó la operación: contrato no permitido. Agrega ${tokenSymbol} en World Developer Portal > Mini App > Permissions > Transactions. Contrato: ${contractAddress}. Función usada: transfer(address,uint256).`;
+  }
 
   if (code === "invalid_contract" || code === "disallowed_operation") {
     return "World App bloqueó la operación: revisa en Developer Portal que el token/contrato esté permitido para Mini App > Transactions.";
@@ -1696,7 +1715,7 @@ export default function App() {
         result.data?.status !== "success" ||
         !result.data?.userOpHash
       ) {
-        throw new Error(describeMiniKitSendError(result));
+        throw new Error(describeMiniKitSendError(result, asset));
       }
 
       showStatus(
