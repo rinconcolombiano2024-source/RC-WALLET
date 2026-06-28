@@ -259,7 +259,7 @@ function describeMiniKitSendError(result, asset) {
 
     const tokenAddress = asset?.address || "contrato del token";
     const tokenSymbol = asset?.symbol || "token";
-    return `World App bloqueó la operación de ${tokenSymbol}. El token puede estar permitido, pero falta autorizar la función exacta. En World Developer Portal > Mini App > Permissions > Transactions agrega Permit2 como Contract Entrypoint: ${PERMIT2_ADDRESS}. Funciones exactas requeridas: approve(address,address,uint160,uint48) y transferFrom(address,address,uint160,address). En Permit2 Tokens confirma también este token: ${tokenAddress}. Si envías a wallets externas, deshabilita la lista blanca de direcciones de pago o agrega la wallet destino y la wallet de comisión.`;
+    return `World App bloqueó la operación de ${tokenSymbol}. Para envíos wallet a wallet, autoriza el contrato del token como Contract Entrypoint en World Developer Portal > Mini App > Permissions > Transactions. Contrato: ${tokenAddress}. Función exacta requerida: transfer(address,uint256). Si usas Permit2 para swaps futuros, Permit2 debe quedar aparte como Contract Entrypoint: ${PERMIT2_ADDRESS}.`;
   }
 
   if (
@@ -1729,41 +1729,20 @@ export default function App() {
         }
       } else {
         const tokenAddress = normalizeAddress(asset.address);
-        const permit2Address = normalizeAddress(PERMIT2_ADDRESS);
-        const senderAddress = normalizeAddress(targetAddress);
-        const totalPermitAmount = permit2Amount(
-          recipientAmountUnits + feeAmountUnits,
-        );
-        const recipientPermitAmount = permit2Amount(recipientAmountUnits);
-        const feePermitAmount = permit2Amount(feeAmountUnits);
-        const expiration = permit2Expiration();
 
         transactions.push({
-          to: permit2Address,
-          data: PERMIT2_INTERFACE.encodeFunctionData("approve", [
-            tokenAddress,
-            senderAddress,
-            totalPermitAmount,
-            expiration,
-          ]),
-        });
-        transactions.push({
-          to: permit2Address,
-          data: PERMIT2_INTERFACE.encodeFunctionData("transferFrom", [
-            senderAddress,
+          to: tokenAddress,
+          data: ERC20_INTERFACE.encodeFunctionData("transfer", [
             destination,
-            recipientPermitAmount,
-            tokenAddress,
+            recipientAmountUnits,
           ]),
         });
         if (feeAmountUnits > 0n) {
           transactions.push({
-            to: permit2Address,
-            data: PERMIT2_INTERFACE.encodeFunctionData("transferFrom", [
-              senderAddress,
+            to: tokenAddress,
+            data: ERC20_INTERFACE.encodeFunctionData("transfer", [
               feeRecipient,
-              feePermitAmount,
-              tokenAddress,
+              feeAmountUnits,
             ]),
           });
         }
