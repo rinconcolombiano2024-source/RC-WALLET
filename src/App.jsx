@@ -245,10 +245,26 @@ function describeMiniKitSendError(result, asset) {
   }
 
   if (
-    code === "invalid_contract" ||
     code === "disallowed_operation" ||
-    rawErrorText.includes("invalid_contract") ||
-    rawErrorText.includes("disallowed_operation")
+    code === "invalid_operation" ||
+    code === "disalloved_operation" ||
+    rawErrorText.includes("disallowed_operation") ||
+    rawErrorText.includes("invalid_operation") ||
+    rawErrorText.includes("disalloved_operation") ||
+    rawErrorText.includes("disallowed operation")
+  ) {
+    if (asset?.isNative) {
+      return "World App bloqueó esta operación nativa. Revisa en World Developer Portal > Mini App > Permissions que las transacciones estén habilitadas y que la lista blanca de direcciones de pago esté deshabilitada o incluya la wallet destino.";
+    }
+
+    const tokenAddress = asset?.address || "contrato del token";
+    const tokenSymbol = asset?.symbol || "token";
+    return `World App bloqueó la operación de ${tokenSymbol}. El token puede estar permitido, pero falta autorizar la función exacta. En World Developer Portal > Mini App > Permissions > Transactions agrega Permit2 como Contract Entrypoint: ${PERMIT2_ADDRESS}. Funciones exactas requeridas: approve(address,address,uint160,uint48) y transferFrom(address,address,uint160,address). En Permit2 Tokens confirma también este token: ${tokenAddress}. Si envías a wallets externas, deshabilita la lista blanca de direcciones de pago o agrega la wallet destino y la wallet de comisión.`;
+  }
+
+  if (
+    code === "invalid_contract" ||
+    rawErrorText.includes("invalid_contract")
   ) {
     if (asset?.isNative) {
       return "World App bloqueó la operación como contrato no permitido. Esta operación es nativa; revisa en World Developer Portal que tu Mini App tenga permisos de transacción activos para World Chain.";
