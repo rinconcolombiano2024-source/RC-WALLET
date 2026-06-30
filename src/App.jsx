@@ -389,7 +389,7 @@ function extractEvmAddressFromQr(value) {
   }
 }
 
-async function pollWorldUserOperation(userOpHash, attempts = 30) {
+async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(
@@ -402,10 +402,17 @@ async function pollWorldUserOperation(userOpHash, attempts = 30) {
           return result;
         }
         if (result.status === "failed") {
-          throw new Error("La operación falló antes de confirmarse");
+          const failure = new Error(
+            describeMiniKitSendError({ data: result }, asset),
+          );
+          failure.name = "WorldUserOperationFailed";
+          throw failure;
         }
       }
     } catch (error) {
+      if (error?.name === "WorldUserOperationFailed") {
+        throw error;
+      }
       if (attempt === attempts - 1) {
         console.warn("[WORLD USEROP POLL]", error);
       }
@@ -1732,6 +1739,7 @@ export default function App() {
 
         transactions.push({
           to: tokenAddress,
+          value: miniKitHexQuantity(0n),
           data: ERC20_INTERFACE.encodeFunctionData("transfer", [
             destination,
             recipientAmountUnits,
@@ -1740,6 +1748,7 @@ export default function App() {
         if (feeAmountUnits > 0n) {
           transactions.push({
             to: tokenAddress,
+            value: miniKitHexQuantity(0n),
             data: ERC20_INTERFACE.encodeFunctionData("transfer", [
               feeRecipient,
               feeAmountUnits,
@@ -1764,7 +1773,7 @@ export default function App() {
       showStatus(
         "Operación enviada. Esperando confirmación en World Chain…",
       );
-      const operation = await pollWorldUserOperation(result.data.userOpHash);
+      const operation = await pollWorldUserOperation(result.data.userOpHash, asset);
 
       return {
         route: "minikit",
