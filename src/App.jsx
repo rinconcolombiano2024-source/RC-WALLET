@@ -154,6 +154,36 @@ function permit2Expiration() {
   return 0;
 }
 
+function createWorldPayReference() {
+  const random =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `rc-wallet-${random}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
+
+function isWorldPayCompatibleAsset(asset) {
+  if (!asset || asset.isNative || asset.chainId !== WORLD_CHAIN_ID) return false;
+  const symbol = String(asset.symbol || "").toUpperCase();
+  return symbol === "WLD" || symbol === "USDC";
+}
+
+function miniKitErrorText(errorOrResult) {
+  return `${errorOrResult?.code || ""} ${
+    errorOrResult?.message || ""
+  } ${JSON.stringify(errorOrResult?.data ?? errorOrResult ?? {})}`.toLowerCase();
+}
+
+function isWorldContractAuthorizationError(errorOrResult) {
+  const text = miniKitErrorText(errorOrResult);
+  return (
+    text.includes("invalid_contract") ||
+    text.includes("disallowed_operation") ||
+    text.includes("invalid_operation") ||
+    text.includes("disallowed operation")
+  );
+}
+
 function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -267,12 +297,12 @@ function describeMiniKitSendError(result, asset) {
     rawErrorText.includes("invalid_contract")
   ) {
     if (asset?.isNative) {
-      return "World App bloqueó la operación como contrato no permitido. Esta operación es nativa; revisa en World Developer Portal que tu Mini App tenga permisos de transacción activos para World Chain.";
+      return "World App bloqueó la operación nativa como contrato/operación no permitida. En World Developer Portal > Mini App > Permissions revisa que las transacciones estén habilitadas para World Chain y que la lista blanca de direcciones de pago esté deshabilitada o incluya la wallet destino.";
     }
 
     const tokenAddress = asset?.address || "contrato del token";
     const tokenSymbol = asset?.symbol || "token";
-    return `World App bloqueó la operación: contrato no permitido. Para mover ${tokenSymbol}, agrega Permit2 como Contract Entrypoint y agrega el token en Permit2 Tokens. Permit2: ${PERMIT2_ADDRESS}. Token: ${tokenAddress}. Funciones Permit2 usadas: approve(address,address,uint160,uint48) y transferFrom(address,address,uint160,address).`;
+    return `World App bloqueó ${tokenSymbol}: contrato no permitido. Para enviar este token con RC Wallet debes autorizar el contrato del token como Contract Entrypoint en World Developer Portal > Mini App > Permissions > Transactions. Contrato: ${tokenAddress}. Función exacta requerida: transfer(address,uint256). Guarda cambios, vuelve a abrir RC Wallet dentro de World App y prueba de nuevo.`;
   }
 
   if (code === "invalid_contract" || code === "disallowed_operation") {
@@ -292,6 +322,103 @@ function describeMiniKitSendError(result, asset) {
   }
 
   return message || "World App no aceptó la operación";
+}
+
+function describeMiniKitPayError(result, asset) {
+  const text = miniKitErrorText(result);
+  const tokenSymbol = asset?.symbol || "token";
+
+  if (text.includes("invalid_receiver") || text.includes("receiver")) {
+    return "World Pay rechazó la wallet receptora. En World Developer Portal deshabilita la lista blanca de direcciones de pago o agrega la wallet destino como dirección autorizada.";
+  }
+  if (text.includes("invalid_token") || text.includes("token")) {
+    return `World Pay no aceptó ${tokenSymbol}. Para pagos oficiales usa tokens soportados por World App, normalmente WLD o stablecoins disponibles en tu región.`;
+  }
+  if (text.includes("user_rejected") || text.includes("rejected")) {
+    return "El usuario rechazó el pago en World App.";
+  }
+
+  return (
+    result?.data?.errorMessage ||
+    result?.data?.message ||
+    result?.message ||
+    "World Pay no pudo completar la transferencia"
+  );
+}
+
+async function sendWithWorldPayFallback({
+  asset,
+  destination,
+  recipientAmountUnits,
+  feeAmountUnits,
+  showStatus,
+}) {
+  if (!isWorldPayCompatibleAsset(asset)) {
+    throw new Error(describeMiniKitSendError({ code: "invalid_contract" }, asset));
+  }
+  const payCommand =
+    typeof MiniKit.pay === "function"
+      ? MiniKit.pay.bind(MiniKit)
+      : typeof MiniKit.commandsAsync?.pay === "function"
+        ? MiniKit.commandsAsync.pay.bind(MiniKit.commandsAsync)
+        : null;
+
+  if (!payCommand) {
+    throw new Error(
+      "World Pay no está disponible en este entorno de World App. Usa sendTransaction con el contrato del token autorizado.",
+    );
+  }
+
+  if (feeAmountUnits > 0n) {
+    showStatus(
+      "Ruta de respaldo oficial World Pay: se enviará el monto neto al destino. La comisión no se cobra automáticamente en esta ruta.",
+      "warning",
+    );
+  }
+
+  const reference = createWorldPayReference();
+  const symbol = String(asset.symbol || "").toUpperCase();
+  const result = await payCommand({
+    reference,
+    to: destination,
+    tokens: [
+      {
+        symbol,
+        token_amount: recipientAmountUnits.toString(),
+      },
+    ],
+    description: `RC Wallet transfer ${symbol}`,
+    fallback: () => {
+      showStatus(
+        "Completa el pago dentro de World App para continuar.",
+        "warning",
+      );
+    },
+  });
+
+  if (
+    result?.executedWith === "fallback" ||
+    result?.data?.status === "error" ||
+    result?.data?.errorCode ||
+    result?.data?.error_code
+  ) {
+    throw new Error(describeMiniKitPayError(result, asset));
+  }
+
+  const transactionId =
+    result?.data?.transactionId ||
+    result?.data?.transaction_id ||
+    result?.data?.id ||
+    reference;
+
+  return {
+    route: "minikit-pay",
+    userOpHash: transactionId,
+    hash: null,
+    pending: true,
+    paymentReference: reference,
+    feeUncollected: feeAmountUnits > 0n,
+  };
 }
 
 function bridgeDestinationOptionsFor(asset) {
@@ -1757,16 +1884,39 @@ export default function App() {
         }
       }
 
-      const result = await MiniKit.sendTransaction({
-        chainId: WORLD_CHAIN_ID,
-        transactions,
-      });
+      let result;
+      try {
+        result = await MiniKit.sendTransaction({
+          chainId: WORLD_CHAIN_ID,
+          transactions,
+        });
+      } catch (error) {
+        if (isWorldContractAuthorizationError(error) && isWorldPayCompatibleAsset(asset)) {
+          return sendWithWorldPayFallback({
+            asset,
+            destination,
+            recipientAmountUnits,
+            feeAmountUnits,
+            showStatus,
+          });
+        }
+        throw new Error(describeMiniKitSendError(error, asset));
+      }
 
       if (
         result.executedWith === "fallback" ||
         result.data?.status !== "success" ||
         !result.data?.userOpHash
       ) {
+        if (isWorldContractAuthorizationError(result) && isWorldPayCompatibleAsset(asset)) {
+          return sendWithWorldPayFallback({
+            asset,
+            destination,
+            recipientAmountUnits,
+            feeAmountUnits,
+            showStatus,
+          });
+        }
         throw new Error(describeMiniKitSendError(result, asset));
       }
 
@@ -1882,7 +2032,9 @@ export default function App() {
       setAmount("");
       setFeeAccepted(false);
       showStatus(
-        result.pending
+        result.route === "minikit-pay"
+          ? "Pago enviado por World Pay. Conserva la referencia de pago y verifica el estado en World App."
+          : result.pending
           ? "La operación sigue pendiente. Conserva el userOpHash."
           : "Transferencia confirmada en la blockchain.",
         result.pending ? "warning" : "success",
