@@ -1,6 +1,10 @@
 node_modules
 dist
+dist-check
 .env
 .env.local
 .vercel
 *.log
+*.zip
+pnpm-lock.yaml
+pnpm-workspace.yaml
