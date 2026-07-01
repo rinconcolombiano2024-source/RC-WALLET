@@ -168,6 +168,22 @@ function isWorldPayCompatibleAsset(asset) {
   return symbol === "WLD" || symbol === "USDC";
 }
 
+function worldPaySymbolForAsset(asset) {
+  const symbol = String(asset?.symbol || "").toUpperCase();
+  if (symbol === "USDC") return "USDCE";
+  return symbol;
+}
+
+function worldPayAmount(valueUnits, decimals) {
+  // MiniKit Pay expects token_amount in the token's smallest units.
+  // Example: 1 WLD => "1000000000000000000", 1 USDC/USDCE => "1000000".
+  // The `decimals` argument is intentionally kept in the signature because
+  // callers already pass it and it documents which token precision produced
+  // `valueUnits`.
+  void decimals;
+  return valueUnits.toString();
+}
+
 function miniKitErrorText(errorOrResult) {
   return `${errorOrResult?.code || ""} ${
     errorOrResult?.message || ""
@@ -346,6 +362,55 @@ function describeMiniKitPayError(result, asset) {
   );
 }
 
+function buildWorldTransferTransactions({
+  asset,
+  destination,
+  recipientAmountUnits,
+  feeAmountUnits,
+  includeFeeTransfer = true,
+}) {
+  const feeRecipient = normalizeAddress(ADMIN_FEE_WALLET);
+  const transactions = [];
+
+  if (asset.isNative) {
+    transactions.push({
+      to: destination,
+      value: miniKitHexQuantity(recipientAmountUnits),
+      data: "0x",
+    });
+    if (includeFeeTransfer && feeAmountUnits > 0n) {
+      transactions.push({
+        to: feeRecipient,
+        value: miniKitHexQuantity(feeAmountUnits),
+        data: "0x",
+      });
+    }
+    return transactions;
+  }
+
+  const tokenAddress = normalizeAddress(asset.address);
+  transactions.push({
+    to: tokenAddress,
+    value: miniKitHexQuantity(0n),
+    data: ERC20_INTERFACE.encodeFunctionData("transfer", [
+      destination,
+      recipientAmountUnits,
+    ]),
+  });
+  if (includeFeeTransfer && feeAmountUnits > 0n) {
+    transactions.push({
+      to: tokenAddress,
+      value: miniKitHexQuantity(0n),
+      data: ERC20_INTERFACE.encodeFunctionData("transfer", [
+        feeRecipient,
+        feeAmountUnits,
+      ]),
+    });
+  }
+
+  return transactions;
+}
+
 async function sendWithWorldPayFallback({
   asset,
   destination,
@@ -377,14 +442,15 @@ async function sendWithWorldPayFallback({
   }
 
   const reference = createWorldPayReference();
-  const symbol = String(asset.symbol || "").toUpperCase();
+  const symbol = worldPaySymbolForAsset(asset);
+  const tokenAmount = worldPayAmount(recipientAmountUnits, asset.decimals);
   const result = await payCommand({
     reference,
     to: destination,
     tokens: [
       {
         symbol,
-        token_amount: recipientAmountUnits.toString(),
+        token_amount: tokenAmount,
       },
     ],
     description: `RC Wallet transfer ${symbol}`,
@@ -1814,6 +1880,15 @@ export default function App() {
         throw new Error("MiniKit solo puede enviar transacciones en World Chain");
       }
       if (typeof MiniKit.sendTransaction !== "function") {
+        if (isWorldPayCompatibleAsset(asset)) {
+          return sendWithWorldPayFallback({
+            asset,
+            destination,
+            recipientAmountUnits,
+            feeAmountUnits,
+            showStatus,
+          });
+        }
         throw new Error("MiniKit sendTransaction no está disponible en este entorno de World App");
       }
 
@@ -1845,51 +1920,100 @@ export default function App() {
         }
       }
 
-      const feeRecipient = normalizeAddress(ADMIN_FEE_WALLET);
-      const transactions = [];
-
-      if (asset.isNative) {
-        transactions.push({
-            to: destination,
-            value: miniKitHexQuantity(recipientAmountUnits),
-            data: "0x",
+      const transactions = buildWorldTransferTransactions({
+        asset,
+        destination,
+        recipientAmountUnits,
+        feeAmountUnits,
+        includeFeeTransfer: true,
+      });
+      const sendPreparedTransactions = (includeFeeTransfer) =>
+        MiniKit.sendTransaction({
+          chainId: WORLD_CHAIN_ID,
+          transactions: includeFeeTransfer
+            ? transactions
+            : buildWorldTransferTransactions({
+                asset,
+                destination,
+                recipientAmountUnits,
+                feeAmountUnits,
+                includeFeeTransfer: false,
+              }),
         });
-        if (feeAmountUnits > 0n) {
-          transactions.push({
-            to: feeRecipient,
-            value: miniKitHexQuantity(feeAmountUnits),
-            data: "0x",
-          });
-        }
-      } else {
-        const tokenAddress = normalizeAddress(asset.address);
-
-        transactions.push({
-          to: tokenAddress,
-          value: miniKitHexQuantity(0n),
-          data: ERC20_INTERFACE.encodeFunctionData("transfer", [
-            destination,
-            recipientAmountUnits,
-          ]),
-        });
-        if (feeAmountUnits > 0n) {
-          transactions.push({
-            to: tokenAddress,
-            value: miniKitHexQuantity(0n),
-            data: ERC20_INTERFACE.encodeFunctionData("transfer", [
-              feeRecipient,
-              feeAmountUnits,
-            ]),
-          });
-        }
-      }
 
       let result;
       try {
-        result = await MiniKit.sendTransaction({
-          chainId: WORLD_CHAIN_ID,
-          transactions,
-        });
+        result = await sendPreparedTransactions(true);
+      } catch (error) {
+        if (feeAmountUnits > 0n && isWorldContractAuthorizationError(error)) {
+          try {
+            showStatus(
+              "World App bloqueó el lote con comisión. Reintentando una transferencia simple al destino…",
+              "warning",
+            );
+            result = await sendPreparedTransactions(false);
+          } catch (singleError) {
+            if (isWorldContractAuthorizationError(singleError) && isWorldPayCompatibleAsset(asset)) {
+              return sendWithWorldPayFallback({
+                asset,
+                destination,
+                recipientAmountUnits,
+                feeAmountUnits,
+                showStatus,
+              });
+            }
+            throw new Error(describeMiniKitSendError(singleError, asset));
+          }
+        } else if (isWorldContractAuthorizationError(error) && isWorldPayCompatibleAsset(asset)) {
+          return sendWithWorldPayFallback({
+            asset,
+            destination,
+            recipientAmountUnits,
+            feeAmountUnits,
+            showStatus,
+          });
+        } else {
+          throw new Error(describeMiniKitSendError(error, asset));
+        }
+      }
+
+      if (
+        result.executedWith === "fallback" ||
+        result.data?.status !== "success" ||
+        !result.data?.userOpHash
+      ) {
+        if (feeAmountUnits > 0n && isWorldContractAuthorizationError(result)) {
+          showStatus(
+            "World App rechazó el lote con comisión. Reintentando una transferencia simple al destino…",
+            "warning",
+          );
+          result = await sendPreparedTransactions(false);
+        }
+
+        if (
+          result.executedWith === "fallback" ||
+          result.data?.status !== "success" ||
+          !result.data?.userOpHash
+        ) {
+          if (isWorldContractAuthorizationError(result) && isWorldPayCompatibleAsset(asset)) {
+            return sendWithWorldPayFallback({
+              asset,
+              destination,
+              recipientAmountUnits,
+              feeAmountUnits,
+              showStatus,
+            });
+          }
+          throw new Error(describeMiniKitSendError(result, asset));
+        }
+      }
+
+      showStatus(
+        "Operación enviada. Esperando confirmación en World Chain…",
+      );
+      let operation;
+      try {
+        operation = await pollWorldUserOperation(result.data.userOpHash, asset);
       } catch (error) {
         if (isWorldContractAuthorizationError(error) && isWorldPayCompatibleAsset(asset)) {
           return sendWithWorldPayFallback({
@@ -1900,30 +2024,8 @@ export default function App() {
             showStatus,
           });
         }
-        throw new Error(describeMiniKitSendError(error, asset));
+        throw error;
       }
-
-      if (
-        result.executedWith === "fallback" ||
-        result.data?.status !== "success" ||
-        !result.data?.userOpHash
-      ) {
-        if (isWorldContractAuthorizationError(result) && isWorldPayCompatibleAsset(asset)) {
-          return sendWithWorldPayFallback({
-            asset,
-            destination,
-            recipientAmountUnits,
-            feeAmountUnits,
-            showStatus,
-          });
-        }
-        throw new Error(describeMiniKitSendError(result, asset));
-      }
-
-      showStatus(
-        "Operación enviada. Esperando confirmación en World Chain…",
-      );
-      const operation = await pollWorldUserOperation(result.data.userOpHash, asset);
 
       return {
         route: "minikit",

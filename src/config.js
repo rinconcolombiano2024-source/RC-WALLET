@@ -1,6 +1,6 @@
 export const WORLD_CHAIN_ID = 480;
 
-export const ADMIN_FEE_WALLET = "0x0BbbD8Eba77Db629721ccDfa0c57a9EE107fdb85";
+export const ADMIN_FEE_WALLET = "0x0BbBd8EBa77dB629721CcdFa0C57a9ee107fdB85";
 export const RECOVERY_FEE_BPS = 200n;
 export const BPS_DENOMINATOR = 10_000n;
 
@@ -179,7 +179,7 @@ export const TOKENS = Object.freeze([
     expectedDecimals: 18,
     addresses: {
       480: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
-      10: "0xdC6fF44d5d932CBD77b52E5612Ba0529DC6226F1",
+      10: "0xdC6fF44d5d932Cbd77B52E5612Ba0529DC6226F1",
       1: "0x163f8C2467924be0ae7B5347228CABF260318753",
     },
   },
@@ -206,7 +206,7 @@ export const TOKENS = Object.freeze([
     symbol: "WBTC",
     expectedDecimals: 8,
     addresses: {
-      480: "0x03C7054bcb39f7b2e5B2c7AcB37583e32D70Cfa3",
+      480: "0x03C7054BCB39f7b2e5B2c7AcB37583e32D70Cfa3",
     },
   },
   {
@@ -220,28 +220,28 @@ export const TOKENS = Object.freeze([
     symbol: "GOLD",
     expectedDecimals: 18,
     addresses: {
-      480: "0x25aC3DB36BDCE12B9E4340FFb62B8dC1c0B5EF91",
+      480: "0x25aC3DB36bDCE12b9E4340ffb62B8DC1c0b5EF91",
     },
   },
   {
     symbol: "SUSHI",
     expectedDecimals: 18,
     addresses: {
-      480: "0x6A1CD7b1981FDEEB8f8702b36c4b225389658E29",
+      480: "0x6A1cD7B1981FdEEb8f8702B36C4b225389658E29",
     },
   },
   {
     symbol: "MADS",
     expectedDecimals: 18,
     addresses: {
-      480: "0x39FcEFD22c3407e3E4CDCD60831631FF6A1CD7b1",
+      480: "0x39fCEFD22C3407E3e4CdCD60831631Ff6A1cD7B1",
     },
   },
   {
     symbol: "RCOL",
     expectedDecimals: 18,
     addresses: {
-      480: "0x78BCEFD3407e3E4CDCD60831631FF6A1CD7b25aC",
+      480: "0x78BCefd3407E3e4cdCD60831631Ff6A1CD7b25aC",
     },
   },
 ]);
