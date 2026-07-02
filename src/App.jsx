@@ -55,6 +55,7 @@ const CUSTOM_TOKENS_KEY = "rc_wallet_custom_tokens_v1";
 const DEFAULT_RCPL_TARGET_PRICE = "0.10";
 const DEFAULT_RCPL_LIQUIDITY_USD = "1000";
 const WORLD_ID_STATEMENT = "Iniciar sesión en RC Wallet Recovery";
+const WORLD_PAY_TIMEOUT_MS = 10 * 60 * 1000;
 
 const APP_TABS = Object.freeze([
   { id: "home", label: "Inicio", icon: "⌂" },
@@ -370,14 +371,31 @@ function describeMiniKitPayError(result, asset) {
   const text = miniKitErrorText(result);
   const tokenSymbol = asset?.symbol || "token";
 
+  if (text.includes("minikit_timeout")) {
+    return "World Pay sigue esperando respuesta. Si el modal de pago está abierto, confirma o cancela allí. Si ya lo cerraste, intenta nuevamente.";
+  }
   if (text.includes("invalid_receiver") || text.includes("receiver")) {
     return "World Pay rechazó la wallet receptora. En World Developer Portal deshabilita la lista blanca de direcciones de pago o agrega la wallet destino como dirección autorizada.";
   }
-  if (text.includes("invalid_token") || text.includes("token")) {
+  if (text.includes("invalid_token") || text.includes("invalid token")) {
     return `World Pay no aceptó ${tokenSymbol}. Para pagos oficiales usa tokens soportados por World App, normalmente WLD o stablecoins disponibles en tu región.`;
   }
-  if (text.includes("user_rejected") || text.includes("rejected")) {
-    return "El usuario rechazó el pago en World App.";
+  if (
+    text.includes("payment_rejected") ||
+    text.includes("user_rejected") ||
+    text.includes("cancelled") ||
+    text.includes("canceled")
+  ) {
+    return "El pago fue cancelado o rechazado en World App.";
+  }
+  if (text.includes("insufficient_balance")) {
+    return "World Pay indica saldo insuficiente para completar el pago.";
+  }
+  if (text.includes("transaction_failed")) {
+    return "World Pay abrió la confirmación, pero la transacción falló. Revisa la wallet destino, el monto, la lista blanca de direcciones de pago y vuelve a intentar.";
+  }
+  if (text.includes("generic_error")) {
+    return "World Pay devolvió un error genérico. Reintenta con un monto menor y verifica que la dirección receptora esté permitida en World Developer Portal.";
   }
 
   return (
@@ -490,6 +508,7 @@ async function sendWithWorldPayFallback({
         },
       }),
     "World Pay",
+    WORLD_PAY_TIMEOUT_MS,
   );
 
   if (
