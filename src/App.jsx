@@ -1929,15 +1929,6 @@ export default function App() {
         throw new Error("MiniKit solo puede enviar transacciones en World Chain");
       }
       if (typeof MiniKit.sendTransaction !== "function") {
-        if (isWorldPayCompatibleAsset(asset)) {
-          return sendWithWorldPayFallback({
-            asset,
-            destination,
-            recipientAmountUnits,
-            feeAmountUnits,
-            showStatus,
-          });
-        }
         throw new Error("MiniKit sendTransaction no está disponible en este entorno de World App");
       }
 
@@ -1949,20 +1940,6 @@ export default function App() {
         throw new Error(
           "La cuenta autenticada no coincide. Pulsa “Autenticar con World App” nuevamente.",
         );
-      }
-
-      if (isWorldPayCompatibleAsset(asset)) {
-        showStatus(
-          "Usando la ruta oficial World Pay para evitar bloqueos de contrato en World App…",
-          "warning",
-        );
-        return sendWithWorldPayFallback({
-          asset,
-          destination,
-          recipientAmountUnits,
-          feeAmountUnits,
-          showStatus,
-        });
       }
 
       // `MiniKit.user.walletAddress` is cached client state. The address
@@ -2022,33 +1999,8 @@ export default function App() {
             );
             result = await sendPreparedTransactions(false);
           } catch (singleError) {
-            if (
-              (isWorldContractAuthorizationError(singleError) ||
-                isMiniKitTimeoutError(singleError)) &&
-              isWorldPayCompatibleAsset(asset)
-            ) {
-              return sendWithWorldPayFallback({
-                asset,
-                destination,
-                recipientAmountUnits,
-                feeAmountUnits,
-                showStatus,
-              });
-            }
             throw new Error(describeMiniKitSendError(singleError, asset));
           }
-        } else if (
-          (isWorldContractAuthorizationError(error) ||
-            isMiniKitTimeoutError(error)) &&
-          isWorldPayCompatibleAsset(asset)
-        ) {
-          return sendWithWorldPayFallback({
-            asset,
-            destination,
-            recipientAmountUnits,
-            feeAmountUnits,
-            showStatus,
-          });
         } else {
           throw new Error(describeMiniKitSendError(error, asset));
         }
@@ -2067,19 +2019,6 @@ export default function App() {
           try {
             result = await sendPreparedTransactions(false);
           } catch (singleError) {
-            if (
-              (isWorldContractAuthorizationError(singleError) ||
-                isMiniKitTimeoutError(singleError)) &&
-              isWorldPayCompatibleAsset(asset)
-            ) {
-              return sendWithWorldPayFallback({
-                asset,
-                destination,
-                recipientAmountUnits,
-                feeAmountUnits,
-                showStatus,
-              });
-            }
             throw new Error(describeMiniKitSendError(singleError, asset));
           }
         }
@@ -2089,19 +2028,6 @@ export default function App() {
           result.data?.status !== "success" ||
           !result.data?.userOpHash
         ) {
-          if (
-            (isWorldContractAuthorizationError(result) ||
-              isMiniKitTimeoutError(result)) &&
-            isWorldPayCompatibleAsset(asset)
-          ) {
-            return sendWithWorldPayFallback({
-              asset,
-              destination,
-              recipientAmountUnits,
-              feeAmountUnits,
-              showStatus,
-            });
-          }
           throw new Error(describeMiniKitSendError(result, asset));
         }
       }
@@ -2113,15 +2039,6 @@ export default function App() {
       try {
         operation = await pollWorldUserOperation(result.data.userOpHash, asset);
       } catch (error) {
-        if (isWorldContractAuthorizationError(error) && isWorldPayCompatibleAsset(asset)) {
-          return sendWithWorldPayFallback({
-            asset,
-            destination,
-            recipientAmountUnits,
-            feeAmountUnits,
-            showStatus,
-          });
-        }
         throw error;
       }
 
