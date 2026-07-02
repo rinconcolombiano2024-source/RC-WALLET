@@ -157,9 +157,9 @@ function permit2Expiration() {
 function createWorldPayReference() {
   const random =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
+      ? crypto.randomUUID().replace(/-/g, "")
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return `rc-wallet-${random}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+  return `rcw-${random}`.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 36);
 }
 
 function isWorldPayCompatibleAsset(asset) {
@@ -197,6 +197,28 @@ function isWorldContractAuthorizationError(errorOrResult) {
     text.includes("disallowed_operation") ||
     text.includes("invalid_operation") ||
     text.includes("disallowed operation")
+  );
+}
+
+function isMiniKitTimeoutError(errorOrResult) {
+  const text = miniKitErrorText(errorOrResult);
+  return text.includes("minikit_timeout");
+}
+
+function withMiniKitTimeout(command, label, timeoutMs = 45_000) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(
+        `${label} no respondió a tiempo. Intenta nuevamente o usa la ruta de respaldo oficial.`,
+      );
+      error.code = "minikit_timeout";
+      reject(error);
+    }, timeoutMs);
+  });
+
+  return Promise.race([Promise.resolve().then(command), timeoutPromise]).finally(
+    () => clearTimeout(timeoutId),
   );
 }
 
@@ -279,6 +301,10 @@ function describeMiniKitSendError(result, asset) {
   const rawErrorText = `${code} ${message} ${JSON.stringify(
     result?.data ?? {},
   )}`.toLowerCase();
+
+  if (code === "minikit_timeout" || rawErrorText.includes("minikit_timeout")) {
+    return message || "World App no respondió a tiempo. Vuelve a intentar dentro de World App o usa la ruta de respaldo oficial si está disponible.";
+  }
 
   if (
     code === "invalid_token" ||
@@ -436,7 +462,7 @@ async function sendWithWorldPayFallback({
 
   if (feeAmountUnits > 0n) {
     showStatus(
-      "Ruta de respaldo oficial World Pay: se enviará el monto neto al destino. La comisión no se cobra automáticamente en esta ruta.",
+      "Ruta oficial World Pay: se enviará el monto neto al destino. La comisión no se cobra automáticamente en esta ruta.",
       "warning",
     );
   }
@@ -444,23 +470,27 @@ async function sendWithWorldPayFallback({
   const reference = createWorldPayReference();
   const symbol = worldPaySymbolForAsset(asset);
   const tokenAmount = worldPayAmount(recipientAmountUnits, asset.decimals);
-  const result = await payCommand({
-    reference,
-    to: destination,
-    tokens: [
-      {
-        symbol,
-        token_amount: tokenAmount,
-      },
-    ],
-    description: `RC Wallet transfer ${symbol}`,
-    fallback: () => {
-      showStatus(
-        "Completa el pago dentro de World App para continuar.",
-        "warning",
-      );
-    },
-  });
+  const result = await withMiniKitTimeout(
+    () =>
+      payCommand({
+        reference,
+        to: destination,
+        tokens: [
+          {
+            symbol,
+            token_amount: tokenAmount,
+          },
+        ],
+        description: `RC Wallet transfer ${symbol}`,
+        fallback: () => {
+          showStatus(
+            "Completa el pago dentro de World App para continuar.",
+            "warning",
+          );
+        },
+      }),
+    "World Pay",
+  );
 
   if (
     result?.executedWith === "fallback" ||
@@ -1902,6 +1932,20 @@ export default function App() {
         );
       }
 
+      if (isWorldPayCompatibleAsset(asset)) {
+        showStatus(
+          "Usando la ruta oficial World Pay para evitar bloqueos de contrato en World App…",
+          "warning",
+        );
+        return sendWithWorldPayFallback({
+          asset,
+          destination,
+          recipientAmountUnits,
+          feeAmountUnits,
+          showStatus,
+        });
+      }
+
       // `MiniKit.user.walletAddress` is cached client state. The address
       // verified by SIWE on the backend is the authoritative session address.
       const cachedAddress = MiniKit.user?.walletAddress;
@@ -1928,18 +1972,24 @@ export default function App() {
         includeFeeTransfer: true,
       });
       const sendPreparedTransactions = (includeFeeTransfer) =>
-        MiniKit.sendTransaction({
-          chainId: WORLD_CHAIN_ID,
-          transactions: includeFeeTransfer
-            ? transactions
-            : buildWorldTransferTransactions({
-                asset,
-                destination,
-                recipientAmountUnits,
-                feeAmountUnits,
-                includeFeeTransfer: false,
-              }),
-        });
+        withMiniKitTimeout(
+          () =>
+            MiniKit.sendTransaction({
+              chainId: WORLD_CHAIN_ID,
+              transactions: includeFeeTransfer
+                ? transactions
+                : buildWorldTransferTransactions({
+                    asset,
+                    destination,
+                    recipientAmountUnits,
+                    feeAmountUnits,
+                    includeFeeTransfer: false,
+                  }),
+            }),
+          includeFeeTransfer
+            ? "World App transferencia con comisión"
+            : "World App transferencia simple",
+        );
 
       let result;
       try {
@@ -1953,7 +2003,11 @@ export default function App() {
             );
             result = await sendPreparedTransactions(false);
           } catch (singleError) {
-            if (isWorldContractAuthorizationError(singleError) && isWorldPayCompatibleAsset(asset)) {
+            if (
+              (isWorldContractAuthorizationError(singleError) ||
+                isMiniKitTimeoutError(singleError)) &&
+              isWorldPayCompatibleAsset(asset)
+            ) {
               return sendWithWorldPayFallback({
                 asset,
                 destination,
@@ -1964,7 +2018,11 @@ export default function App() {
             }
             throw new Error(describeMiniKitSendError(singleError, asset));
           }
-        } else if (isWorldContractAuthorizationError(error) && isWorldPayCompatibleAsset(asset)) {
+        } else if (
+          (isWorldContractAuthorizationError(error) ||
+            isMiniKitTimeoutError(error)) &&
+          isWorldPayCompatibleAsset(asset)
+        ) {
           return sendWithWorldPayFallback({
             asset,
             destination,
@@ -1987,7 +2045,24 @@ export default function App() {
             "World App rechazó el lote con comisión. Reintentando una transferencia simple al destino…",
             "warning",
           );
-          result = await sendPreparedTransactions(false);
+          try {
+            result = await sendPreparedTransactions(false);
+          } catch (singleError) {
+            if (
+              (isWorldContractAuthorizationError(singleError) ||
+                isMiniKitTimeoutError(singleError)) &&
+              isWorldPayCompatibleAsset(asset)
+            ) {
+              return sendWithWorldPayFallback({
+                asset,
+                destination,
+                recipientAmountUnits,
+                feeAmountUnits,
+                showStatus,
+              });
+            }
+            throw new Error(describeMiniKitSendError(singleError, asset));
+          }
         }
 
         if (
@@ -1995,7 +2070,11 @@ export default function App() {
           result.data?.status !== "success" ||
           !result.data?.userOpHash
         ) {
-          if (isWorldContractAuthorizationError(result) && isWorldPayCompatibleAsset(asset)) {
+          if (
+            (isWorldContractAuthorizationError(result) ||
+              isMiniKitTimeoutError(result)) &&
+            isWorldPayCompatibleAsset(asset)
+          ) {
             return sendWithWorldPayFallback({
               asset,
               destination,
