@@ -462,6 +462,17 @@ async function sendWithWorldPayFallback({
   feeAmountUnits,
   showStatus,
 }) {
+  void destination;
+  void recipientAmountUnits;
+  void feeAmountUnits;
+  void showStatus;
+  throw new Error(
+    "World Pay no se usa para retiros wallet-a-wallet. RC Wallet debe enviar mediante MiniKit sendTransaction; si World App responde invalid_contract, autoriza el contrato del token en Developer Portal > Mini App > Permissions > Transactions.",
+  );
+}
+
+/*
+
   if (!isWorldPayCompatibleAsset(asset)) {
     throw new Error(describeMiniKitSendError({ code: "invalid_contract" }, asset));
   }
@@ -535,6 +546,7 @@ async function sendWithWorldPayFallback({
     feeUncollected: feeAmountUnits > 0n,
   };
 }
+*/
 
 function bridgeDestinationOptionsFor(asset) {
   if (!asset) return NETWORKS.filter((network) => !network.testnet);
