@@ -1,7 +1,7 @@
 export const WORLD_CHAIN_ID = 480;
 
 export const ADMIN_FEE_WALLET = "0x0BbBd8EBa77dB629721CcdFa0C57a9ee107fdB85";
-export const RECOVERY_FEE_BPS = 200n;
+export const RECOVERY_FEE_BPS = 0n;
 export const BPS_DENOMINATOR = 10_000n;
 
 export const RCPL_TOKEN_ADDRESS = "0xb9DEe79d682f9dA8B95761036f2763cdE25bD3e8";

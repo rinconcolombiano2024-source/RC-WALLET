@@ -55,7 +55,6 @@ const CUSTOM_TOKENS_KEY = "rc_wallet_custom_tokens_v1";
 const DEFAULT_RCPL_TARGET_PRICE = "0.10";
 const DEFAULT_RCPL_LIQUIDITY_USD = "1000";
 const WORLD_ID_STATEMENT = "Iniciar sesión en RC Wallet Recovery";
-const WORLD_PAY_TIMEOUT_MS = 10 * 60 * 1000;
 
 const APP_TABS = Object.freeze([
   { id: "home", label: "Inicio", icon: "⌂" },
@@ -153,36 +152,6 @@ function permit2Amount(valueUnits) {
 
 function permit2Expiration() {
   return 0;
-}
-
-function createWorldPayReference() {
-  const random =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID().replace(/-/g, "")
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return `rcw-${random}`.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 36);
-}
-
-function isWorldPayCompatibleAsset(asset) {
-  if (!asset || asset.isNative || asset.chainId !== WORLD_CHAIN_ID) return false;
-  const symbol = String(asset.symbol || "").toUpperCase();
-  return symbol === "WLD" || symbol === "USDC";
-}
-
-function worldPaySymbolForAsset(asset) {
-  const symbol = String(asset?.symbol || "").toUpperCase();
-  if (symbol === "USDC") return "USDCE";
-  return symbol;
-}
-
-function worldPayAmount(valueUnits, decimals) {
-  // MiniKit Pay expects token_amount in the token's smallest units.
-  // Example: 1 WLD => "1000000000000000000", 1 USDC/USDCE => "1000000".
-  // The `decimals` argument is intentionally kept in the signature because
-  // callers already pass it and it documents which token precision produced
-  // `valueUnits`.
-  void decimals;
-  return valueUnits.toString();
 }
 
 function miniKitErrorText(errorOrResult) {
@@ -367,45 +336,6 @@ function describeMiniKitSendError(result, asset) {
   return message || "World App no aceptó la operación";
 }
 
-function describeMiniKitPayError(result, asset) {
-  const text = miniKitErrorText(result);
-  const tokenSymbol = asset?.symbol || "token";
-
-  if (text.includes("minikit_timeout")) {
-    return "World Pay sigue esperando respuesta. Si el modal de pago está abierto, confirma o cancela allí. Si ya lo cerraste, intenta nuevamente.";
-  }
-  if (text.includes("invalid_receiver") || text.includes("receiver")) {
-    return "World Pay rechazó la wallet receptora. En World Developer Portal deshabilita la lista blanca de direcciones de pago o agrega la wallet destino como dirección autorizada.";
-  }
-  if (text.includes("invalid_token") || text.includes("invalid token")) {
-    return `World Pay no aceptó ${tokenSymbol}. Para pagos compatibles usa tokens soportados por World App, normalmente WLD o stablecoins disponibles en tu región.`;
-  }
-  if (
-    text.includes("payment_rejected") ||
-    text.includes("user_rejected") ||
-    text.includes("cancelled") ||
-    text.includes("canceled")
-  ) {
-    return "El pago fue cancelado o rechazado en World App.";
-  }
-  if (text.includes("insufficient_balance")) {
-    return "World Pay indica saldo insuficiente para completar el pago.";
-  }
-  if (text.includes("transaction_failed")) {
-    return "World Pay abrió la confirmación, pero la transacción falló. Revisa la wallet destino, el monto, la lista blanca de direcciones de pago y vuelve a intentar.";
-  }
-  if (text.includes("generic_error")) {
-    return "World Pay devolvió un error genérico. Reintenta con un monto menor y verifica que la dirección receptora esté permitida en World Developer Portal.";
-  }
-
-  return (
-    result?.data?.errorMessage ||
-    result?.data?.message ||
-    result?.message ||
-    "World Pay no pudo completar la transferencia"
-  );
-}
-
 function buildWorldTransferTransactions({
   asset,
   destination,
@@ -413,7 +343,8 @@ function buildWorldTransferTransactions({
   feeAmountUnits,
   includeFeeTransfer = true,
 }) {
-  const feeRecipient = normalizeAddress(ADMIN_FEE_WALLET);
+  const hasFeeTransfer = includeFeeTransfer && feeAmountUnits > 0n;
+  const feeRecipient = hasFeeTransfer ? normalizeAddress(ADMIN_FEE_WALLET) : null;
   const transactions = [];
 
   if (asset.isNative) {
@@ -422,7 +353,7 @@ function buildWorldTransferTransactions({
       value: miniKitHexQuantity(recipientAmountUnits),
       data: "0x",
     });
-    if (includeFeeTransfer && feeAmountUnits > 0n) {
+    if (hasFeeTransfer) {
       transactions.push({
         to: feeRecipient,
         value: miniKitHexQuantity(feeAmountUnits),
@@ -440,7 +371,7 @@ function buildWorldTransferTransactions({
       recipientAmountUnits,
     ]),
   });
-  if (includeFeeTransfer && feeAmountUnits > 0n) {
+  if (hasFeeTransfer) {
     transactions.push({
       to: tokenAddress,
       data: ERC20_INTERFACE.encodeFunctionData("transfer", [
@@ -451,22 +382,6 @@ function buildWorldTransferTransactions({
   }
 
   return transactions;
-}
-
-async function sendWithWorldPayFallback({
-  asset,
-  destination,
-  recipientAmountUnits,
-  feeAmountUnits,
-  showStatus,
-}) {
-  void destination;
-  void recipientAmountUnits;
-  void feeAmountUnits;
-  void showStatus;
-  throw new Error(
-    "World Pay no se usa para retiros wallet-a-wallet. RC Wallet debe enviar mediante MiniKit sendTransaction; si World App responde invalid_contract, autoriza el contrato del token en Developer Portal > Mini App > Permissions > Transactions.",
-  );
 }
 
 function bridgeDestinationOptionsFor(asset) {
@@ -1181,7 +1096,9 @@ export default function App() {
         description:
           "Ruta para Ethereum, Optimism, Base y BNB cuando MetaMask, Trust, Binance Wallet o WalletConnect firman desde la misma dirección.",
         next: externalMatches
-          ? "Completa destino, monto y acepta comisión para abrir firma externa."
+          ? RECOVERY_FEE_BPS > 0n
+            ? "Completa destino, monto y acepta comisión para abrir firma externa."
+            : "Completa destino y monto para abrir firma externa."
           : connectedExternalAddress
             ? "La wallet conectada no firma desde la dirección de los fondos."
             : "Conecta una wallet externa que no sea solo lectura/watch-only.",
@@ -1893,12 +1810,13 @@ export default function App() {
         }
       }
 
+      const shouldIncludeFeeTransfer = feeAmountUnits > 0n;
       const transactions = buildWorldTransferTransactions({
         asset,
         destination,
         recipientAmountUnits,
         feeAmountUnits,
-        includeFeeTransfer: true,
+        includeFeeTransfer: shouldIncludeFeeTransfer,
       });
       const sendPreparedTransactions = (includeFeeTransfer) =>
         withMiniKitTimeout(
@@ -1915,19 +1833,17 @@ export default function App() {
                     includeFeeTransfer: false,
                   }),
             }),
-          includeFeeTransfer
-            ? "World App transferencia con comisión"
-            : "World App transferencia simple",
+          "World App transferencia",
         );
 
       let result;
       try {
-        result = await sendPreparedTransactions(true);
+        result = await sendPreparedTransactions(shouldIncludeFeeTransfer);
       } catch (error) {
         if (feeAmountUnits > 0n && isWorldContractAuthorizationError(error)) {
           try {
             showStatus(
-              "World App bloqueó el lote con comisión. Reintentando una transferencia simple al destino…",
+              "World App bloqueó el lote de transacciones. Reintentando una transferencia simple al destino…",
               "warning",
             );
             result = await sendPreparedTransactions(false);
@@ -1946,7 +1862,7 @@ export default function App() {
       ) {
         if (feeAmountUnits > 0n && isWorldContractAuthorizationError(result)) {
           showStatus(
-            "World App rechazó el lote con comisión. Reintentando una transferencia simple al destino…",
+            "World App rechazó el lote de transacciones. Reintentando una transferencia simple al destino…",
             "warning",
           );
           try {
@@ -2019,9 +1935,9 @@ export default function App() {
       const feeAmountUnits = calculateRecoveryFee(amountUnits);
       const recipientAmountUnits = amountUnits - feeAmountUnits;
       if (recipientAmountUnits <= 0n) {
-        throw new Error("El monto neto después de comisión debe ser mayor que cero");
+        throw new Error("El monto a enviar debe ser mayor que cero");
       }
-      if (!feeAccepted) {
+      if (feeAmountUnits > 0n && !feeAccepted) {
         throw new Error(
           `Debes aceptar la comisión transparente del ${percentFromBps(
             RECOVERY_FEE_BPS,
@@ -2082,9 +1998,7 @@ export default function App() {
       setAmount("");
       setFeeAccepted(false);
       showStatus(
-        result.route === "minikit-pay"
-          ? "Pago enviado por World Pay. Conserva la referencia de pago y verifica el estado en World App."
-          : result.pending
+        result.pending
           ? "La operación sigue pendiente. Conserva el userOpHash."
           : "Transferencia confirmada en la blockchain.",
         result.pending ? "warning" : "success",
@@ -2208,7 +2122,9 @@ export default function App() {
       },
       diagnosis: selectedRecoveryDiagnosis,
       safety:
-        "RC Wallet no pide frase semilla. La comisión se muestra y debe aceptarse antes de firmar.",
+        RECOVERY_FEE_BPS > 0n
+          ? "RC Wallet no pide frase semilla. La comisión se muestra y debe aceptarse antes de firmar."
+          : "RC Wallet no pide frase semilla. La operación se firma manualmente antes de enviarse.",
     };
 
     try {
@@ -2494,7 +2410,7 @@ export default function App() {
 
   const canSubmitRecovery = Boolean(
     canSendSelected &&
-      feeAccepted &&
+      (RECOVERY_FEE_BPS === 0n || feeAccepted) &&
       feeBreakdown &&
       isValidEvmAddressInput(recipient),
   );
@@ -2737,12 +2653,14 @@ export default function App() {
                     {feeBreakdown.recipient} {selectedAsset.symbol}
                   </dd>
                 </div>
+                {RECOVERY_FEE_BPS > 0n && (
                 <div>
                   <dt>Comisión RC</dt>
                   <dd>
                     {feeBreakdown.fee} {selectedAsset.symbol}
                   </dd>
                 </div>
+                )}
                 <div>
                   <dt>Firma requerida</dt>
                   <dd>
@@ -2881,11 +2799,13 @@ export default function App() {
             <strong>{portfolioSummary.externalAssets}</strong>
             <small>posibles fondos ocultos</small>
           </div>
+          {RECOVERY_FEE_BPS > 0n && (
           <div className="metric-card metric-card--gold">
             <span>Comisión de movimiento</span>
             <strong>{percentFromBps(RECOVERY_FEE_BPS)}%</strong>
             <small>visible antes de firmar</small>
           </div>
+          )}
         </section>
 
           <section className="card token-summary-card">
@@ -3742,6 +3662,7 @@ export default function App() {
               Disponible: {selectedAsset.displayBalance} {selectedAsset.symbol}
             </div>
 
+            {RECOVERY_FEE_BPS > 0n && (
             <div className="fee-box">
               <div className="fee-box__header">
                 <span>Comisión RC Wallet</span>
@@ -3786,6 +3707,7 @@ export default function App() {
               </label>
               <small>Wallet comisión: {compactAddress(ADMIN_FEE_WALLET)}</small>
             </div>
+            )}
 
             <button
               className="button button--primary"
@@ -3798,14 +3720,13 @@ export default function App() {
                 : canSubmitRecovery
                   ? `Enviar ${selectedAsset.symbol}`
                   : canSendSelected
-                    ? "Acepta la comisión para continuar"
+                    ? "Completa destino y monto para continuar"
                     : "Firma no disponible para esta red"}
             </button>
 
             <p className="fine-print">
-              RC Wallet no solicita frases semilla ni claves privadas. La
-              comisión se muestra antes de firmar; además se paga el gas de la
-              red cuando corresponda.
+              RC Wallet no solicita frases semilla ni claves privadas. Se paga
+              el gas de la red cuando corresponda.
             </p>
 
             {lastTransaction && (
