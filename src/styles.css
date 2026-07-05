@@ -387,7 +387,7 @@ summary:focus-visible {
   line-height: 1.5;
 }
 
-.official-links {
+.reference-links {
   display: grid;
   gap: 6px;
   border: 1px solid rgba(98, 169, 255, 0.22);
@@ -396,7 +396,7 @@ summary:focus-visible {
   background: rgba(98, 169, 255, 0.055);
 }
 
-.official-links > strong {
+.reference-links > strong {
   color: #cfe6ff;
   font-size: 13px;
 }

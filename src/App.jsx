@@ -65,7 +65,7 @@ const APP_TABS = Object.freeze([
   { id: "tools", label: "Herramientas", icon: "⚙" },
 ]);
 
-const TOKEN_OFFICIAL_LINKS = Object.freeze({
+const TOKEN_REFERENCE_LINKS = Object.freeze({
   "RC.PL": [
     {
       label: "Contrato RC.PL",
@@ -76,16 +76,16 @@ const TOKEN_OFFICIAL_LINKS = Object.freeze({
       url: "https://maps.app.goo.gl/MKzY4KzWp8NrTBjw5?g_st=ac",
     },
   ],
-  WLD: [{ label: "World oficial", url: "https://world.org" }],
+  WLD: [{ label: "World", url: "https://world.org" }],
   USDC: [{ label: "Circle USDC", url: "https://www.circle.com/usdc" }],
   USDT: [{ label: "Tether USDT", url: "https://tether.to" }],
   WBTC: [
-    { label: "Bitcoin oficial", url: "https://bitcoin.org" },
+    { label: "Bitcoin", url: "https://bitcoin.org" },
     { label: "Wrapped BTC", url: "https://wbtc.network" },
   ],
-  WETH: [{ label: "Ethereum oficial", url: "https://ethereum.org" }],
-  ETH: [{ label: "Ethereum oficial", url: "https://ethereum.org" }],
-  BNB: [{ label: "BNB Chain oficial", url: "https://www.bnbchain.org" }],
+  WETH: [{ label: "Ethereum", url: "https://ethereum.org" }],
+  ETH: [{ label: "Ethereum", url: "https://ethereum.org" }],
+  BNB: [{ label: "BNB Chain", url: "https://www.bnbchain.org" }],
   GOLD: [{ label: "Precio oro XAU", url: "https://www.gold.org" }],
 });
 
@@ -211,7 +211,7 @@ function withMiniKitTimeout(command, label, timeoutMs = 45_000) {
   const timeoutPromise = new Promise((_, reject) => {
     timeoutId = setTimeout(() => {
       const error = new Error(
-        `${label} no respondió a tiempo. Intenta nuevamente o usa la ruta de respaldo oficial.`,
+        `${label} no respondió a tiempo. Intenta nuevamente o usa la ruta de respaldo compatible.`,
       );
       error.code = "minikit_timeout";
       reject(error);
@@ -269,11 +269,11 @@ function parsePositiveNumber(value) {
   return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
-function tokenOfficialLinks(asset) {
+function tokenReferenceLinks(asset) {
   if (!asset) return [];
   return (
-    TOKEN_OFFICIAL_LINKS[asset.symbol] ??
-    TOKEN_OFFICIAL_LINKS[asset.configuredSymbol] ??
+    TOKEN_REFERENCE_LINKS[asset.symbol] ??
+    TOKEN_REFERENCE_LINKS[asset.configuredSymbol] ??
     []
   );
 }
@@ -304,7 +304,7 @@ function describeMiniKitSendError(result, asset) {
   )}`.toLowerCase();
 
   if (code === "minikit_timeout" || rawErrorText.includes("minikit_timeout")) {
-    return message || "World App no respondió a tiempo. Vuelve a intentar dentro de World App o usa la ruta de respaldo oficial si está disponible.";
+    return message || "World App no respondió a tiempo. Vuelve a intentar dentro de World App o usa la ruta de respaldo compatible si está disponible.";
   }
 
   if (
@@ -378,7 +378,7 @@ function describeMiniKitPayError(result, asset) {
     return "World Pay rechazó la wallet receptora. En World Developer Portal deshabilita la lista blanca de direcciones de pago o agrega la wallet destino como dirección autorizada.";
   }
   if (text.includes("invalid_token") || text.includes("invalid token")) {
-    return `World Pay no aceptó ${tokenSymbol}. Para pagos oficiales usa tokens soportados por World App, normalmente WLD o stablecoins disponibles en tu región.`;
+    return `World Pay no aceptó ${tokenSymbol}. Para pagos compatibles usa tokens soportados por World App, normalmente WLD o stablecoins disponibles en tu región.`;
   }
   if (
     text.includes("payment_rejected") ||
@@ -435,7 +435,6 @@ function buildWorldTransferTransactions({
   const tokenAddress = normalizeAddress(asset.address);
   transactions.push({
     to: tokenAddress,
-    value: miniKitHexQuantity(0n),
     data: ERC20_INTERFACE.encodeFunctionData("transfer", [
       destination,
       recipientAmountUnits,
@@ -444,7 +443,6 @@ function buildWorldTransferTransactions({
   if (includeFeeTransfer && feeAmountUnits > 0n) {
     transactions.push({
       to: tokenAddress,
-      value: miniKitHexQuantity(0n),
       data: ERC20_INTERFACE.encodeFunctionData("transfer", [
         feeRecipient,
         feeAmountUnits,
@@ -470,83 +468,6 @@ async function sendWithWorldPayFallback({
     "World Pay no se usa para retiros wallet-a-wallet. RC Wallet debe enviar mediante MiniKit sendTransaction; si World App responde invalid_contract, autoriza el contrato del token en Developer Portal > Mini App > Permissions > Transactions.",
   );
 }
-
-/*
-
-  if (!isWorldPayCompatibleAsset(asset)) {
-    throw new Error(describeMiniKitSendError({ code: "invalid_contract" }, asset));
-  }
-  const payCommand =
-    typeof MiniKit.pay === "function"
-      ? MiniKit.pay.bind(MiniKit)
-      : typeof MiniKit.commandsAsync?.pay === "function"
-        ? MiniKit.commandsAsync.pay.bind(MiniKit.commandsAsync)
-        : null;
-
-  if (!payCommand) {
-    throw new Error(
-      "World Pay no está disponible en este entorno de World App. Usa sendTransaction con el contrato del token autorizado.",
-    );
-  }
-
-  if (feeAmountUnits > 0n) {
-    showStatus(
-      "Ruta oficial World Pay: se enviará el monto neto al destino. La comisión no se cobra automáticamente en esta ruta.",
-      "warning",
-    );
-  }
-
-  const reference = createWorldPayReference();
-  const symbol = worldPaySymbolForAsset(asset);
-  const tokenAmount = worldPayAmount(recipientAmountUnits, asset.decimals);
-  const result = await withMiniKitTimeout(
-    () =>
-      payCommand({
-        reference,
-        to: destination,
-        tokens: [
-          {
-            symbol,
-            token_amount: tokenAmount,
-          },
-        ],
-        description: `RC Wallet transfer ${symbol}`,
-        fallback: () => {
-          showStatus(
-            "Completa el pago dentro de World App para continuar.",
-            "warning",
-          );
-        },
-      }),
-    "World Pay",
-    WORLD_PAY_TIMEOUT_MS,
-  );
-
-  if (
-    result?.executedWith === "fallback" ||
-    result?.data?.status === "error" ||
-    result?.data?.errorCode ||
-    result?.data?.error_code
-  ) {
-    throw new Error(describeMiniKitPayError(result, asset));
-  }
-
-  const transactionId =
-    result?.data?.transactionId ||
-    result?.data?.transaction_id ||
-    result?.data?.id ||
-    reference;
-
-  return {
-    route: "minikit-pay",
-    userOpHash: transactionId,
-    hash: null,
-    pending: true,
-    paymentReference: reference,
-    feeUncollected: feeAmountUnits > 0n,
-  };
-}
-*/
 
 function bridgeDestinationOptionsFor(asset) {
   if (!asset) return NETWORKS.filter((network) => !network.testnet);
@@ -1018,7 +939,7 @@ export default function App() {
   );
 
   const selectedTokenLinks = useMemo(
-    () => tokenOfficialLinks(selectedAsset),
+    () => tokenReferenceLinks(selectedAsset),
     [selectedAsset],
   );
 
@@ -1243,7 +1164,7 @@ export default function App() {
             : "needs-action",
         title: "World Chain / MiniKit",
         description:
-          "Ruta oficial para mover fondos en World Chain. Requiere sesión World App y allowlist de tokens/contratos en Developer Portal.",
+          "Ruta compatible para mover fondos en World Chain. Requiere sesión World App y allowlist de tokens/contratos en Developer Portal.",
         next:
           authenticated && miniKitReady
             ? "Selecciona un activo de World Chain y firma con World App."
@@ -1325,7 +1246,7 @@ export default function App() {
           : assets.length
             ? "needs-action"
             : "future",
-        title: "Bridge oficial asistido",
+        title: "Bridge asistido",
         description:
           "Ruta para llevar fondos entre World Chain, Ethereum, Optimism, Base y otras redes usando proveedores reales de puente.",
         next: selectedBridgePlan
@@ -2702,8 +2623,8 @@ export default function App() {
               </div>
             )}
 
-            <div className="official-links">
-              <strong>Información oficial</strong>
+            <div className="reference-links">
+              <strong>Información del activo</strong>
               <div className="button-row">
                 <button
                   className="button button--secondary"
@@ -3271,7 +3192,7 @@ export default function App() {
               </details>
               <p className="fine-print">
                 PUF y GoldenPUF se pueden escanear como ERC-20 personalizado
-                cuando tengas el contrato oficial verificado. RC Wallet no
+                cuando tengas el contrato verificado. RC Wallet no
                 inventa direcciones de tokens.
               </p>
             </section>
@@ -3937,7 +3858,7 @@ export default function App() {
           <div className="section-heading">
             <div>
               <span className="eyebrow">RC.PL Market Lab</span>
-              <h2>Precio, liquidez, pool y staking RC.PL</h2>
+              <h2>Precio, liquidez, pool y módulos futuros RC.PL</h2>
             </div>
             <span className="badge badge--amber">Preparado</span>
           </div>
@@ -4025,15 +3946,15 @@ export default function App() {
           </div>
 
           <div className="staking-box">
-            <strong>Staking RC.PL</strong>
+            <strong>Recompensas RC.PL (futuro)</strong>
             <p>
-              Para pagar rendimientos reales hace falta desplegar un contrato
-              de staking con fondos de recompensa y auditoría. RC Wallet ya
+              Para activar recompensas reales hace falta desplegar un contrato
+              auditado con fondos de recompensa. RC Wallet ya
               deja el módulo listo, pero no promete APY hasta que exista el
               contrato.
             </p>
             <span>
-              Contrato staking:{" "}
+              Contrato de recompensas:{" "}
               {RCPL_STAKING_CONTRACT || "pendiente de despliegue"}
             </span>
             <span>
@@ -4049,7 +3970,7 @@ export default function App() {
           <div className="section-heading">
             <div>
               <span className="eyebrow">Bridge asistido</span>
-              <h2>Puente oficial para mover entre redes</h2>
+              <h2>Puente compatible para mover entre redes</h2>
             </div>
             <span className="badge badge--blue">Proveedor externo</span>
           </div>
