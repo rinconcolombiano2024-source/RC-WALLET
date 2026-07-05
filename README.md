@@ -29,9 +29,8 @@ World App y moverlos únicamente cuando existe un firmante válido en la red.
   UserOperation podría construirse con bundler, paymaster y firma válida.
 - Permite copiar una ruta de movimiento del activo seleccionado para soporte,
   auditoría o revisión manual.
-- Cobra una comisión transparente del 2% sobre el monto movido. La comisión
-  se muestra antes de firmar, se divide en la transacción y va a la wallet
-  administrativa configurada.
+- En esta versión la comisión de movimiento está desactivada: el envío se
+  prepara como transferencia simple al destino indicado por el usuario.
 - Solicita verificación World ID/MiniKit antes de acciones sensibles: enviar,
   comprar, vender, cambiar y conectar wallet externa.
 - Incluye RC Link, una prueba EIP-712 que diagnostica si la firma de World App
@@ -60,7 +59,7 @@ World App y moverlos únicamente cuando existe un firmante válido en la red.
 - Incluye enlaces oficiales por activo, incluyendo Bitcoin/WBTC, Ethereum,
   World, USDC, USDT, BNB Chain y RC.PL/Rincón Colombiano.
 - Incluye modal de confirmación antes de enviar fondos con token, red, destino,
-  monto, comisión RC, fee de red y tipo de firma requerida.
+  monto, fee de red y tipo de firma requerida.
 - Incluye RC.PL Market Lab para definir precio objetivo, calcular liquidez
   inicial aproximada, abrir el DEX para crear pool y preparar staking.
 - Usa como fuente de sesión la dirección SIWE verificada por el backend; el
@@ -126,14 +125,11 @@ No debe desplegarse con fondos reales sin auditoría independiente.
 
 ## Comisión de movimiento
 
-RC Wallet cobra el 2% del monto movido. El usuario debe aceptar esta
-comisión antes de firmar. El envío queda dividido así:
+La comisión de movimiento está desactivada en esta versión para priorizar un
+flujo de envío simple y compatible con World App. El 100% del monto ingresado
+se prepara para la wallet receptora indicada por el usuario.
 
-- 98% a la wallet receptora indicada por el usuario.
-- 2% a la wallet administrativa de RC Wallet.
-
-La app no solicita frases semilla ni claves privadas. La comisión no se cobra
-sin firma explícita del usuario.
+La app no solicita frases semilla ni claves privadas.
 
 ## RC.PL, precio, pool y staking
 
@@ -201,7 +197,7 @@ npx vercel dev
 ## Seguridad
 
 - No pide frases semilla ni claves privadas.
-- No cobra comisiones ocultas: la comisión RC del 2% se muestra y debe aceptarse antes de firmar.
+- No cobra comisiones ocultas: la comisión de movimiento está desactivada en esta versión.
 - No mezcla transacciones de cadenas diferentes.
 - No trata un `userOpHash` como hash final.
 - Las direcciones de tokens no verificadas no están habilitadas por defecto.
