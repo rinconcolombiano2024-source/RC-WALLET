@@ -52,6 +52,7 @@ const PERMIT2_INTERFACE = new ethers.Interface([
   "function transferFrom(address from, address to, uint160 amount, address token)",
 ]);
 const CUSTOM_TOKENS_KEY = "rc_wallet_custom_tokens_v1";
+const TRANSFER_HISTORY_KEY = "rc_wallet_transfer_history_v1";
 const DEFAULT_RCPL_TARGET_PRICE = "0.10";
 const DEFAULT_RCPL_LIQUIDITY_USD = "1000";
 const WORLD_ID_STATEMENT = "Iniciar sesión en RC Wallet Recovery";
@@ -91,6 +92,17 @@ const TOKEN_REFERENCE_LINKS = Object.freeze({
 function readCustomTokens() {
   try {
     const parsed = JSON.parse(localStorage.getItem(CUSTOM_TOKENS_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function readTransferHistory() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(TRANSFER_HISTORY_KEY) ?? "[]",
+    );
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -828,6 +840,8 @@ export default function App() {
   const [qrScanning, setQrScanning] = useState(false);
   const [qrScannerError, setQrScannerError] = useState("");
   const [lastTransaction, setLastTransaction] = useState(null);
+  const [transferHistory, setTransferHistory] = useState(readTransferHistory);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [proofChainId, setProofChainId] = useState(10);
   const [proofPackage, setProofPackage] = useState("");
   const [proofInput, setProofInput] = useState("");
@@ -1334,6 +1348,17 @@ export default function App() {
       console.warn("[LOCAL STORAGE] custom tokens", error);
     }
   }, [customTokens]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        TRANSFER_HISTORY_KEY,
+        JSON.stringify(transferHistory.slice(0, 25)),
+      );
+    } catch (error) {
+      console.warn("[LOCAL STORAGE] transfer history", error);
+    }
+  }, [transferHistory]);
 
   useEffect(() => {
     setRecipient("");
@@ -1990,10 +2015,16 @@ export default function App() {
         };
       }
 
-      setLastTransaction({
+      const transactionRecord = {
         ...result,
         network: selectedAsset.network,
-      });
+        token: selectedAsset.symbol,
+        amount: cleanAmount,
+        recipient: destination,
+        createdAt: new Date().toISOString(),
+      };
+      setLastTransaction(transactionRecord);
+      setTransferHistory((current) => [transactionRecord, ...current].slice(0, 25));
       setRecipient("");
       setAmount("");
       setFeeAccepted(false);
@@ -2708,6 +2739,72 @@ export default function App() {
           </div>
         )}
 
+        {showHistoryModal && (
+          <div className="modal-backdrop" role="presentation">
+            <section
+              className="confirm-modal history-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="transfer-history-title"
+            >
+              <span className="eyebrow">Historial local</span>
+              <h2 id="transfer-history-title">Transferencias</h2>
+              {transferHistory.length ? (
+                <div className="history-list">
+                  {transferHistory.map((item, index) => (
+                    <article
+                      className="history-item"
+                      key={`${item.userOpHash || item.hash || item.createdAt}-${index}`}
+                    >
+                      <div>
+                        <strong>
+                          {item.amount} {item.token || "TOKEN"}
+                        </strong>
+                        <span>
+                          {item.network?.name || "Red"} ·{" "}
+                          {item.pending ? "Pendiente" : "Confirmada"}
+                        </span>
+                      </div>
+                      <small>
+                        Destino: {item.recipient ? compactAddress(item.recipient) : "N/D"}
+                      </small>
+                      <small>
+                        {item.createdAt
+                          ? new Date(item.createdAt).toLocaleString()
+                          : "Fecha local no disponible"}
+                      </small>
+                      {item.hash ? (
+                        <a
+                          href={explorerTransactionUrl(item.network, item.hash)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Abrir explorer
+                        </a>
+                      ) : item.userOpHash ? (
+                        <code>{item.userOpHash}</code>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="empty">
+                  Aún no hay transferencias guardadas en este dispositivo.
+                </p>
+              )}
+              <div className="button-row">
+                <button
+                  className="button button--secondary"
+                  type="button"
+                  onClick={() => setShowHistoryModal(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
         <section className={viewClass("home")}>
           <section className="home-wallet-card">
             <span className="eyebrow">Wallet activa</span>
@@ -2976,6 +3073,13 @@ export default function App() {
                 <span className="eyebrow">Historial</span>
                 <h2>Última operación local</h2>
               </div>
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() => setShowHistoryModal(true)}
+              >
+                Ver historial
+              </button>
             </div>
             {lastTransaction ? (
               <div className="transaction-result">
