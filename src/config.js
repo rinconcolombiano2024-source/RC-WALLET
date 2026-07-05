@@ -251,6 +251,13 @@ export const TOKENS = Object.freeze([
       480: "0xfEA3A03B06c31F863f62789d80C2b335904a9c05",
     },
   },
+  {
+    symbol: "CUSTOM2",
+    expectedDecimals: 18,
+    addresses: {
+      480: "0xb15e3ce3588b1B8887Cf3F4bA9FC680432478Cfe",
+    },
+  },
 ]);
 
 export const ERC20_ABI = Object.freeze([
