@@ -2011,6 +2011,7 @@ export default function App() {
             amount: cleanAmount,
             feeRecipient: ADMIN_FEE_WALLET,
             feeAmountUnits,
+            onStatus: showStatus,
           })),
         };
       }
@@ -3629,6 +3630,14 @@ export default function App() {
                   </p>
                 </div>
                 <div className="wallet-connectors">
+                  <a
+                    className="button button--secondary"
+                    href="https://rc-wallet-external.vercel.app/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ir a RC WALLET EXTERNAL
+                  </a>
                   <button
                     className="button button--secondary"
                     type="button"

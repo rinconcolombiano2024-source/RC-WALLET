@@ -11,6 +11,7 @@ import {
 const providerCache = new Map();
 const ERC1271_MAGIC_VALUE = "0x1626ba7e";
 const SAFE_SENTINEL = "0x0000000000000000000000000000000000000001";
+const ERC20_INTERFACE = new ethers.Interface(ERC20_ABI);
 
 function timeout(promise, milliseconds, label) {
   let timeoutId;
@@ -499,7 +500,33 @@ export async function switchExternalNetwork(provider, network) {
         },
       ],
     });
+
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: network.chainHex }],
+    });
   }
+}
+
+function gasPriceFromFeeData(feeData) {
+  return feeData?.maxFeePerGas ?? feeData?.gasPrice ?? 0n;
+}
+
+function externalTransferRequest(asset, destination, amountUnits) {
+  if (asset.isNative) {
+    return {
+      to: destination,
+      value: amountUnits,
+    };
+  }
+
+  return {
+    to: normalizeAddress(asset.address),
+    data: ERC20_INTERFACE.encodeFunctionData("transfer", [
+      destination,
+      amountUnits,
+    ]),
+  };
 }
 
 export async function sendWithExternalWallet({
@@ -510,6 +537,7 @@ export async function sendWithExternalWallet({
   amount,
   feeRecipient,
   feeAmountUnits = 0n,
+  onStatus,
 }) {
   if (!provider?.request) {
     throw new Error("La conexión externa no expone un proveedor EIP-1193");
@@ -523,6 +551,13 @@ export async function sendWithExternalWallet({
 
   await switchExternalNetwork(provider, asset.network);
   const browserProvider = new ethers.BrowserProvider(provider);
+  const activeNetwork = await browserProvider.getNetwork();
+  if (Number(activeNetwork.chainId) !== asset.chainId) {
+    throw new Error(
+      `La wallet externa no quedó conectada a ${asset.networkName}`,
+    );
+  }
+
   const signer = await browserProvider.getSigner();
   const signerAddress = normalizeAddress(await signer.getAddress());
 
@@ -550,40 +585,77 @@ export async function sendWithExternalWallet({
   const normalizedFeeRecipient =
     feeUnits > 0n && feeRecipient ? normalizeAddress(feeRecipient) : null;
 
+  const transferRequest = externalTransferRequest(
+    asset,
+    destination,
+    recipientAmountUnits,
+  );
+  const feeTransferRequest = normalizedFeeRecipient
+    ? externalTransferRequest(asset, normalizedFeeRecipient, feeUnits)
+    : null;
+  const nativeGasBalance = await browserProvider.getBalance(owner);
+  const [transferGas, feeTransferGas, feeData] = await Promise.all([
+    signer.estimateGas(transferRequest),
+    feeTransferRequest ? signer.estimateGas(feeTransferRequest) : 0n,
+    browserProvider.getFeeData(),
+  ]);
+  const totalGasLimit = transferGas + feeTransferGas;
+  const gasPrice = gasPriceFromFeeData(feeData);
+  const estimatedGasCost = totalGasLimit * gasPrice;
+  const nativeValueToSend = asset.isNative ? amountUnits : 0n;
+  const requiredNativeBalance = nativeValueToSend + estimatedGasCost;
+
+  if (nativeGasBalance < requiredNativeBalance) {
+    const missing = requiredNativeBalance - nativeGasBalance;
+    throw new Error(
+      `Gas insuficiente en ${asset.networkName}. Faltan aproximadamente ${formatBalance(
+        missing,
+        18,
+        8,
+      )} ${asset.network.symbol}`,
+    );
+  }
+
+  onStatus?.(
+    `Gas estimado: ${formatBalance(estimatedGasCost, 18, 8)} ${
+      asset.network.symbol
+    }. Abriendo firma externa…`,
+  );
+
   const transactions = [];
   if (asset.isNative) {
     const transaction = await signer.sendTransaction({
-      to: destination,
-      value: recipientAmountUnits,
+      ...transferRequest,
+      gasLimit: transferGas,
     });
     transactions.push(transaction);
 
-    if (normalizedFeeRecipient) {
+    if (feeTransferRequest) {
       const feeTransaction = await signer.sendTransaction({
-        to: normalizedFeeRecipient,
-        value: feeUnits,
+        ...feeTransferRequest,
+        gasLimit: feeTransferGas,
       });
       transactions.push(feeTransaction);
     }
   } else {
-    const contract = new ethers.Contract(asset.address, ERC20_ABI, signer);
-    const transaction = await contract.transfer(
-      destination,
-      recipientAmountUnits,
-    );
+    const transaction = await signer.sendTransaction({
+      ...transferRequest,
+      gasLimit: transferGas,
+    });
     transactions.push(transaction);
 
-    if (normalizedFeeRecipient) {
-      const feeTransaction = await contract.transfer(
-        normalizedFeeRecipient,
-        feeUnits,
-      );
+    if (feeTransferRequest) {
+      const feeTransaction = await signer.sendTransaction({
+        ...feeTransferRequest,
+        gasLimit: feeTransferGas,
+      });
       transactions.push(feeTransaction);
     }
   }
 
   const receipts = [];
   for (const transaction of transactions) {
+    onStatus?.(`Esperando confirmación externa: ${transaction.hash}`);
     receipts.push(await transaction.wait(1));
   }
 
@@ -592,5 +664,11 @@ export async function sendWithExternalWallet({
     hashes: transactions.map((transaction) => transaction.hash),
     receipt: receipts[0] ?? null,
     receipts,
+    gasEstimate: {
+      gasLimit: totalGasLimit.toString(),
+      estimatedCostWei: estimatedGasCost.toString(),
+      estimatedCost: formatBalance(estimatedGasCost, 18, 8),
+      nativeSymbol: asset.network.symbol,
+    },
   };
 }

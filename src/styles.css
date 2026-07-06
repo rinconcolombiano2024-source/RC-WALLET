@@ -1018,6 +1018,7 @@ summary:focus-visible {
 }
 
 .watch-only-box {
+  display: none;
   margin: 10px 0;
   border: 1px solid #74424b;
   border-radius: 12px;
