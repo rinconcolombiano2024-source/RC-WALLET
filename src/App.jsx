@@ -842,6 +842,8 @@ export default function App() {
   const [lastTransaction, setLastTransaction] = useState(null);
   const [transferHistory, setTransferHistory] = useState(readTransferHistory);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyDirectionFilter, setHistoryDirectionFilter] = useState("all");
+  const [historyDateFilter, setHistoryDateFilter] = useState("all");
   const [proofChainId, setProofChainId] = useState(10);
   const [proofPackage, setProofPackage] = useState("");
   const [proofInput, setProofInput] = useState("");
@@ -995,6 +997,41 @@ export default function App() {
   }, [assets, networkStates]);
 
   const homeAssets = useMemo(() => assets.slice(0, 5), [assets]);
+
+  const filteredTransferHistory = useMemo(() => {
+    const now = new Date();
+    return transferHistory.filter((item) => {
+      const direction = item.direction || "sent";
+      if (historyDirectionFilter !== "all" && direction !== historyDirectionFilter) {
+        return false;
+      }
+
+      if (historyDateFilter === "all") return true;
+      if (!item.createdAt) return false;
+
+      const createdAt = new Date(item.createdAt);
+      if (Number.isNaN(createdAt.getTime())) return false;
+
+      const sameYear = createdAt.getFullYear() === now.getFullYear();
+      const sameMonth = sameYear && createdAt.getMonth() === now.getMonth();
+      const sameDay = sameMonth && createdAt.getDate() === now.getDate();
+
+      if (historyDateFilter === "day") return sameDay;
+      if (historyDateFilter === "month") return sameMonth;
+      if (historyDateFilter === "year") return sameYear;
+      return true;
+    });
+  }, [historyDateFilter, historyDirectionFilter, transferHistory]);
+
+  const sentTransferHistory = useMemo(
+    () => filteredTransferHistory.filter((item) => (item.direction || "sent") === "sent"),
+    [filteredTransferHistory],
+  );
+
+  const receivedTransferHistory = useMemo(
+    () => filteredTransferHistory.filter((item) => item.direction === "received"),
+    [filteredTransferHistory],
+  );
 
   const viewClass = useCallback(
     (tabId) => `app-view ${activeTab === tabId ? "app-view--active" : ""}`,
@@ -1496,6 +1533,14 @@ export default function App() {
     }
 
     autoLoginAttemptedRef.current = true;
+    if (false && !window.ethereum?.request && !walletConnectConfigured) {
+      showStatus(
+        "WalletConnect no estÃ¡ configurado. Usa Ir a RC WALLET EXTERNAL o configura VITE_REOWN_PROJECT_ID en Vercel.",
+        "warning",
+      );
+      return;
+    }
+
     showStatus(
       "Sesión guardada detectada. Pulsa “Iniciar sesión con World ID” para validarla.",
       "info",
@@ -1677,11 +1722,19 @@ export default function App() {
       if (walletConnectConnected) return;
     }
 
+    if (!window.ethereum?.request && !walletConnectConfigured) {
+      showStatus(
+        "WalletConnect no estÃ¡ configurado. Usa Ir a RC WALLET EXTERNAL o configura VITE_REOWN_PROJECT_ID en Vercel.",
+        "warning",
+      );
+      return;
+    }
+
     showStatus(
       window.ethereum?.request
         ? "La wallet del navegador no conectó. Si estás dentro de World App, usa WalletConnect con VITE_REOWN_PROJECT_ID configurado."
         : "No hay wallet inyectada y WalletConnect no está activo en esta versión. Configura VITE_REOWN_PROJECT_ID en Vercel Production y haz Redeploy sin caché.",
-      "error",
+      "warning",
     );
   }, [connectExternal, showStatus, walletConnectConfigured]);
 
@@ -2022,6 +2075,7 @@ export default function App() {
         token: selectedAsset.symbol,
         amount: cleanAmount,
         recipient: destination,
+        direction: "sent",
         createdAt: new Date().toISOString(),
       };
       setLastTransaction(transactionRecord);
@@ -2447,6 +2501,60 @@ export default function App() {
       isValidEvmAddressInput(recipient),
   );
 
+  const renderHistorySection = (title, items, emptyText) => (
+    <section className="history-section">
+      <h3>{title}</h3>
+      {items.length ? (
+        <div className="history-list">
+          {items.map((item, index) => (
+            <article
+              className="history-item"
+              key={`${item.userOpHash || item.hash || item.createdAt}-${index}`}
+            >
+              <div>
+                <strong>
+                  {item.amount} {item.token || "TOKEN"}
+                </strong>
+                <span>
+                  {item.network?.name || "Red"} Â·{" "}
+                  {item.pending ? "Pendiente" : "Confirmada"}
+                </span>
+              </div>
+              <small>
+                {item.direction === "received" ? "Origen" : "Destino"}:{" "}
+                {item.direction === "received"
+                  ? item.sender
+                    ? compactAddress(item.sender)
+                    : "N/D"
+                  : item.recipient
+                    ? compactAddress(item.recipient)
+                    : "N/D"}
+              </small>
+              <small>
+                {item.createdAt
+                  ? new Date(item.createdAt).toLocaleString()
+                  : "Fecha local no disponible"}
+              </small>
+              {item.hash ? (
+                <a
+                  href={explorerTransactionUrl(item.network, item.hash)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Abrir explorer
+                </a>
+              ) : item.userOpHash ? (
+                <code>{item.userOpHash}</code>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="empty">{emptyText}</p>
+      )}
+    </section>
+  );
+
   return (
     <main className="page">
       <div className="shell">
@@ -2751,7 +2859,64 @@ export default function App() {
               <span className="eyebrow">Historial local</span>
               <h2 id="transfer-history-title">Transferencias</h2>
               {transferHistory.length ? (
-                <div className="history-list">
+                <>
+                  <div className="history-filters">
+                    <label>
+                      Tipo
+                      <select
+                        value={historyDirectionFilter}
+                        onChange={(event) =>
+                          setHistoryDirectionFilter(event.target.value)
+                        }
+                      >
+                        <option value="all">Todas</option>
+                        <option value="sent">Enviadas</option>
+                        <option value="received">Recibidas</option>
+                      </select>
+                    </label>
+                    <label>
+                      Fecha
+                      <select
+                        value={historyDateFilter}
+                        onChange={(event) =>
+                          setHistoryDateFilter(event.target.value)
+                        }
+                      >
+                        <option value="all">Todo</option>
+                        <option value="day">Hoy</option>
+                        <option value="month">Este mes</option>
+                        <option value="year">Este aÃ±o</option>
+                      </select>
+                    </label>
+                  </div>
+                  {historyDirectionFilter === "all" ? (
+                    <>
+                      {renderHistorySection(
+                        "Enviadas",
+                        sentTransferHistory,
+                        "No hay transferencias enviadas para este filtro.",
+                      )}
+                      {renderHistorySection(
+                        "Recibidas",
+                        receivedTransferHistory,
+                        "No hay transferencias recibidas guardadas en este dispositivo para este filtro.",
+                      )}
+                    </>
+                  ) : historyDirectionFilter === "sent" ? (
+                    renderHistorySection(
+                      "Enviadas",
+                      sentTransferHistory,
+                      "No hay transferencias enviadas para este filtro.",
+                    )
+                  ) : (
+                    renderHistorySection(
+                      "Recibidas",
+                      receivedTransferHistory,
+                      "No hay transferencias recibidas guardadas en este dispositivo para este filtro.",
+                    )
+                  )}
+                  {false && (
+                    <div className="history-list">
                   {transferHistory.map((item, index) => (
                     <article
                       className="history-item"
@@ -2787,7 +2952,9 @@ export default function App() {
                       ) : null}
                     </article>
                   ))}
-                </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <p className="empty">
                   Aún no hay transferencias guardadas en este dispositivo.
@@ -3618,7 +3785,8 @@ export default function App() {
                   habilita si ese proveedor expone exactamente{" "}
                   <code>{compactAddress(targetAddress)}</code>.
                 </p>
-                <div className="watch-only-box">
+                {false && (
+                  <div className="watch-only-box">
                   <strong>Trust Wallet “solo lectura” no puede firmar</strong>
                   <p>
                     Ver los fondos en Trust Wallet no significa poder moverlos.
@@ -3628,7 +3796,8 @@ export default function App() {
                     semilla o smart account compatible que firme esa misma
                     dirección.
                   </p>
-                </div>
+                  </div>
+                )}
                 <div className="wallet-connectors">
                   <a
                     className="button button--secondary"
