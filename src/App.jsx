@@ -15,7 +15,6 @@ import {
   sendWithExternalWallet,
 } from "./blockchain.js";
 import {
-  ADMIN_FEE_WALLET,
   BPS_DENOMINATOR,
   ERC20_ABI,
   NETWORKS,
@@ -356,7 +355,7 @@ function buildWorldTransferTransactions({
   includeFeeTransfer = true,
 }) {
   const hasFeeTransfer = includeFeeTransfer && feeAmountUnits > 0n;
-  const feeRecipient = hasFeeTransfer ? normalizeAddress(ADMIN_FEE_WALLET) : null;
+ const feeRecipient = null;
   const transactions = [];
 
   if (asset.isNative) {
@@ -2062,8 +2061,6 @@ export default function App() {
             targetAddress,
             recipient: destination,
             amount: cleanAmount,
-            feeRecipient: ADMIN_FEE_WALLET,
-            feeAmountUnits,
             onStatus: showStatus,
           })),
         };
@@ -2123,11 +2120,11 @@ export default function App() {
       authenticatedWorldAddress: authenticatedWorldAddress || null,
       externalSigner: connectedExternalAddress || null,
       externalSignerMatches: externalMatches,
-      movementFee: {
-        wallet: ADMIN_FEE_WALLET,
-        percent: percentFromBps(RECOVERY_FEE_BPS),
-        basisPoints: Number(RECOVERY_FEE_BPS),
-      },
+    movementFee: {
+  enabled: false,
+  percent: 0,
+  basisPoints: 0,
+},
       networks: networkStates,
       networkDiagnostics: serializeNetworkDiagnostics(
         recoveryNetworkDiagnostics,
@@ -2201,11 +2198,10 @@ export default function App() {
         nativeSymbol: selectedAsset.network.symbol,
         nativeBalance: selectedNativeGasAsset?.balance ?? "0",
       },
-      movementFee: {
-        wallet: ADMIN_FEE_WALLET,
-        percent: percentFromBps(RECOVERY_FEE_BPS),
-        breakdown: feeBreakdown,
-      },
+     movementFee: {
+  enabled: false,
+  percent: 0,
+},
       diagnosis: selectedRecoveryDiagnosis,
       safety:
         RECOVERY_FEE_BPS > 0n
@@ -2244,9 +2240,9 @@ export default function App() {
       hardRule:
         "No se pueden mover fondos sin una firma válida de la dirección, una smart account compatible o intervención legítima del emisor/soporte. RC Wallet no crea llaves privadas retroactivas.",
       commercialModel: {
-        movementFeeWallet: ADMIN_FEE_WALLET,
-        movementFeePercent: percentFromBps(RECOVERY_FEE_BPS),
-      },
+  movementFeeEnabled: false,
+  movementFeePercent: 0,
+},
       session: {
         miniKitReady,
         authenticated,
@@ -3987,7 +3983,6 @@ export default function App() {
                   queda visible en blockchain.
                 </span>
               </label>
-              <small>Wallet comisión: {compactAddress(ADMIN_FEE_WALLET)}</small>
             </div>
             )}
 
