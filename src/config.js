@@ -10,8 +10,6 @@ export const STORAGE_KEYS = Object.freeze({
 
 export const ADMIN_FEE_WALLET =
   "0x0BbBd8EBa77dB629721CcdFa0C57a9ee107fdB85";
-
-export const ADMIN_FEE_WALLET = "0x0BbBd8EBa77dB629721CcdFa0C57a9ee107fdB85";
 export const RECOVERY_FEE_BPS = 0n;
 export const BPS_DENOMINATOR = 10_000n;
 
