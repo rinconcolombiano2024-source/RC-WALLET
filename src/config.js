@@ -1,5 +1,16 @@
 export const WORLD_CHAIN_ID = 480;
 
+export const SAFE_SENTINEL =
+  "0x0000000000000000000000000000000000000001";
+
+export const STORAGE_KEYS = Object.freeze({
+  vault: "rc_wallet_external_vault_v1",
+  customTokens: "rc_wallet_custom_tokens_v1",
+});
+
+export const ADMIN_FEE_WALLET =
+  "0x0BbBd8EBa77dB629721CcdFa0C57a9ee107fdB85";
+
 export const ADMIN_FEE_WALLET = "0x0BbBd8EBa77dB629721CcdFa0C57a9ee107fdB85";
 export const RECOVERY_FEE_BPS = 0n;
 export const BPS_DENOMINATOR = 10_000n;
