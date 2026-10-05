@@ -178,46 +178,88 @@ async function inspectErc1271(provider, owner, hasCode) {
     return {
       checked: false,
       supported: false,
+      inconclusive: false,
       reason: "EIP-1271 solo aplica a cuentas contrato",
     };
   }
 
   const iface = new ethers.Interface(ERC1271_ABI);
+
   try {
     const data = iface.encodeFunctionData("isValidSignature", [
       ethers.ZeroHash,
       "0x",
     ]);
+
     const raw = await timeout(
-      provider.call({ to: owner, data }),
+      provider.call({
+        to: owner,
+        data,
+      }),
       7_000,
       "EIP-1271",
     );
-    const [response] = iface.decodeFunctionResult("isValidSignature", raw);
+
+    const [response] = iface.decodeFunctionResult(
+      "isValidSignature",
+      raw,
+    );
+
     const normalizedResponse = String(response).toLowerCase();
+    const validForEmptyTest =
+      normalizedResponse === ERC1271_MAGIC_VALUE;
 
     return {
       checked: true,
+
+      // El contrato respondió correctamente al selector ERC-1271.
       supported: true,
-      validForEmptyTest: normalizedResponse === ERC1271_MAGIC_VALUE,
+
+      inconclusive: false,
+      validForEmptyTest,
       response: normalizedResponse,
-      note:
-        normalizedResponse === ERC1271_MAGIC_VALUE
-          ? "El contrato aceptó la firma de prueba vacía; requiere revisión de seguridad"
-          : "El método existe, pero la firma de prueba no autoriza movimiento",
+
+      note: validForEmptyTest
+        ? "El contrato aceptó la prueba vacía. Esto no demuestra por sí solo que RC Wallet pueda mover fondos."
+        : "El contrato respondió a EIP-1271, pero rechazó la firma de prueba vacía. Se necesita validar una firma real.",
     };
   } catch (error) {
+    /*
+     * IMPORTANTE:
+     *
+     * Un revert con hash/firma ficticios NO demuestra que ERC-1271
+     * no exista.
+     *
+     * Safe y otras smart accounts pueden revertir cuando:
+     * - la firma tiene longitud inválida;
+     * - faltan firmas del threshold;
+     * - el hash no fue aprobado;
+     * - falta un módulo/fallback handler;
+     * - la firma no corresponde al propietario.
+     *
+     * Por eso este resultado es INCONCLUSO, no "unsupported".
+     */
+
     return {
       checked: true,
-      supported: false,
+
+      // null = no podemos confirmar ni negar soporte con una firma ficticia.
+      supported: null,
+
+      inconclusive: true,
+      validForEmptyTest: false,
+      response: null,
+
       reason:
         error instanceof Error
           ? error.message
-          : "El contrato no respondió a isValidSignature",
+          : "La prueba EIP-1271 revirtió",
+
+      note:
+        "La prueba con firma vacía no permite determinar si la smart account soporta EIP-1271. Debe comprobarse con una firma real de esa cuenta.",
     };
   }
 }
-
 async function inspectEntryPoints(provider) {
   const results = await Promise.allSettled(
     ERC4337_ENTRYPOINTS.map(async (entryPoint) => {
