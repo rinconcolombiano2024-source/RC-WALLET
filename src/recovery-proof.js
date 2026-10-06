@@ -12,224 +12,66 @@ import {
   WORLD_CHAIN_ID,
 } from "./config.js";
 
-// ============================================================================
-// RC WALLET — RECOVERY PROOF ENGINE
-// ============================================================================
-//
-// OBJETIVO
-//
-// Este módulo determina QUÉ AUTORIDAD criptográfica entrega realmente
-// World App / MiniKit.
-//
-// Diferenciamos estrictamente:
-//
-// 1. Dirección de la World Wallet / Safe.
-// 2. Dirección reportada por MiniKit.
-// 3. EOA recuperada matemáticamente de una firma ECDSA.
-// 4. Owners reales de la Safe.
-// 5. Validación EIP-1271 por contrato.
-//
-// IMPORTANTE
-//
-// Este archivo:
-//
-// - NO despliega contratos.
-// - NO mueve fondos.
-// - NO solicita private keys.
-// - NO solicita seed phrases.
-// - NO considera una firma genérica suficiente para mover fondos.
-//
-// Una transferencia real solo podrá ejecutarse después de:
-//
-// - demostrar owner válido;
-// - reconstruir exactamente la Safe;
-// - firmar la SafeTx EXACTA;
-// - comprobar nonce;
-// - comprobar destino;
-// - comprobar token;
-// - comprobar monto;
-// - simular;
-// - ejecutar.
-//
-// ============================================================================
-
-
-// ============================================================================
-// CONSTANTES
-// ============================================================================
-
-export const RECOVERY_PRIMARY_TYPE =
-  "RecoveryAuthorization";
-
+export const RECOVERY_PRIMARY_TYPE = "RecoveryAuthorization";
 export const RECOVERY_PURPOSE =
   "RC Wallet cross-chain recovery compatibility test";
 
-const RECOVERY_PROOF_FORMAT =
-  "rc-wallet-recovery-proof";
-
+const RECOVERY_PROOF_FORMAT = "rc-wallet-recovery-proof";
 const RECOVERY_PROOF_VERSION = 2;
-
-const RECOVERY_PROOF_LIFETIME_SECONDS =
-  15 * 60;
-
-const ERC1271_MAGIC_VALUE =
-  "0x1626ba7e";
+const RECOVERY_PROOF_LIFETIME_SECONDS = 15 * 60;
+const ERC1271_MAGIC_VALUE = "0x1626ba7e";
 
 const EIP1271_ABI = Object.freeze([
   "function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)",
 ]);
 
-const ERC20_INTERFACE =
-  new ethers.Interface(ERC20_ABI);
+const ERC20_INTERFACE = new ethers.Interface(ERC20_ABI);
 
+export const RECOVERY_TYPES = Object.freeze({
+  RecoveryAuthorization: [
+    { name: "wallet", type: "address" },
+    { name: "targetChainId", type: "uint256" },
+    { name: "nonce", type: "bytes32" },
+    { name: "expiresAt", type: "uint256" },
+    { name: "purpose", type: "string" },
+  ],
+});
 
-// ============================================================================
-// EIP-712 — RC RECOVERY PROOF
-// ============================================================================
+export const RECOVERY_EIP712_DOMAIN = Object.freeze([
+  { name: "name", type: "string" },
+  { name: "version", type: "string" },
+  { name: "chainId", type: "uint256" },
+]);
 
-export const RECOVERY_TYPES =
-  Object.freeze({
-    RecoveryAuthorization: [
-      {
-        name: "wallet",
-        type: "address",
-      },
-      {
-        name: "targetChainId",
-        type: "uint256",
-      },
-      {
-        name: "nonce",
-        type: "bytes32",
-      },
-      {
-        name: "expiresAt",
-        type: "uint256",
-      },
-      {
-        name: "purpose",
-        type: "string",
-      },
-    ],
-  });
+export const SAFE_TX_TYPES = Object.freeze({
+  SafeTx: [
+    { name: "to", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "data", type: "bytes" },
+    { name: "operation", type: "uint8" },
+    { name: "safeTxGas", type: "uint256" },
+    { name: "baseGas", type: "uint256" },
+    { name: "gasPrice", type: "uint256" },
+    { name: "gasToken", type: "address" },
+    { name: "refundReceiver", type: "address" },
+    { name: "nonce", type: "uint256" },
+  ],
+});
 
-export const RECOVERY_EIP712_DOMAIN =
-  Object.freeze([
-    {
-      name: "name",
-      type: "string",
-    },
-    {
-      name: "version",
-      type: "string",
-    },
-    {
-      name: "chainId",
-      type: "uint256",
-    },
-  ]);
+export const SAFE_TX_EIP712_DOMAIN = Object.freeze([
+  { name: "chainId", type: "uint256" },
+  { name: "verifyingContract", type: "address" },
+]);
 
-
-// ============================================================================
-// EIP-712 — SAFE TRANSACTION
-// ============================================================================
-//
-// Safe utiliza esta estructura para getTransactionHash / execTransaction.
-//
-// El domain Safe NO usa name/version.
-// Usa:
-//
-// {
-//   chainId,
-//   verifyingContract: SAFE_ADDRESS
-// }
-//
-// Esto impide replay de una misma firma entre chains/Safes.
-// ============================================================================
-
-export const SAFE_TX_TYPES =
-  Object.freeze({
-    SafeTx: [
-      {
-        name: "to",
-        type: "address",
-      },
-      {
-        name: "value",
-        type: "uint256",
-      },
-      {
-        name: "data",
-        type: "bytes",
-      },
-      {
-        name: "operation",
-        type: "uint8",
-      },
-      {
-        name: "safeTxGas",
-        type: "uint256",
-      },
-      {
-        name: "baseGas",
-        type: "uint256",
-      },
-      {
-        name: "gasPrice",
-        type: "uint256",
-      },
-      {
-        name: "gasToken",
-        type: "address",
-      },
-      {
-        name: "refundReceiver",
-        type: "address",
-      },
-      {
-        name: "nonce",
-        type: "uint256",
-      },
-    ],
-  });
-
-export const SAFE_TX_EIP712_DOMAIN =
-  Object.freeze([
-    {
-      name: "chainId",
-      type: "uint256",
-    },
-    {
-      name: "verifyingContract",
-      type: "address",
-    },
-  ]);
-
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function timeout(
-  promise,
-  milliseconds,
-  label,
-) {
+function timeout(promise, milliseconds, label) {
   let timeoutId;
 
-  const timeoutPromise =
-    new Promise((_, reject) => {
-      timeoutId = setTimeout(
-        () => {
-          reject(
-            new Error(
-              `${label}: tiempo de espera agotado`,
-            ),
-          );
-        },
-        milliseconds,
-      );
-    });
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`${label}: tiempo de espera agotado`)),
+      milliseconds,
+    );
+  });
 
   return Promise.race([
     promise,
@@ -239,31 +81,19 @@ function timeout(
   });
 }
 
-function sameAddress(
-  left,
-  right,
-) {
+function sameAddress(left, right) {
   try {
-    return (
-      normalizeAddress(left) ===
-      normalizeAddress(right)
-    );
+    return normalizeAddress(left) === normalizeAddress(right);
   } catch {
     return false;
   }
 }
 
 function randomBytes32() {
-  const bytes =
-    new Uint8Array(32);
+  const bytes = new Uint8Array(32);
 
-  if (
-    globalThis.crypto?.getRandomValues
-  ) {
-    globalThis.crypto.getRandomValues(
-      bytes,
-    );
-
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
     return ethers.hexlify(bytes);
   }
 
@@ -275,9 +105,7 @@ function randomBytes32() {
 function isBytes32(value) {
   return (
     typeof value === "string" &&
-    /^0x[a-fA-F0-9]{64}$/.test(
-      value,
-    )
+    /^0x[a-fA-F0-9]{64}$/.test(value)
   );
 }
 
@@ -290,16 +118,11 @@ function isHexSignature(value) {
   );
 }
 
-function normalizeChainId(
-  value,
-) {
-  const chainId =
-    Number(value);
+function normalizeChainId(value) {
+  const chainId = Number(value);
 
   if (
-    !Number.isSafeInteger(
-      chainId,
-    ) ||
+    !Number.isSafeInteger(chainId) ||
     chainId <= 0
   ) {
     throw new Error(
@@ -310,27 +133,20 @@ function normalizeChainId(
   return chainId;
 }
 
-function findNetwork(
-  chainId,
-) {
+function findNetwork(chainId) {
   return (
     NETWORKS.find(
       (network) =>
-        network.chainId ===
-        chainId,
+        network.chainId === chainId,
     ) ?? null
   );
 }
 
-function normalizeUint(
-  value,
-  label,
-) {
+function normalizeUint(value, label) {
   let parsed;
 
   try {
-    parsed =
-      BigInt(value);
+    parsed = BigInt(value);
   } catch {
     throw new Error(
       `${label} no es un uint256 válido`,
@@ -346,10 +162,7 @@ function normalizeUint(
   return parsed;
 }
 
-function normalizePositiveUint(
-  value,
-  label,
-) {
+function normalizePositiveUint(value, label) {
   const parsed =
     normalizeUint(
       value,
@@ -365,9 +178,7 @@ function normalizePositiveUint(
   return parsed;
 }
 
-function normalizeOperation(
-  value,
-) {
+function normalizeOperation(value) {
   const operation =
     Number(value);
 
@@ -383,10 +194,7 @@ function normalizeOperation(
   return operation;
 }
 
-function normalizeHexData(
-  value,
-  label,
-) {
+function normalizeHexData(value, label) {
   const data =
     value ?? "0x";
 
@@ -421,9 +229,35 @@ function ownerListIncludes(
   );
 }
 
+function sanitizeOwners(owners) {
+  if (!Array.isArray(owners)) {
+    return [];
+  }
+
+  const unique =
+    new Map();
+
+  for (const owner of owners) {
+    if (!ethers.isAddress(owner)) {
+      continue;
+    }
+
+    const normalized =
+      ethers.getAddress(owner);
+
+    unique.set(
+      normalized.toLowerCase(),
+      normalized,
+    );
+  }
+
+  return [
+    ...unique.values(),
+  ];
+}
 
 // ============================================================================
-// GENERAR PRUEBA GENÉRICA RC LINK
+// RC LINK
 // ============================================================================
 
 export function createRecoveryTypedData(
@@ -459,6 +293,15 @@ export function createRecoveryTypedData(
     RECOVERY_PROOF_LIFETIME_SECONDS;
 
   return {
+    /*
+     * IMPORTANTE:
+     *
+     * MiniKit 2.x utiliza este chainId superior para el comando.
+     * No depender únicamente de domain.chainId.
+     */
+    chainId:
+      WORLD_CHAIN_ID,
+
     primaryType:
       RECOVERY_PRIMARY_TYPE,
 
@@ -497,11 +340,6 @@ export function createRecoveryTypedData(
   };
 }
 
-
-// ============================================================================
-// PAQUETE RC LINK
-// ============================================================================
-
 export function createRecoveryProofPackage({
   typedData,
   signature,
@@ -525,11 +363,6 @@ export function createRecoveryProofPackage({
     );
   }
 
-  const normalizedSigner =
-    normalizeAddress(
-      signerAddress,
-    );
-
   return {
     format:
       RECOVERY_PROOF_FORMAT,
@@ -541,7 +374,9 @@ export function createRecoveryProofPackage({
       new Date().toISOString(),
 
     signerAddress:
-      normalizedSigner,
+      normalizeAddress(
+        signerAddress,
+      ),
 
     signature,
 
@@ -549,23 +384,8 @@ export function createRecoveryProofPackage({
   };
 }
 
-
 // ============================================================================
-// CREAR SAFE TX EXACTA
-// ============================================================================
-//
-// Esta función NO firma.
-//
-// Produce el objeto exacto que posteriormente podemos entregar a
-// MiniKit.signTypedData().
-//
-// Nunca debe ejecutarse financieramente sin verificar después:
-//
-// recoveredSigner ∈ Safe.owners
-//
-// y:
-//
-// threshold == firmas válidas disponibles.
+// SAFE TRANSACTION
 // ============================================================================
 
 export function createSafeTransactionTypedData({
@@ -588,7 +408,9 @@ export function createSafeTransactionTypedData({
     );
 
   const target =
-    normalizeAddress(to);
+    normalizeAddress(
+      to,
+    );
 
   const targetChainId =
     normalizeChainId(
@@ -643,6 +465,20 @@ export function createSafeTransactionTypedData({
     );
 
   return {
+    /*
+     * CRÍTICO:
+     *
+     * MiniKit 2.0.3 usa:
+     *
+     * options.chainId ?? 480
+     *
+     * Para una SafeTx Ethereum necesitamos explícitamente chainId: 1.
+     *
+     * NO eliminar este campo.
+     */
+    chainId:
+      targetChainId,
+
     primaryType:
       "SafeTx",
 
@@ -701,16 +537,8 @@ export function createSafeTransactionTypedData({
   };
 }
 
-
 // ============================================================================
-// CREAR SAFE TX ERC-20
-// ============================================================================
-//
-// Para nuestro caso:
-//
-// Safe en Ethereum
-//     ↓
-// WLD.transfer(destino, cantidad)
+// SAFE ERC20 TRANSFER
 // ============================================================================
 
 export function createSafeErc20TransferTypedData({
@@ -782,9 +610,8 @@ export function createSafeErc20TransferTypedData({
   });
 }
 
-
 // ============================================================================
-// CREAR SAFE TX ACTIVO NATIVO
+// SAFE NATIVE TRANSFER
 // ============================================================================
 
 export function createSafeNativeTransferTypedData({
@@ -841,16 +668,8 @@ export function createSafeNativeTransferTypedData({
   });
 }
 
-
 // ============================================================================
-// HASH SAFE TX
-// ============================================================================
-//
-// Cuando la Safe esté desplegada, este hash deberá coincidir con:
-//
-// Safe.getTransactionHash(...)
-//
-// utilizando exactamente los mismos parámetros.
+// SAFE HASH
 // ============================================================================
 
 export function hashSafeTransactionTypedData(
@@ -874,6 +693,25 @@ export function hashSafeTransactionTypedData(
     );
   }
 
+  const topLevelChainId =
+    normalizeChainId(
+      typedData.chainId,
+    );
+
+  const domainChainId =
+    normalizeChainId(
+      typedData.domain.chainId,
+    );
+
+  if (
+    topLevelChainId !==
+    domainChainId
+  ) {
+    throw new Error(
+      "SafeTx insegura: chainId superior y domain.chainId no coinciden",
+    );
+  }
+
   return ethers.TypedDataEncoder.hash(
     typedData.domain,
     SAFE_TX_TYPES,
@@ -881,9 +719,8 @@ export function hashSafeTransactionTypedData(
   );
 }
 
-
 // ============================================================================
-// RECUPERAR OWNER DE UNA FIRMA SAFE TX
+// SAFE SIGNER RECOVERY
 // ============================================================================
 
 export function recoverSafeTransactionSigner({
@@ -907,6 +744,13 @@ export function recoverSafeTransactionSigner({
     );
   }
 
+  /*
+   * También comprueba que los dos chainId coincidan.
+   */
+  hashSafeTransactionTypedData(
+    typedData,
+  );
+
   return normalizeAddress(
     ethers.verifyTypedData(
       typedData.domain,
@@ -917,9 +761,97 @@ export function recoverSafeTransactionSigner({
   );
 }
 
+// ============================================================================
+// SAFE SIGNATURE ANALYSIS
+// ============================================================================
+
+export function analyzeSafeTransactionSignature({
+  typedData,
+  signature,
+  owners,
+  threshold,
+}) {
+  const normalizedOwners =
+    sanitizeOwners(
+      owners,
+    );
+
+  const normalizedThreshold =
+    Number(
+      threshold,
+    );
+
+  if (
+    !Number.isSafeInteger(
+      normalizedThreshold,
+    ) ||
+    normalizedThreshold <= 0 ||
+    normalizedThreshold >
+      normalizedOwners.length
+  ) {
+    throw new Error(
+      "Owners/threshold Safe inválidos",
+    );
+  }
+
+  let recoveredSigner =
+    null;
+
+  let recoveryError =
+    null;
+
+  try {
+    recoveredSigner =
+      recoverSafeTransactionSigner({
+        typedData,
+        signature,
+      });
+  } catch (error) {
+    recoveryError =
+      error instanceof Error
+        ? error.message
+        : "No se pudo recuperar firmante";
+  }
+
+  const signerIsOwner =
+    Boolean(
+      recoveredSigner &&
+      ownerListIncludes(
+        normalizedOwners,
+        recoveredSigner,
+      ),
+    );
+
+  return {
+    digest:
+      hashSafeTransactionTypedData(
+        typedData,
+      ),
+
+    recoveredSigner,
+
+    signerIsOwner,
+
+    threshold:
+      normalizedThreshold,
+
+    ownerCount:
+      normalizedOwners.length,
+
+    singleSignatureSatisfiesThreshold:
+      signerIsOwner &&
+      normalizedThreshold === 1,
+
+    executableWithThisSignature:
+      signerIsOwner &&
+      normalizedThreshold === 1,
+
+    recoveryError,
+  };
+}
 
 // ============================================================================
-// VALIDAR PAQUETE RC LINK
+// RC LINK VALIDATION
 // ============================================================================
 
 function validateRecoveryProofStructure(
@@ -943,7 +875,9 @@ function validateRecoveryProofStructure(
     );
   }
 
-  // Compatibilidad con pruebas v1 ya generadas.
+  /*
+   * Compatibilidad con paquetes versión 1 existentes.
+   */
   if (
     proof.version !== 1 &&
     proof.version !==
@@ -1001,7 +935,20 @@ function validateRecoveryProofStructure(
     );
   }
 
+  /*
+   * Versiones antiguas de RC Link no tenían chainId superior.
+   * En esas pruebas permitimos fallback 480 por compatibilidad.
+   */
+  const commandChainId =
+    typedData.chainId === undefined
+      ? WORLD_CHAIN_ID
+      : normalizeChainId(
+          typedData.chainId,
+        );
+
   if (
+    commandChainId !==
+      WORLD_CHAIN_ID ||
     domain.name !==
       "RC Wallet Recovery" ||
     String(
@@ -1012,7 +959,7 @@ function validateRecoveryProofStructure(
     ) !== WORLD_CHAIN_ID
   ) {
     throw new Error(
-      "Dominio EIP-712 RC Wallet incorrecto",
+      "Dominio/chainId EIP-712 RC Wallet incorrecto",
     );
   }
 
@@ -1093,26 +1040,30 @@ function validateRecoveryProofStructure(
     );
   }
 
-  const reportedSigner =
-    normalizeAddress(
-      proof.signerAddress,
-    );
-
   return {
     typedData,
+
     domain,
+
     message,
+
     wallet,
-    reportedSigner,
+
+    reportedSigner:
+      normalizeAddress(
+        proof.signerAddress,
+      ),
+
     targetChainId,
+
     targetNetwork,
+
     expiresAt,
   };
 }
 
-
 // ============================================================================
-// INSPECCIÓN SAFE
+// SAFE IDENTITY
 // ============================================================================
 
 async function inspectSafeIdentity({
@@ -1120,31 +1071,35 @@ async function inspectSafeIdentity({
   address,
   hasCode,
 }) {
-  if (!hasCode) {
-    return {
-      detected: false,
-
-      address:
-        normalizeAddress(
-          address,
-        ),
-
-      owners: [],
-
-      threshold: null,
-
-      version: null,
-
-      nonce: null,
-
-      singleton: null,
-    };
-  }
-
   const safeAddress =
     normalizeAddress(
       address,
     );
+
+  if (!hasCode) {
+    return {
+      detected:
+        false,
+
+      address:
+        safeAddress,
+
+      owners:
+        [],
+
+      threshold:
+        null,
+
+      version:
+        null,
+
+      nonce:
+        null,
+
+      singleton:
+        null,
+    };
+  }
 
   const contract =
     new ethers.Contract(
@@ -1198,38 +1153,33 @@ async function inspectSafeIdentity({
       "fulfilled"
   ) {
     return {
-      detected: false,
+      detected:
+        false,
 
       address:
         safeAddress,
 
-      owners: [],
+      owners:
+        [],
 
-      threshold: null,
+      threshold:
+        null,
 
-      version: null,
+      version:
+        null,
 
-      nonce: null,
+      nonce:
+        null,
 
-      singleton: null,
+      singleton:
+        null,
     };
   }
 
   const owners =
-    Array.isArray(
+    sanitizeOwners(
       ownersResult.value,
-    )
-      ? ownersResult.value
-          .filter(
-            ethers.isAddress,
-          )
-          .map(
-            (owner) =>
-              ethers.getAddress(
-                owner,
-              ),
-          )
-      : [];
+    );
 
   const threshold =
     Number(
@@ -1246,25 +1196,32 @@ async function inspectSafeIdentity({
       owners.length
   ) {
     return {
-      detected: false,
+      detected:
+        false,
 
       address:
         safeAddress,
 
-      owners: [],
+      owners:
+        [],
 
-      threshold: null,
+      threshold:
+        null,
 
-      version: null,
+      version:
+        null,
 
-      nonce: null,
+      nonce:
+        null,
 
-      singleton: null,
+      singleton:
+        null,
     };
   }
 
   return {
-    detected: true,
+    detected:
+      true,
 
     address:
       safeAddress,
@@ -1284,7 +1241,9 @@ async function inspectSafeIdentity({
     nonce:
       nonceResult.status ===
         "fulfilled"
-        ? nonceResult.value.toString()
+        ? nonceResult
+            .value
+            .toString()
         : null,
 
     singleton:
@@ -1300,7 +1259,6 @@ async function inspectSafeIdentity({
   };
 }
 
-
 // ============================================================================
 // EIP-1271
 // ============================================================================
@@ -1315,13 +1273,17 @@ async function checkEip1271({
 }) {
   if (!hasCode) {
     return {
-      checked: false,
+      checked:
+        false,
 
-      valid: false,
+      valid:
+        false,
 
-      response: null,
+      response:
+        null,
 
-      error: null,
+      error:
+        null,
     };
   }
 
@@ -1348,7 +1310,8 @@ async function checkEip1271({
         .toLowerCase();
 
     return {
-      checked: true,
+      checked:
+        true,
 
       valid:
         response ===
@@ -1356,15 +1319,19 @@ async function checkEip1271({
 
       response,
 
-      error: null,
+      error:
+        null,
     };
   } catch (error) {
     return {
-      checked: true,
+      checked:
+        true,
 
-      valid: false,
+      valid:
+        false,
 
-      response: null,
+      response:
+        null,
 
       error:
         error instanceof Error
@@ -1374,9 +1341,8 @@ async function checkEip1271({
   }
 }
 
-
 // ============================================================================
-// ANALIZAR RC LINK
+// ANALYZE RC LINK
 // ============================================================================
 
 export async function analyzeRecoveryProof(
@@ -1398,11 +1364,6 @@ export async function analyzeRecoveryProof(
     );
   }
 
-  const validated =
-    validateRecoveryProofStructure(
-      proof,
-    );
-
   const {
     domain,
     message,
@@ -1411,7 +1372,10 @@ export async function analyzeRecoveryProof(
     targetChainId,
     targetNetwork,
     expiresAt,
-  } = validated;
+  } =
+    validateRecoveryProofStructure(
+      proof,
+    );
 
   const now =
     Math.floor(
@@ -1421,12 +1385,6 @@ export async function analyzeRecoveryProof(
   const expired =
     expiresAt < now;
 
-  // ------------------------------------------------------------------------
-  // Hash SIEMPRE calculado usando nuestro esquema conocido.
-  //
-  // No confiamos en types arbitrarios recibidos dentro del JSON.
-  // ------------------------------------------------------------------------
-
   const digest =
     ethers.TypedDataEncoder.hash(
       domain,
@@ -1434,23 +1392,11 @@ export async function analyzeRecoveryProof(
       message,
     );
 
-  // ------------------------------------------------------------------------
-  // INTENTAR RECUPERAR UNA EOA
-  // ------------------------------------------------------------------------
-  //
-  // Esta es la prueba decisiva.
-  //
-  // NO exigimos:
-  //
-  // recoveredEoa === wallet Safe
-  //
-  // porque una Safe y su owner normalmente tienen direcciones diferentes.
-  //
-  // Queremos comprobar:
-  //
-  // recoveredEoa ∈ Safe.getOwners()
-  // ------------------------------------------------------------------------
-
+  /*
+   * Intentamos recuperar la EOA criptográfica de la firma.
+   *
+   * NO asumimos que deba ser igual a la Safe.
+   */
   let recoveredEoa =
     null;
 
@@ -1493,10 +1439,6 @@ export async function analyzeRecoveryProof(
       ),
     );
 
-  // ------------------------------------------------------------------------
-  // PROVIDERS
-  // ------------------------------------------------------------------------
-
   const worldNetwork =
     findNetwork(
       WORLD_CHAIN_ID,
@@ -1511,40 +1453,38 @@ export async function analyzeRecoveryProof(
   const [
     worldProvider,
     targetProvider,
-  ] = await Promise.all([
-    getProvider(
-      worldNetwork,
-    ),
+  ] =
+    await Promise.all([
+      getProvider(
+        worldNetwork,
+      ),
 
-    getProvider(
-      targetNetwork,
-    ),
-  ]);
-
-  // ------------------------------------------------------------------------
-  // BYTECODE
-  // ------------------------------------------------------------------------
+      getProvider(
+        targetNetwork,
+      ),
+    ]);
 
   const [
     worldCode,
     targetCode,
-  ] = await Promise.all([
-    timeout(
-      worldProvider.getCode(
-        wallet,
+  ] =
+    await Promise.all([
+      timeout(
+        worldProvider.getCode(
+          wallet,
+        ),
+        7_000,
+        "World wallet code",
       ),
-      7_000,
-      "World wallet code",
-    ),
 
-    timeout(
-      targetProvider.getCode(
-        wallet,
+      timeout(
+        targetProvider.getCode(
+          wallet,
+        ),
+        7_000,
+        "Target wallet code",
       ),
-      7_000,
-      "Target wallet code",
-    ),
-  ]);
+    ]);
 
   const worldHasCode =
     Boolean(
@@ -1568,40 +1508,33 @@ export async function analyzeRecoveryProof(
       ? "contract"
       : "undeployed";
 
-  // ------------------------------------------------------------------------
-  // SAFE FORENSICS
-  // ------------------------------------------------------------------------
-
   const [
     sourceSafe,
     targetSafe,
-  ] = await Promise.all([
-    inspectSafeIdentity({
-      provider:
-        worldProvider,
+  ] =
+    await Promise.all([
+      inspectSafeIdentity({
+        provider:
+          worldProvider,
 
-      address:
-        wallet,
+        address:
+          wallet,
 
-      hasCode:
-        worldHasCode,
-    }),
+        hasCode:
+          worldHasCode,
+      }),
 
-    inspectSafeIdentity({
-      provider:
-        targetProvider,
+      inspectSafeIdentity({
+        provider:
+          targetProvider,
 
-      address:
-        wallet,
+        address:
+          wallet,
 
-      hasCode:
-        targetHasCode,
-    }),
-  ]);
-
-  // ------------------------------------------------------------------------
-  // OWNER TEST
-  // ------------------------------------------------------------------------
+        hasCode:
+          targetHasCode,
+      }),
+    ]);
 
   const sourceOwnerSignatureMatches =
     Boolean(
@@ -1632,54 +1565,47 @@ export async function analyzeRecoveryProof(
       ),
     );
 
-  // ------------------------------------------------------------------------
-  // EIP-1271
-  // ------------------------------------------------------------------------
-
   const [
     sourceEip1271,
     targetEip1271,
-  ] = await Promise.all([
-    checkEip1271({
-      provider:
-        worldProvider,
+  ] =
+    await Promise.all([
+      checkEip1271({
+        provider:
+          worldProvider,
 
-      wallet,
+        wallet,
 
-      digest,
+        digest,
 
-      signature:
-        proof.signature,
+        signature:
+          proof.signature,
 
-      hasCode:
-        worldHasCode,
+        hasCode:
+          worldHasCode,
 
-      label:
-        "World Safe EIP-1271",
-    }),
+        label:
+          "World Safe EIP-1271",
+      }),
 
-    checkEip1271({
-      provider:
-        targetProvider,
+      checkEip1271({
+        provider:
+          targetProvider,
 
-      wallet,
+        wallet,
 
-      digest,
+        digest,
 
-      signature:
-        proof.signature,
+        signature:
+          proof.signature,
 
-      hasCode:
-        targetHasCode,
+        hasCode:
+          targetHasCode,
 
-      label:
-        "Target Safe EIP-1271",
-    }),
-  ]);
-
-  // ------------------------------------------------------------------------
-  // AUTORIDAD
-  // ------------------------------------------------------------------------
+        label:
+          "Target Safe EIP-1271",
+      }),
+    ]);
 
   let authorityType =
     "unproven";
@@ -1705,7 +1631,7 @@ export async function analyzeRecoveryProof(
   const thresholdSatisfiedBySingleRecoveredOwner =
     Boolean(
       sourceOwnerSignatureMatches &&
-      sourceSafe.threshold === 1
+      sourceSafe.threshold === 1,
     );
 
   const canAttemptTargetSafeTxSignature =
@@ -1713,14 +1639,8 @@ export async function analyzeRecoveryProof(
       !expired &&
       sourceSafe.detected &&
       sourceOwnerSignatureMatches &&
-      sourceSafe.threshold === 1
+      sourceSafe.threshold === 1,
     );
-
-  // ------------------------------------------------------------------------
-  // CLASIFICACIÓN
-  //
-  // Conservamos nombres que App.jsx ya entiende.
-  // ------------------------------------------------------------------------
 
   let classification;
   let nextStep;
@@ -1741,13 +1661,17 @@ export async function analyzeRecoveryProof(
     nextStep =
       "La firma recupera directamente la dirección objetivo como EOA. La siguiente fase es firmar una operación específica y simularla.";
   } else if (
-    targetEip1271.valid
+    targetEip1271.valid ||
+    (
+      targetSafe.detected &&
+      targetOwnerSignatureMatches
+    )
   ) {
     classification =
       "deployed-smart-account-signature";
 
     nextStep =
-      "La smart account de la red objetivo reconoce esta firma. Antes de mover fondos debe construirse y verificarse la SafeTx exacta.";
+      "La smart account objetivo reconoce o comparte una autoridad owner verificable. Antes de mover fondos debe firmarse y simularse la SafeTx exacta.";
   } else if (
     sourceSafe.detected &&
     !targetHasCode
@@ -1760,7 +1684,7 @@ export async function analyzeRecoveryProof(
       sourceSafe.threshold === 1
     ) {
       nextStep =
-        "CRÍTICO: la firma de MiniKit recupera un owner real de la Safe y el threshold es 1. El siguiente paso es pedir a World App que firme la SafeTx EXACTA de la red objetivo y comprobarla antes de cualquier despliegue.";
+        "CRÍTICO: MiniKit produjo una firma recuperable de un owner real y el threshold es 1. El siguiente paso es solicitar la SafeTx EXACTA con chainId de la red objetivo y verificar la firma antes de desplegar.";
     } else if (
       sourceOwnerSignatureMatches
     ) {
@@ -1770,31 +1694,18 @@ export async function analyzeRecoveryProof(
       sourceEip1271.valid
     ) {
       nextStep =
-        "La Safe de World Chain acepta la firma mediante EIP-1271, pero no hemos demostrado una EOA owner portable. Debe analizarse el esquema de firma/módulo antes de desplegar.";
+        "La Safe de World Chain acepta la firma mediante EIP-1271, pero no se demostró una EOA owner portable. Debe analizarse el esquema de firma o módulo.";
     } else {
       nextStep =
         "La Safe existe en World Chain y no está desplegada en la red objetivo, pero esta prueba todavía no demuestra una firma owner ejecutable.";
     }
-  } else if (
-    targetSafe.detected &&
-    sourceOwnerSignatureMatches
-  ) {
-    classification =
-      "deployed-smart-account-signature";
-
-    nextStep =
-      "La misma cuenta Safe está desplegada en la red objetivo y MiniKit produjo una firma recuperable de un owner de origen. Ahora debe probarse una SafeTx específica para la chain objetivo.";
   } else {
     classification =
       "signature-not-portable";
 
     nextStep =
-      "La firma actual no demuestra autoridad ejecutable suficiente sobre la cuenta de la red objetivo. No se debe desplegar ni mover fondos.";
+      "La firma actual no demuestra autoridad ejecutable suficiente sobre la cuenta objetivo. No se debe desplegar ni mover fondos.";
   }
-
-  // ------------------------------------------------------------------------
-  // ESTADO PARA LA SIGUIENTE FASE
-  // ------------------------------------------------------------------------
 
   const executionReadiness = {
     expired,
@@ -1835,8 +1746,6 @@ export async function analyzeRecoveryProof(
 
     canAttemptTargetSafeTxSignature,
 
-    // Estos dos deben cambiar a true solamente después
-    // de los siguientes bloques de ingeniería.
     deterministicTargetDeploymentVerified:
       false,
 
@@ -1853,10 +1762,6 @@ export async function analyzeRecoveryProof(
   };
 
   return {
-    // ----------------------------------------------------------------------
-    // CAMPOS COMPATIBLES CON APP.JSX ACTUAL
-    // ----------------------------------------------------------------------
-
     classification,
 
     nextStep,
@@ -1885,10 +1790,6 @@ export async function analyzeRecoveryProof(
 
     eip1271Error:
       targetEip1271.error,
-
-    // ----------------------------------------------------------------------
-    // CAMPOS NUEVOS
-    // ----------------------------------------------------------------------
 
     reportedSigner,
 
