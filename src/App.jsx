@@ -33,6 +33,11 @@ import {
   createRecoveryTypedData,
 } from "./recovery-proof.js";
 import {
+  executePreparedWorldSafeRecovery,
+  inspectPreparedSafeRecovery,
+  prepareAndSignWorldSafeRecovery,
+} from "./safe-recovery-flow.js";
+import {
   connectInjectedProvider,
   connectWalletConnectProvider,
   disconnectExternalProvider,
@@ -543,9 +548,21 @@ function RecoveryBadge({ asset, externalMatches }) {
   if (asset.chainId === WORLD_CHAIN_ID) {
     return <span className="badge badge--green">Firma World App</span>;
   }
+
+  const accountState = asset.accountState;
+  const safeRecoveryCandidate = Boolean(
+    accountState?.safe?.detected ||
+      accountState?.counterfactualSafe?.detected,
+  );
+
+  if (safeRecoveryCandidate) {
+    return <span className="badge badge--blue">Safe · firma World App</span>;
+  }
+
   if (externalMatches) {
     return <span className="badge badge--green">Firma externa disponible</span>;
   }
+
   return <span className="badge badge--amber">Solo detección</span>;
 }
 
@@ -558,10 +575,25 @@ function getNativeGasAsset(assets, chainId) {
 
 function safeSameAddress(left, right) {
   try {
-    return Boolean(left && right && normalizeAddress(left) === normalizeAddress(right));
+    return Boolean(
+      left &&
+        right &&
+        normalizeAddress(left) === normalizeAddress(right),
+    );
   } catch {
     return false;
   }
+}
+
+function isSafeRecoveryCandidate(asset) {
+  if (!asset || asset.chainId === WORLD_CHAIN_ID) return false;
+
+  const accountState = asset.accountState;
+
+  return Boolean(
+    accountState?.safe?.detected ||
+      accountState?.counterfactualSafe?.detected,
+  );
 }
 
 async function copyTextToClipboard(text) {
@@ -669,6 +701,10 @@ function createRecoveryDiagnosis({
     asset.isNative || Boolean(nativeGasAsset?.rawBalance > 0n);
   const accountIsContract = Boolean(accountState?.hasCode);
   const safeDetected = Boolean(accountState?.safe?.detected);
+  const counterfactualSafe = accountState?.counterfactualSafe ?? null;
+  const safeRecoveryCandidate = Boolean(
+    safeDetected || counterfactualSafe?.detected,
+  );
   const erc1271Supported = Boolean(accountState?.erc1271?.supported);
   const entryPointAvailable = Boolean(
     accountState?.erc4337?.entryPointAvailable,
@@ -699,6 +735,74 @@ function createRecoveryDiagnosis({
       requirements: [
         "Abrir dentro de World App",
         "Firmar SIWE con la misma dirección",
+      ],
+    };
+  }
+
+  if (safeRecoveryCandidate) {
+    const safeState = safeDetected ? accountState.safe : counterfactualSafe;
+    const safeThreshold = Number(safeState?.threshold ?? 0);
+    const deterministicReady = safeDetected
+      ? true
+      : Boolean(counterfactualSafe?.recoveryReady);
+
+    if (!authenticated || !miniKitReady || !worldSessionMatches) {
+      return {
+        level: "partial",
+        title: "⚠️ Safe detectada: falta autenticar World App",
+        route: "Firma owner World App + ejecución Safe",
+        action:
+          "Autentica dentro de World App con exactamente la misma dirección Safe. La wallet externa se usará después únicamente para pagar gas.",
+        requirements: [
+          "Sesión World App coincidente con la Safe",
+          "MiniKit disponible",
+          "Owners/threshold verificables",
+        ],
+      };
+    }
+
+    if (!deterministicReady) {
+      return {
+        level: "partial",
+        title: "⚠️ Safe detectada: falta prueba determinística",
+        route: "Reconstrucción CREATE2",
+        action:
+          "RC Wallet detectó la Safe original, pero todavía debe demostrar que factory, singleton, initializer y salt reproducen exactamente la dirección con fondos en esta red.",
+        requirements: [
+          "CREATE2 exacto",
+          "Factory y singleton con bytecode coincidente",
+          "Dirección predicha idéntica a la dirección con fondos",
+        ],
+      };
+    }
+
+    if (safeThreshold !== 1) {
+      return {
+        level: "partial",
+        title: `⚠️ Safe requiere ${safeThreshold || "varias"} firmas`,
+        route: "Safe multisig",
+        action:
+          "La ruta automática actual solo ejecuta threshold=1. No se intentará una transacción con firmas incompletas.",
+        requirements: [
+          "Reunir todas las firmas requeridas",
+          "Ordenar firmas según reglas Safe",
+          "Simular antes de ejecutar",
+        ],
+      };
+    }
+
+    return {
+      level: "partial",
+      title: "✅ Safe lista para prueba de firma World App",
+      route: "World App owner signature + gas payer externo",
+      action:
+        "RC Wallet puede preparar la SafeTx exacta. Primero World App debe firmarla y demostrar que la firma corresponde a un owner real; después una wallet externa puede pagar el gas sin convertirse en owner.",
+      requirements: [
+        "Firma SafeTx exacta en World App",
+        "Owner recuperado válido",
+        "Threshold 1",
+        "Hash on-chain idéntico",
+        "Simulación execTransaction aprobada",
       ],
     };
   }
@@ -848,6 +952,7 @@ export default function App() {
   const [proofInput, setProofInput] = useState("");
   const [proofReport, setProofReport] = useState(null);
   const [proofBusy, setProofBusy] = useState(false);
+  const [preparedSafeRecovery, setPreparedSafeRecovery] = useState(null);
   const [market, setMarket] = useState(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState("");
@@ -892,6 +997,7 @@ export default function App() {
 
   const externalMatches = useMemo(() => {
     if (!targetAddress || !connectedExternalAddress) return false;
+
     try {
       return (
         normalizeAddress(targetAddress) ===
@@ -901,6 +1007,44 @@ export default function App() {
       return false;
     }
   }, [connectedExternalAddress, targetAddress]);
+
+  const selectedSafeRecoveryCandidate = useMemo(
+    () => isSafeRecoveryCandidate(selectedAsset),
+    [selectedAsset],
+  );
+
+  const safeRecoveryWorldSessionReady = useMemo(
+    () =>
+      Boolean(
+        selectedSafeRecoveryCandidate &&
+          authenticated &&
+          miniKitReady &&
+          authenticatedWorldAddress &&
+          safeSameAddress(authenticatedWorldAddress, targetAddress),
+      ),
+    [
+      authenticated,
+      authenticatedWorldAddress,
+      miniKitReady,
+      selectedSafeRecoveryCandidate,
+      targetAddress,
+    ],
+  );
+
+  // Do not memoize this by time. inspectPreparedSafeRecovery also validates
+  // expiry, so evaluating it on each render avoids presenting stale authority.
+  const preparedSafeRecoveryStatus =
+    preparedSafeRecovery && selectedAsset && targetAddress
+      ? inspectPreparedSafeRecovery({
+          prepared: preparedSafeRecovery,
+          asset: selectedAsset,
+          targetAddress,
+        })
+      : null;
+
+  const hasValidPreparedSafeRecovery = Boolean(
+    preparedSafeRecovery && preparedSafeRecoveryStatus?.valid,
+  );
 
   const selectedNativeGasAsset = useMemo(
     () =>
@@ -1402,6 +1546,7 @@ export default function App() {
     setFeeAccepted(false);
     setLastTransaction(null);
     setShowSendConfirm(false);
+    setPreparedSafeRecovery(null);
   }, [selectedAssetId]);
 
   useEffect(() => {
@@ -1411,7 +1556,12 @@ export default function App() {
 
   useEffect(() => {
     setFeeAccepted(false);
+    setPreparedSafeRecovery(null);
   }, [amount, recipient]);
+
+  useEffect(() => {
+    setPreparedSafeRecovery(null);
+  }, [targetAddress, authenticatedWorldAddress]);
 
   useEffect(() => {
     try {
@@ -1534,7 +1684,7 @@ export default function App() {
     autoLoginAttemptedRef.current = true;
     if (false && !window.ethereum?.request && !walletConnectConfigured) {
       showStatus(
-        "WalletConnect no estÃ¡ configurado. Usa Ir a RC WALLET EXTERNAL o configura VITE_REOWN_PROJECT_ID en Vercel.",
+        "WalletConnect no está configurado. Usa Ir a RC WALLET EXTERNAL o configura VITE_REOWN_PROJECT_ID en Vercel.",
         "warning",
       );
       return;
@@ -1615,18 +1765,32 @@ export default function App() {
 
     if (externalMatches) {
       showStatus(
-        "La wallet externa controla exactamente la dirección analizada. Las firmas externas quedan habilitadas.",
+        "La wallet externa controla exactamente la dirección analizada. La ruta EOA directa queda habilitada.",
         "success",
       );
-    } else {
-      showStatus(
-        `La wallet conectada (${compactAddress(connectedExternalAddress)}) no coincide con la dirección que contiene los fondos. No se habilitará movimiento de activos.`,
-        "warning",
-      );
+      return;
     }
+
+    if (selectedSafeRecoveryCandidate) {
+      showStatus(
+        `La wallet externa (${compactAddress(
+          connectedExternalAddress,
+        )}) no es la Safe. Puede utilizarse únicamente como pagador de gas después de que World App firme una SafeTx válida.`,
+        "info",
+      );
+      return;
+    }
+
+    showStatus(
+      `La wallet conectada (${compactAddress(
+        connectedExternalAddress,
+      )}) no coincide con la dirección que contiene los fondos. No se habilitará la ruta EOA directa.`,
+      "warning",
+    );
   }, [
     connectedExternalAddress,
     externalMatches,
+    selectedSafeRecoveryCandidate,
     showStatus,
     targetAddress,
   ]);
@@ -1723,7 +1887,7 @@ export default function App() {
 
     if (!window.ethereum?.request && !walletConnectConfigured) {
       showStatus(
-        "WalletConnect no estÃ¡ configurado. Usa Ir a RC WALLET EXTERNAL o configura VITE_REOWN_PROJECT_ID en Vercel.",
+        "WalletConnect no está configurado. Usa Ir a RC WALLET EXTERNAL o configura VITE_REOWN_PROJECT_ID en Vercel.",
         "warning",
       );
       return;
@@ -1990,11 +2154,13 @@ export default function App() {
     try {
       const destination = normalizeAddress(recipient);
       const owner = normalizeAddress(targetAddress);
+
       if (destination === owner) {
         throw new Error("El destino es igual a la dirección origen");
       }
 
       const cleanAmount = normalizeAmount(amount);
+
       if (!isValidAmount(cleanAmount)) {
         throw new Error("Introduce una cantidad decimal válida");
       }
@@ -2003,17 +2169,22 @@ export default function App() {
         cleanAmount,
         selectedAsset.decimals,
       );
+
       if (amountUnits <= 0n) {
         throw new Error("La cantidad debe ser mayor que cero");
       }
+
       if (amountUnits > selectedAsset.rawBalance) {
         throw new Error("La cantidad supera el balance detectado");
       }
+
       const feeAmountUnits = calculateRecoveryFee(amountUnits);
       const recipientAmountUnits = amountUnits - feeAmountUnits;
+
       if (recipientAmountUnits <= 0n) {
         throw new Error("El monto a enviar debe ser mayor que cero");
       }
+
       if (feeAmountUnits > 0n && !feeAccepted) {
         throw new Error(
           `Debes aceptar la comisión transparente del ${percentFromBps(
@@ -2022,12 +2193,23 @@ export default function App() {
         );
       }
 
+      // The Safe recovery engine signs one exact transfer. A second hidden fee
+      // transfer would invalidate the authorization model, so keep it blocked.
+      if (selectedSafeRecoveryCandidate && feeAmountUnits > 0n) {
+        throw new Error(
+          "La recuperación Safe no admite una transferencia secundaria de comisión. RECOVERY_FEE_BPS debe permanecer en 0.",
+        );
+      }
+
+      // Only direct World Chain native transfers must leave gas in the source
+      // account. Safe recovery on an external chain uses a separate gas payer.
       if (
+        selectedAsset.chainId === WORLD_CHAIN_ID &&
         selectedAsset.isNative &&
         amountUnits === selectedAsset.rawBalance
       ) {
         throw new Error(
-          "En monedas nativas debes dejar saldo para pagar el gas",
+          "En monedas nativas de World Chain debes dejar saldo para pagar el gas",
         );
       }
 
@@ -2035,6 +2217,10 @@ export default function App() {
       setLastTransaction(null);
 
       let result;
+
+      // ------------------------------------------------------------------
+      // 1. World Chain: existing MiniKit transfer path.
+      // ------------------------------------------------------------------
       if (selectedAsset.chainId === WORLD_CHAIN_ID) {
         result = await sendFromWorldChain(
           selectedAsset,
@@ -2042,17 +2228,117 @@ export default function App() {
           recipientAmountUnits,
           feeAmountUnits,
         );
-      } else {
+      }
+
+      // ------------------------------------------------------------------
+      // 2. External Safe / counterfactual Safe.
+      // ------------------------------------------------------------------
+      else if (selectedSafeRecoveryCandidate) {
+        if (!safeRecoveryWorldSessionReady) {
+          throw new Error(
+            "Autentica en World App con exactamente la misma dirección Safe que contiene los fondos.",
+          );
+        }
+
+        if (preparedSafeRecovery && !preparedSafeRecoveryStatus?.valid) {
+          setPreparedSafeRecovery(null);
+          throw new Error(
+            "La autorización Safe preparada expiró o dejó de ser válida. Confirma nuevamente para generar una firma nueva.",
+          );
+        }
+
+        // STEP 1: build and sign the exact SafeTx. No deployment and no funds
+        // move in this step. The user must confirm execution separately.
+        if (!hasValidPreparedSafeRecovery) {
+          showStatus(
+            "Preparando la SafeTx exacta. Este paso solo solicitará una firma en World App y NO moverá fondos…",
+            "info",
+          );
+
+          const prepared = await prepareAndSignWorldSafeRecovery({
+            asset: selectedAsset,
+            targetAddress: owner,
+            authenticatedWorldAddress,
+            recipient: destination,
+            amount: cleanAmount,
+            onStatus: showStatus,
+          });
+
+          if (!mountedRef.current) return;
+
+          setPreparedSafeRecovery(prepared);
+          showStatus(
+            "SafeTx firmada y owner verificado. Revisa otra vez destino y monto. Después conecta una wallet con gas y confirma una segunda vez para ejecutar.",
+            "success",
+          );
+          return;
+        }
+
+        // STEP 2: signed intent must still match the visible form exactly.
+        if (
+          !safeSameAddress(
+            preparedSafeRecovery.asset?.recipient,
+            destination,
+          )
+        ) {
+          setPreparedSafeRecovery(null);
+          throw new Error(
+            "El destinatario actual no coincide con la SafeTx firmada. La autorización fue descartada.",
+          );
+        }
+
+        if (
+          String(preparedSafeRecovery.asset?.amount) !== String(cleanAmount)
+        ) {
+          setPreparedSafeRecovery(null);
+          throw new Error(
+            "El monto actual no coincide con la SafeTx firmada. La autorización fue descartada.",
+          );
+        }
+
         const externalConnection = externalConnectionRef.current;
+
+        if (!externalConnection?.provider) {
+          throw new Error(
+            "La SafeTx ya está firmada. Conecta una wallet externa con gas suficiente en la red objetivo; no necesita ser owner ni coincidir con la Safe.",
+          );
+        }
+
+        showStatus(
+          `SafeTx autorizada. Ejecutando en ${selectedAsset.networkName}; la wallet externa solo pagará el gas…`,
+          "warning",
+        );
+
+        // The execution engine re-checks expiry, token, chainId, amount,
+        // recipient, CREATE2, owners, threshold, nonce, getTransactionHash,
+        // checkSignatures, live balance and estimateGas before broadcasting.
+        result = await executePreparedWorldSafeRecovery({
+          prepared: preparedSafeRecovery,
+          eip1193Provider: externalConnection.provider,
+          asset: selectedAsset,
+          targetAddress: owner,
+          onStatus: showStatus,
+        });
+
+        setPreparedSafeRecovery(null);
+      }
+
+      // ------------------------------------------------------------------
+      // 3. Ordinary external EOA: retain the existing exact-address rule.
+      // ------------------------------------------------------------------
+      else {
+        const externalConnection = externalConnectionRef.current;
+
         if (!externalMatches || !externalConnection?.provider) {
           throw new Error(
-            "Conecta una wallet externa que exponga exactamente la dirección con fondos",
+            "Para una EOA, conecta una wallet externa que controle exactamente la dirección donde están los fondos.",
           );
         }
 
         showStatus(
           `Abriendo la firma externa en ${selectedAsset.networkName}…`,
         );
+
         result = {
           route: "external",
           ...(await sendWithExternalWallet({
@@ -2066,6 +2352,12 @@ export default function App() {
         };
       }
 
+      if (!result) {
+        throw new Error(
+          "El motor de recuperación no devolvió un resultado de ejecución",
+        );
+      }
+
       const transactionRecord = {
         ...result,
         network: selectedAsset.network,
@@ -2075,11 +2367,16 @@ export default function App() {
         direction: "sent",
         createdAt: new Date().toISOString(),
       };
+
       setLastTransaction(transactionRecord);
-      setTransferHistory((current) => [transactionRecord, ...current].slice(0, 25));
+      setTransferHistory((current) =>
+        [transactionRecord, ...current].slice(0, 25),
+      );
       setRecipient("");
       setAmount("");
       setFeeAccepted(false);
+      setPreparedSafeRecovery(null);
+
       showStatus(
         result.pending
           ? "La operación sigue pendiente. Conserva el userOpHash."
@@ -2101,11 +2398,17 @@ export default function App() {
     }
   }, [
     amount,
+    authenticatedWorldAddress,
     externalMatches,
     feeAccepted,
+    hasValidPreparedSafeRecovery,
+    preparedSafeRecovery,
+    preparedSafeRecoveryStatus,
     recipient,
+    safeRecoveryWorldSessionReady,
     scan,
     selectedAsset,
+    selectedSafeRecoveryCandidate,
     sendFromWorldChain,
     sending,
     showStatus,
@@ -2472,23 +2775,22 @@ export default function App() {
     );
   }, []);
 
+  const safeRecoveryGasPayerReady = Boolean(
+    connectedExternalAddress && externalConnectionRef.current?.provider,
+  );
+
   const canSendSelected =
     selectedAsset &&
     (selectedAsset.chainId === WORLD_CHAIN_ID
       ? authenticated &&
         miniKitReady &&
         authenticatedWorldAddress &&
-        (() => {
-          try {
-            return (
-              normalizeAddress(authenticatedWorldAddress) ===
-              normalizeAddress(targetAddress)
-            );
-          } catch {
-            return false;
-          }
-        })()
-      : externalMatches);
+        safeSameAddress(authenticatedWorldAddress, targetAddress)
+      : selectedSafeRecoveryCandidate
+        ? hasValidPreparedSafeRecovery
+          ? safeRecoveryWorldSessionReady && safeRecoveryGasPayerReady
+          : safeRecoveryWorldSessionReady
+        : externalMatches);
 
   const canSubmitRecovery = Boolean(
     canSendSelected &&
@@ -2512,7 +2814,7 @@ export default function App() {
                   {item.amount} {item.token || "TOKEN"}
                 </strong>
                 <span>
-                  {item.network?.name || "Red"} Â·{" "}
+                  {item.network?.name || "Red"} ·{" "}
                   {item.pending ? "Pendiente" : "Confirmada"}
                 </span>
               </div>
@@ -2802,7 +3104,11 @@ export default function App() {
                   <dd>
                     {selectedAsset.chainId === WORLD_CHAIN_ID
                       ? "MiniKit / World App"
-                      : "Wallet externa firmante exacta"}
+                      : selectedSafeRecoveryCandidate
+                        ? hasValidPreparedSafeRecovery
+                          ? "SafeTx firmada por World App · wallet externa solo paga gas"
+                          : "World App / MiniKit firma la SafeTx exacta"
+                        : "Wallet externa firmante exacta"}
                   </dd>
                 </div>
                 <div>
@@ -2833,11 +3139,26 @@ export default function App() {
                       );
                       if (!confirmed) return;
                     }
+
+                    if (
+                      selectedSafeRecoveryCandidate &&
+                      !hasValidPreparedSafeRecovery
+                    ) {
+                      const confirmed = await confirmWorldAction(
+                        "firma Safe de recuperación",
+                      );
+                      if (!confirmed) return;
+                    }
+
                     setShowSendConfirm(false);
                     void send();
                   }}
                 >
-                  Confirmar y firmar
+                  {selectedSafeRecoveryCandidate
+                    ? hasValidPreparedSafeRecovery
+                      ? "Confirmar ejecución Safe"
+                      : "Firmar SafeTx en World App"
+                    : "Confirmar y firmar"}
                 </button>
               </div>
             </section>
@@ -2881,7 +3202,7 @@ export default function App() {
                         <option value="all">Todo</option>
                         <option value="day">Hoy</option>
                         <option value="month">Este mes</option>
-                        <option value="year">Este aÃ±o</option>
+                        <option value="year">Este año</option>
                       </select>
                     </label>
                   </div>
@@ -2998,8 +3319,17 @@ export default function App() {
               </button>
             </div>
             {connectedExternalAddress && (
-              <p className={externalMatches ? "match" : "mismatch"}>
+              <p
+                className={
+                  externalMatches || selectedSafeRecoveryCandidate
+                    ? "match"
+                    : "mismatch"
+                }
+              >
                 Externa: {compactAddress(connectedExternalAddress)}
+                {selectedSafeRecoveryCandidate && !externalMatches
+                  ? " · pagador de gas"
+                  : ""}
               </p>
             )}
             <div className="quick-actions">
@@ -3842,15 +4172,25 @@ export default function App() {
                   </p>
                 )}
                 {connectedExternalAddress && (
-                  <p className={externalMatches ? "match" : "mismatch"}>
+                  <p
+                    className={
+                      externalMatches || selectedSafeRecoveryCandidate
+                        ? "match"
+                        : "mismatch"
+                    }
+                  >
                     {externalConnectionName}: {connectedExternalAddress}
+                    {selectedSafeRecoveryCandidate && !externalMatches
+                      ? " · pagador de gas"
+                      : ""}
                   </p>
                 )}
                 {selectedAsset.accountState?.hasCode && (
                   <p className="warning-copy">
-                    La dirección tiene bytecode en esta red. Es una cuenta de
-                    contrato y requiere sus propietarios o módulos originales;
-                    conectar una EOA distinta no sirve.
+                    La dirección tiene bytecode en esta red. La autoridad sigue
+                    perteneciendo a los owners o módulos de la smart account.
+                    Una EOA distinta puede pagar gas, pero no sustituye la firma
+                    del owner.
                   </p>
                 )}
               </div>
@@ -3994,16 +4334,53 @@ export default function App() {
             >
               {sending
                 ? "Esperando confirmación…"
-                : canSubmitRecovery
-                  ? `Enviar ${selectedAsset.symbol}`
-                  : canSendSelected
-                    ? "Completa destino y monto para continuar"
-                    : "Firma no disponible para esta red"}
+                : selectedSafeRecoveryCandidate
+                  ? hasValidPreparedSafeRecovery
+                    ? safeRecoveryGasPayerReady
+                      ? `Ejecutar recuperación de ${selectedAsset.symbol}`
+                      : "Conecta wallet externa para pagar gas"
+                    : canSubmitRecovery
+                      ? `Firmar recuperación de ${selectedAsset.symbol}`
+                      : canSendSelected
+                        ? "Completa destino y monto para firmar"
+                        : "Autentica la misma Safe en World App"
+                  : canSubmitRecovery
+                    ? `Enviar ${selectedAsset.symbol}`
+                    : canSendSelected
+                      ? "Completa destino y monto para continuar"
+                      : "Firma no disponible para esta red"}
             </button>
 
+            {selectedSafeRecoveryCandidate && preparedSafeRecovery && (
+              <div
+                className={
+                  preparedSafeRecoveryStatus?.valid
+                    ? "recovery-summary recovery-summary--success"
+                    : "recovery-summary recovery-summary--warning"
+                }
+              >
+                <strong>
+                  {preparedSafeRecoveryStatus?.valid
+                    ? "SafeTx firmada y verificada"
+                    : "La autorización Safe requiere renovación"}
+                </strong>
+                <p>
+                  {preparedSafeRecoveryStatus?.message ??
+                    "World App ya firmó la operación exacta."}
+                </p>
+                {preparedSafeRecoveryStatus?.owner && (
+                  <small>
+                    Owner firmado:{" "}
+                    {compactAddress(preparedSafeRecoveryStatus.owner)}
+                  </small>
+                )}
+              </div>
+            )}
+
             <p className="fine-print">
-              RC Wallet no solicita frases semilla ni claves privadas. Se paga
-              el gas de la red cuando corresponda.
+              RC Wallet no solicita frases semilla ni claves privadas. En una
+              recuperación Safe, World App aporta la autorización del owner y
+              la wallet externa se utiliza únicamente para pagar el gas.
             </p>
 
             {lastTransaction && (
@@ -4244,7 +4621,9 @@ export default function App() {
                   disabled={externalConnecting}
                   onClick={connectBestExternalWallet}
                 >
-                  Conectar wallet firmante para bridge
+                  {selectedSafeRecoveryCandidate
+                    ? "Conectar wallet para pagar gas / continuar"
+                    : "Conectar wallet firmante para bridge"}
                 </button>
               )}
 
@@ -4491,26 +4870,28 @@ export default function App() {
         <section className="card card--truth">
           <h2>Límite técnico importante</h2>
           <p>
-            Ver un balance no demuestra que World App pueda firmarlo. MiniKit
-            ejecuta transacciones únicamente en World Chain. En Ethereum,
-            Optimism, Base y BNB Chain se necesita un firmante que controle la
-            dirección en esa red. RC Wallet comprueba esa condición antes de
-            habilitar cualquier movimiento.
+            Ver un balance no demuestra autoridad. MiniKit envía transacciones
+            directas en World Chain; para una Safe en otra red, RC Wallet solo
+            continúa si World App firma la SafeTx exacta como owner verificable,
+            la reconstrucción determinística coincide y la Safe valida el hash
+            y la firma on-chain. Una wallet externa puede pagar gas, pero nunca
+            sustituye la autoridad del owner.
           </p>
           <div className="truth-list">
             <div>
               <strong>✅ Sí puede mover</strong>
               <span>
-                World Chain con MiniKit, o red externa cuando MetaMask, Trust,
-                Binance Wallet o WalletConnect firman exactamente desde la
-                misma dirección.
+                World Chain con MiniKit; una EOA externa con signer exacto; o
+                una Safe externa cuando la firma World App corresponde a un
+                owner válido y todas las verificaciones Safe pasan.
               </span>
             </div>
             <div>
               <strong>⚠️ Puede requerir soporte</strong>
               <span>
-                Smart accounts, Safe, ERC-4337 o cuentas con bytecode necesitan
-                sus propietarios, módulos o despliegue original.
+                Smart accounts, Safe, ERC-4337 o cuentas con bytecode requieren
+                owners, módulos y/o despliegue original verificable. RC Wallet
+                no adivina ni fabrica esa autoridad.
               </span>
             </div>
             <div>
