@@ -13,108 +13,132 @@ import {
 } from "./config.js";
 
 import {
-  analyzeSafeTransactionSignature,
   createSafeErc20TransferTypedData,
   createSafeNativeTransferTypedData,
   hashSafeTransactionTypedData,
+  SAFE_TX_TYPES,
 } from "./recovery-proof.js";
+
+import {
+  inspectSafeSignatureShape,
+  verifyTargetSafeExecutionAuthorization,
+  verifyWorldSafeMiniKitAuthorization,
+} from "./world-safe-authority.js";
 
 // ============================================================================
 // RC WALLET — SAFE RECOVERY EXECUTION ENGINE
 // ============================================================================
 //
-// ARQUITECTURA:
+// OBJETIVO ÚNICO
+//
+// Recuperar activos que llegaron a la misma dirección de una World App Safe
+// pero en una red EVM distinta (por ejemplo WLD en Ethereum Mainnet).
+//
+// MODELO DE AUTORIDAD
 //
 // World App / MiniKit
 //      │
-//      │ firma SafeTx exacta
+//      │ signTypedData(SafeTx exacta)
 //      ▼
-// owner EOA verificado
+// firma de la World App Safe
+//      │
+//      │ EIP-1271 en World Chain
+//      ▼
+// autoridad origen verificada
 //      │
 //      ▼
-// Safe
+// misma Safe recreada en red destino mediante CREATE2
 //      │
-//      │ execTransaction()
+//      │ misma firma validada por checkSignatures()
 //      ▼
-// WLD / ERC20 / activo nativo
+// execTransaction()
+//      │
+//      ▼
+// ERC20.transfer(...) / transferencia nativa
 //
-// La wallet externa NO necesita ser owner.
-// Solo funciona como:
+// IMPORTANTE
 //
-// - pagador de gas;
-// - transmisor de createProxyWithNonce;
-// - transmisor de execTransaction.
+// - La wallet externa NO es owner.
+// - La wallet externa únicamente paga gas y transmite:
+//     - createProxyWithNonce(...), cuando haga falta;
+//     - execTransaction(...).
 //
-// REGLAS ABSOLUTAS:
+// REGLAS DE SEGURIDAD
 //
 // - Nunca private keys.
 // - Nunca seed phrases.
-// - Nunca adivinar CREATE2.
-// - Nunca desplegar si predictedAddress !== addressWithFunds.
-// - Nunca ejecutar si Safe.getTransactionHash !== hash firmado.
-// - Nunca ejecutar si checkSignatures falla.
-// - Nunca ejecutar si nonce cambió.
-// - Nunca ejecutar si owners/threshold cambiaron.
-// - Nunca ejecutar sin simulación previa.
+// - Nunca desplegar si CREATE2 no reproduce EXACTAMENTE targetAddress.
+// - Nunca ejecutar si owners cambian.
+// - Nunca ejecutar si threshold cambia.
+// - Nunca ejecutar si nonce cambia.
+// - Nunca ejecutar si Safe.getTransactionHash() != hash firmado.
+// - Nunca ejecutar si checkSignatures() falla.
+// - Nunca ejecutar si estimateGas() falla.
+// - Nunca confiar solo en el tamaño de la firma.
+// - Una firma MiniKit nativa se valida como firma de Smart Account/Safe.
+// - La compatibilidad EOA de 65 bytes se mantiene únicamente como evidencia
+//   adicional; NO es requisito para World App.
 //
 // ============================================================================
 
 const SAFE_RECOVERY_INTENT_FORMAT =
   "rc-wallet-safe-recovery-intent";
 
-const SAFE_RECOVERY_INTENT_VERSION = 1;
+const SAFE_RECOVERY_INTENT_VERSION = 2;
 
 const SAFE_RECOVERY_INTENT_LIFETIME_MS =
   10 * 60 * 1000;
 
 const BPS_DENOMINATOR = 10_000n;
-
 const GAS_LIMIT_BUFFER_BPS = 12_000n;
-
 const GAS_PRICE_BUFFER_BPS = 12_000n;
 
-const EXECUTION_GAS_RESERVE = 550_000n;
+const DEPLOYMENT_EXECUTION_RESERVE_GAS = 650_000n;
 
 const SAFE_OPERATION_CALL = 0;
+
+const MAX_SIGNATURE_BYTES = 64 * 1024;
 
 const ERC20_INTERFACE =
   new ethers.Interface(ERC20_ABI);
 
 // ============================================================================
-// SAFE FACTORY
+// SAFE FACTORY ABI
 // ============================================================================
 
-const SAFE_PROXY_FACTORY_ABI =
-  Object.freeze([
-    "function proxyCreationCode() view returns (bytes)",
+const SAFE_PROXY_FACTORY_ABI = Object.freeze([
+  "function proxyCreationCode() view returns (bytes)",
 
-    "function createProxyWithNonce(address _singleton,bytes initializer,uint256 saltNonce) returns (address proxy)",
+  "function createProxyWithNonce(address _singleton,bytes initializer,uint256 saltNonce) returns (address proxy)",
 
-    "function createProxyWithNonceL2(address _singleton,bytes initializer,uint256 saltNonce) returns (address proxy)",
-  ]);
+  "function createProxyWithNonceL2(address _singleton,bytes initializer,uint256 saltNonce) returns (address proxy)",
+]);
 
 // ============================================================================
-// SAFE EXECUTION
+// SAFE EXECUTION ABI
 // ============================================================================
 
-const SAFE_EXECUTION_ABI =
-  Object.freeze([
-    "function VERSION() view returns (string)",
+const SAFE_EXECUTION_ABI = Object.freeze([
+  "function VERSION() view returns (string)",
 
-    "function getOwners() view returns (address[])",
+  "function masterCopy() view returns (address)",
 
-    "function getThreshold() view returns (uint256)",
+  "function getOwners() view returns (address[])",
 
-    "function nonce() view returns (uint256)",
+  "function getThreshold() view returns (uint256)",
 
-    "function getTransactionHash(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce) view returns (bytes32)",
+  "function nonce() view returns (uint256)",
 
-    "function checkSignatures(address executor,bytes32 dataHash,bytes signatures) view",
+  "function getTransactionHash(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce) view returns (bytes32)",
 
-    "function checkSignatures(bytes32 dataHash,bytes data,bytes signatures) view",
+  "function encodeTransactionData(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce) view returns (bytes)",
 
-    "function execTransaction(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address payable refundReceiver,bytes signatures) payable returns (bool success)",
-  ]);
+  "function checkSignatures(bytes32 dataHash,bytes data,bytes signatures) view",
+
+  "function checkSignatures(address executor,bytes32 dataHash,bytes signatures) view",
+
+  "function execTransaction(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address payable refundReceiver,bytes signatures) payable returns (bool success)",
+]);
 
 const SAFE_REPLAYABLE_FACTORY_METHODS =
   new Set([
@@ -134,21 +158,16 @@ function timeout(
   let timeoutId;
 
   const timeoutPromise =
-    new Promise(
-      (_, reject) => {
-        timeoutId =
-          setTimeout(
-            () => {
-              reject(
-                new Error(
-                  `${label}: tiempo de espera agotado`,
-                ),
-              );
-            },
-            milliseconds,
+    new Promise((_, reject) => {
+      timeoutId =
+        setTimeout(() => {
+          reject(
+            new Error(
+              `${label}: tiempo de espera agotado`,
+            ),
           );
-      },
-    );
+        }, milliseconds);
+    });
 
   return Promise.race([
     promise,
@@ -213,7 +232,7 @@ function normalizeUint(
       BigInt(value);
   } catch {
     throw new Error(
-      `${label} no es un uint256 válido`,
+      `${label} no es uint256 válido`,
     );
   }
 
@@ -243,6 +262,45 @@ function normalizePositiveUint(
   }
 
   return parsed;
+}
+
+function normalizeHumanAmount(
+  amount,
+  decimals,
+) {
+  const normalized =
+    String(amount ?? "")
+      .trim()
+      .replace(",", ".");
+
+  if (
+    !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(
+      normalized,
+    )
+  ) {
+    throw new Error(
+      "Cantidad inválida",
+    );
+  }
+
+  const units =
+    ethers.parseUnits(
+      normalized,
+      decimals,
+    );
+
+  if (units <= 0n) {
+    throw new Error(
+      "La cantidad debe ser mayor que cero",
+    );
+  }
+
+  return {
+    human:
+      normalized,
+
+    units,
+  };
 }
 
 function applyBuffer(
@@ -315,17 +373,15 @@ function sameOwnerSet(
 ) {
   const first =
     sanitizeOwners(left)
-      .map(
-        (value) =>
-          value.toLowerCase(),
+      .map((value) =>
+        value.toLowerCase(),
       )
       .sort();
 
   const second =
     sanitizeOwners(right)
-      .map(
-        (value) =>
-          value.toLowerCase(),
+      .map((value) =>
+        value.toLowerCase(),
       )
       .sort();
 
@@ -335,43 +391,56 @@ function sameOwnerSet(
   );
 }
 
-function normalizeHumanAmount(
-  amount,
-  decimals,
+function ownerListIncludes(
+  owners,
+  candidate,
 ) {
-  const normalized =
-    String(amount ?? "")
-      .trim()
-      .replace(",", ".");
+  if (!candidate) {
+    return false;
+  }
 
+  return sanitizeOwners(
+    owners,
+  ).some((owner) =>
+    sameAddress(
+      owner,
+      candidate,
+    ),
+  );
+}
+
+function assertHexSignature(
+  signature,
+) {
   if (
-    !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(
-      normalized,
-    )
+    typeof signature !==
+      "string" ||
+    !ethers.isHexString(
+      signature,
+    ) ||
+    signature === "0x"
   ) {
     throw new Error(
-      "Cantidad inválida",
+      "MiniKit no devolvió una firma hexadecimal válida",
     );
   }
 
-  const units =
-    ethers.parseUnits(
-      normalized,
-      decimals,
+  const byteLength =
+    ethers.dataLength(
+      signature,
     );
 
-  if (units <= 0n) {
+  if (
+    byteLength <= 0 ||
+    byteLength >
+      MAX_SIGNATURE_BYTES
+  ) {
     throw new Error(
-      "La cantidad debe ser mayor que cero",
+      "La firma MiniKit tiene un tamaño inválido",
     );
   }
 
-  return {
-    human:
-      normalized,
-
-    units,
-  };
+  return byteLength;
 }
 
 function uint256ToBytes32(
@@ -386,6 +455,48 @@ function uint256ToBytes32(
 }
 
 // ============================================================================
+// ASSET VALIDATION
+// ============================================================================
+
+function assertExternalAsset(
+  asset,
+) {
+  if (!asset) {
+    throw new Error(
+      "Selecciona un activo antes de preparar la recuperación",
+    );
+  }
+
+  const chainId =
+    normalizeChainId(
+      asset.chainId,
+    );
+
+  if (
+    chainId ===
+    WORLD_CHAIN_ID
+  ) {
+    throw new Error(
+      "Este motor es únicamente para redes externas. World Chain usa MiniKit directamente.",
+    );
+  }
+
+  const network =
+    findNetwork(chainId);
+
+  if (!network) {
+    throw new Error(
+      "La red del activo no está soportada",
+    );
+  }
+
+  return {
+    chainId,
+    network,
+  };
+}
+
+// ============================================================================
 // CREATE2
 // ============================================================================
 
@@ -396,7 +507,19 @@ function computeReplayableSafeAddress({
   saltNonce,
   proxyCreationCode,
 }) {
+  const normalizedFactory =
+    normalizeAddress(
+      factory,
+    );
+
+  const normalizedSingleton =
+    normalizeAddress(
+      singleton,
+    );
+
   if (
+    typeof initializer !==
+      "string" ||
     !ethers.isHexString(
       initializer,
     )
@@ -407,6 +530,8 @@ function computeReplayableSafeAddress({
   }
 
   if (
+    typeof proxyCreationCode !==
+      "string" ||
     !ethers.isHexString(
       proxyCreationCode,
     )
@@ -425,9 +550,7 @@ function computeReplayableSafeAddress({
         .encode(
           ["address"],
           [
-            normalizeAddress(
-              singleton,
-            ),
+            normalizedSingleton,
           ],
         ),
     ]);
@@ -446,12 +569,8 @@ function computeReplayableSafeAddress({
     );
 
   return ethers.getCreate2Address(
-    normalizeAddress(
-      factory,
-    ),
-
+    normalizedFactory,
     salt,
-
     ethers.keccak256(
       deploymentCode,
     ),
@@ -459,69 +578,7 @@ function computeReplayableSafeAddress({
 }
 
 // ============================================================================
-// ASSET VALIDATION
-// ============================================================================
-
-function assertExternalAsset(
-  asset,
-) {
-  if (!asset) {
-    throw new Error(
-      "Selecciona un activo antes de preparar la recuperación",
-    );
-  }
-
-  if (
-    Number(asset.chainId) ===
-    WORLD_CHAIN_ID
-  ) {
-    throw new Error(
-      "Este módulo es únicamente para redes externas. World Chain usa MiniKit directamente.",
-    );
-  }
-
-  const chainId =
-    normalizeChainId(
-      asset.chainId,
-    );
-
-  const network =
-    findNetwork(chainId);
-
-  if (!network) {
-    throw new Error(
-      "La red del activo no está soportada",
-    );
-  }
-
-  if (!asset.network) {
-    throw new Error(
-      "El activo no contiene configuración de red",
-    );
-  }
-
-  return {
-    chainId,
-    network,
-  };
-}
-
-function getCounterfactualMirror(
-  asset,
-) {
-  const mirror =
-    asset?.accountState
-      ?.counterfactualSafe;
-
-  if (!mirror?.detected) {
-    return null;
-  }
-
-  return mirror;
-}
-
-// ============================================================================
-// LIVE SAFE
+// LIVE SAFE STATE
 // ============================================================================
 
 async function readLiveSafeState(
@@ -547,25 +604,21 @@ async function readLiveSafeState(
     code === "0x"
   ) {
     return {
-      deployed:
-        false,
+      deployed: false,
 
       address,
 
-      codeHash:
-        null,
+      codeHash: null,
 
-      version:
-        null,
+      version: null,
 
-      owners:
-        [],
+      singleton: null,
 
-      threshold:
-        null,
+      owners: [],
 
-      nonce:
-        null,
+      threshold: null,
+
+      nonce: null,
     };
   }
 
@@ -581,6 +634,7 @@ async function readLiveSafeState(
     thresholdResult,
     nonceResult,
     versionResult,
+    singletonResult,
   ] =
     await Promise.allSettled([
       timeout(
@@ -605,6 +659,12 @@ async function readLiveSafeState(
         contract.VERSION(),
         8_000,
         "Safe version",
+      ),
+
+      timeout(
+        contract.masterCopy(),
+        8_000,
+        "Safe singleton",
       ),
     ]);
 
@@ -646,8 +706,7 @@ async function readLiveSafeState(
   }
 
   return {
-    deployed:
-      true,
+    deployed: true,
 
     address,
 
@@ -661,6 +720,17 @@ async function readLiveSafeState(
         "fulfilled"
         ? String(
             versionResult.value,
+          )
+        : null,
+
+    singleton:
+      singletonResult.status ===
+        "fulfilled" &&
+      ethers.isAddress(
+        singletonResult.value,
+      )
+        ? ethers.getAddress(
+            singletonResult.value,
           )
         : null,
 
@@ -712,8 +782,22 @@ async function readCurrentAssetBalance(
 }
 
 // ============================================================================
-// COUNTERFACTUAL SAFE VALIDATION
+// COUNTERFACTUAL MIRROR
 // ============================================================================
+
+function getCounterfactualMirror(
+  asset,
+) {
+  const mirror =
+    asset?.accountState
+      ?.counterfactualSafe;
+
+  if (!mirror?.detected) {
+    return null;
+  }
+
+  return mirror;
+}
 
 function assertReplayableMirror(
   mirror,
@@ -740,7 +824,7 @@ function assertReplayableMirror(
     !mirror.singletonCodeMatches
   ) {
     throw new Error(
-      "Factory/singleton de la red objetivo no coinciden con World Chain",
+      "Factory/singleton de la red objetivo no coinciden byte por byte con World Chain",
     );
   }
 
@@ -769,26 +853,6 @@ function assertReplayableMirror(
     );
   }
 
-  if (
-    !ethers.isHexString(
-      deployment.initializer,
-    )
-  ) {
-    throw new Error(
-      "Initializer Safe inválido",
-    );
-  }
-
-  if (
-    !ethers.isHexString(
-      deployment.proxyCreationCode,
-    )
-  ) {
-    throw new Error(
-      "proxyCreationCode Safe inválido",
-    );
-  }
-
   normalizeAddress(
     deployment.factory,
   );
@@ -802,11 +866,35 @@ function assertReplayableMirror(
     "Safe saltNonce",
   );
 
+  if (
+    typeof deployment.initializer !==
+      "string" ||
+    !ethers.isHexString(
+      deployment.initializer,
+    )
+  ) {
+    throw new Error(
+      "Initializer Safe inválido",
+    );
+  }
+
+  if (
+    typeof deployment.proxyCreationCode !==
+      "string" ||
+    !ethers.isHexString(
+      deployment.proxyCreationCode,
+    )
+  ) {
+    throw new Error(
+      "proxyCreationCode Safe inválido",
+    );
+  }
+
   return deployment;
 }
 
 // ============================================================================
-// BUILD EXACT SAFE TX
+// EXACT SAFE TX
 // ============================================================================
 
 function buildTypedDataForAsset({
@@ -851,6 +939,152 @@ function buildTypedDataForAsset({
   });
 }
 
+function assertExactTransferIntent(
+  intent,
+) {
+  const message =
+    intent?.typedData
+      ?.message;
+
+  if (!message) {
+    throw new Error(
+      "SafeTx sin message",
+    );
+  }
+
+  if (
+    Number(
+      message.operation,
+    ) !==
+    SAFE_OPERATION_CALL
+  ) {
+    throw new Error(
+      "Solo se permiten Safe CALL normales para recuperación",
+    );
+  }
+
+  if (
+    BigInt(
+      message.safeTxGas,
+    ) !== 0n ||
+    BigInt(
+      message.baseGas,
+    ) !== 0n ||
+    BigInt(
+      message.gasPrice,
+    ) !== 0n
+  ) {
+    throw new Error(
+      "La SafeTx contiene parámetros de gas/reembolso no permitidos por RC Wallet",
+    );
+  }
+
+  if (
+    !sameAddress(
+      message.gasToken,
+      ethers.ZeroAddress,
+    )
+  ) {
+    throw new Error(
+      "La SafeTx no debe utilizar gasToken",
+    );
+  }
+
+  if (
+    !sameAddress(
+      message.refundReceiver,
+      ethers.ZeroAddress,
+    )
+  ) {
+    throw new Error(
+      "La SafeTx no debe definir refundReceiver",
+    );
+  }
+
+  const amountUnits =
+    BigInt(
+      intent.asset
+        .amountUnits,
+    );
+
+  const recipient =
+    normalizeAddress(
+      intent.asset.recipient,
+    );
+
+  if (
+    intent.asset.isNative
+  ) {
+    if (
+      !sameAddress(
+        message.to,
+        recipient,
+      )
+    ) {
+      throw new Error(
+        "El destino nativo firmado cambió",
+      );
+    }
+
+    if (
+      BigInt(
+        message.value,
+      ) !==
+        amountUnits ||
+      message.data !== "0x"
+    ) {
+      throw new Error(
+        "La SafeTx nativa no coincide con monto/destino firmados",
+      );
+    }
+
+    return;
+  }
+
+  if (
+    !sameAddress(
+      message.to,
+      intent.asset
+        .tokenAddress,
+    )
+  ) {
+    throw new Error(
+      "El token ERC-20 de la SafeTx cambió",
+    );
+  }
+
+  if (
+    BigInt(
+      message.value,
+    ) !== 0n
+  ) {
+    throw new Error(
+      "Una transferencia ERC-20 Safe no debe enviar valor nativo",
+    );
+  }
+
+  const expectedData =
+    ERC20_INTERFACE
+      .encodeFunctionData(
+        "transfer",
+        [
+          recipient,
+          amountUnits,
+        ],
+      );
+
+  if (
+    String(
+      message.data,
+    ).toLowerCase() !==
+    expectedData.toLowerCase()
+  ) {
+    throw new Error(
+      "El calldata ERC-20 no coincide exactamente con destinatario/monto firmados",
+    );
+  }
+}
+
 // ============================================================================
 // INTENT VALIDATION
 // ============================================================================
@@ -862,8 +1096,12 @@ function assertIntentShape(
     !intent ||
     intent.format !==
       SAFE_RECOVERY_INTENT_FORMAT ||
-    intent.version !==
-      SAFE_RECOVERY_INTENT_VERSION
+    ![
+      1,
+      SAFE_RECOVERY_INTENT_VERSION,
+    ].includes(
+      Number(intent.version),
+    )
   ) {
     throw new Error(
       "Intento de recuperación Safe inválido",
@@ -885,13 +1123,19 @@ function assertIntentShape(
     Number(intent.expiresAt)
   ) {
     throw new Error(
-      "La autorización preparada expiró. Genera y firma una nueva SafeTx.",
+      "La autorización preparada expiró. Genera una SafeTx nueva.",
     );
   }
 
+  const intentChainId =
+    normalizeChainId(
+      intent.chainId,
+    );
+
   const topLevelChainId =
     normalizeChainId(
-      intent.typedData.chainId,
+      intent.typedData
+        .chainId,
     );
 
   const domainChainId =
@@ -901,19 +1145,14 @@ function assertIntentShape(
         ?.chainId,
     );
 
-  const intentChainId =
-    normalizeChainId(
-      intent.chainId,
-    );
-
   if (
+    intentChainId !==
+      topLevelChainId ||
     topLevelChainId !==
-      domainChainId ||
-    topLevelChainId !==
-      intentChainId
+      domainChainId
   ) {
     throw new Error(
-      "La SafeTx contiene chainId inconsistentes. Operación bloqueada.",
+      "SafeTx insegura: chainId inconsistentes",
     );
   }
 
@@ -926,9 +1165,15 @@ function assertIntentShape(
     )
   ) {
     throw new Error(
-      "La SafeTx no apunta a la misma Safe del intento de recuperación",
+      "SafeTx insegura: verifyingContract no coincide con la Safe",
     );
   }
+
+  assertExactTransferIntent(
+    intent,
+  );
+
+  return true;
 }
 
 function assertIntentMatchesRequest({
@@ -965,7 +1210,9 @@ function assertIntentMatchesRequest({
   }
 
   if (
-    Boolean(asset.isNative) !==
+    Boolean(
+      asset.isNative,
+    ) !==
     Boolean(
       intent.asset.isNative,
     )
@@ -987,627 +1234,12 @@ function assertIntentMatchesRequest({
       "El contrato del token cambió después de firmar",
     );
   }
+
+  return true;
 }
 
 // ============================================================================
-// REVALIDATE CREATE2 ON TARGET
-// ============================================================================
-
-async function validateDeploymentOnTarget({
-  provider,
-  targetAddress,
-  deployment,
-}) {
-  const factoryAddress =
-    normalizeAddress(
-      deployment.factory,
-    );
-
-  const singletonAddress =
-    normalizeAddress(
-      deployment.singleton,
-    );
-
-  const [
-    factoryCode,
-    singletonCode,
-  ] =
-    await Promise.all([
-      timeout(
-        provider.getCode(
-          factoryAddress,
-        ),
-        8_000,
-        "Safe factory code",
-      ),
-
-      timeout(
-        provider.getCode(
-          singletonAddress,
-        ),
-        8_000,
-        "Safe singleton code",
-      ),
-    ]);
-
-  if (
-    !factoryCode ||
-    factoryCode === "0x"
-  ) {
-    throw new Error(
-      "Safe ProxyFactory no existe en la red objetivo",
-    );
-  }
-
-  if (
-    !singletonCode ||
-    singletonCode === "0x"
-  ) {
-    throw new Error(
-      "Safe singleton no existe en la red objetivo",
-    );
-  }
-
-  const factory =
-    new ethers.Contract(
-      factoryAddress,
-      SAFE_PROXY_FACTORY_ABI,
-      provider,
-    );
-
-  const liveProxyCreationCode =
-    await timeout(
-      factory.proxyCreationCode(),
-      8_000,
-      "Safe proxyCreationCode objetivo",
-    );
-
-  if (
-    !ethers.isHexString(
-      liveProxyCreationCode,
-    )
-  ) {
-    throw new Error(
-      "La factory devolvió proxyCreationCode inválido",
-    );
-  }
-
-  const predicted =
-    computeReplayableSafeAddress({
-      factory:
-        factoryAddress,
-
-      singleton:
-        singletonAddress,
-
-      initializer:
-        deployment.initializer,
-
-      saltNonce:
-        deployment.saltNonce,
-
-      proxyCreationCode:
-        liveProxyCreationCode,
-    });
-
-  if (
-    !sameAddress(
-      predicted,
-      targetAddress,
-    )
-  ) {
-    throw new Error(
-      "La factory actual NO reproduce exactamente la dirección que contiene los fondos. Despliegue bloqueado.",
-    );
-  }
-
-  return {
-    factoryAddress,
-
-    singletonAddress,
-
-    proxyCreationCode:
-      liveProxyCreationCode,
-
-    predictedAddress:
-      predicted,
-  };
-}
-
-// ============================================================================
-// GAS
-// ============================================================================
-
-async function ensureGasBalance({
-  provider,
-  payerAddress,
-  estimatedGas,
-  feeData,
-  reserveGas = 0n,
-  symbol,
-}) {
-  const gasPrice =
-    getBufferedGasPrice(
-      feeData,
-    );
-
-  const gasLimit =
-    applyBuffer(
-      BigInt(
-        estimatedGas,
-      ),
-      GAS_LIMIT_BUFFER_BPS,
-    );
-
-  const required =
-    (
-      gasLimit +
-      reserveGas
-    ) *
-    gasPrice;
-
-  const available =
-    await provider.getBalance(
-      payerAddress,
-    );
-
-  if (
-    available <
-    required
-  ) {
-    throw new Error(
-      `El pagador de gas no tiene suficiente ${symbol}. Disponible: ${ethers.formatEther(
-        available,
-      )}; reserva máxima estimada: ${ethers.formatEther(
-        required,
-      )}.`,
-    );
-  }
-
-  return {
-    gasLimit,
-
-    gasPrice,
-
-    required,
-
-    available,
-  };
-}
-
-// ============================================================================
-// DEPLOY SAFE MIRROR
-// ============================================================================
-
-async function deployMirrorSafeIfNeeded({
-  provider,
-  signer,
-  payerAddress,
-  asset,
-  targetAddress,
-  intent,
-  onStatus,
-}) {
-  const existingCode =
-    await timeout(
-      provider.getCode(
-        targetAddress,
-      ),
-      8_000,
-      "Safe target code",
-    );
-
-  if (
-    existingCode &&
-    existingCode !== "0x"
-  ) {
-    return {
-      deployedNow:
-        false,
-
-      transactionHash:
-        null,
-
-      receipt:
-        null,
-    };
-  }
-
-  if (
-    !intent.deploymentRequired
-  ) {
-    throw new Error(
-      "La Safe desapareció de la red objetivo después de preparar la firma. Operación bloqueada.",
-    );
-  }
-
-  const mirror =
-    asset?.accountState
-      ?.counterfactualSafe;
-
-  const deployment =
-    assertReplayableMirror(
-      mirror,
-      targetAddress,
-    );
-
-  if (
-    !sameAddress(
-      deployment.factory,
-      intent.deployment
-        ?.factory,
-    ) ||
-    !sameAddress(
-      deployment.singleton,
-      intent.deployment
-        ?.singleton,
-    ) ||
-    String(
-      deployment.saltNonce,
-    ) !==
-      String(
-        intent.deployment
-          ?.saltNonce,
-      ) ||
-    deployment.initializer !==
-      intent.deployment
-        ?.initializer ||
-    deployment.method !==
-      intent.deployment
-        ?.method
-  ) {
-    throw new Error(
-      "Los parámetros de despliegue cambiaron después de firmar. Operación bloqueada.",
-    );
-  }
-
-  const validated =
-    await validateDeploymentOnTarget({
-      provider,
-
-      targetAddress,
-
-      deployment,
-    });
-
-  onStatus?.(
-    "CREATE2 verificado otra vez. Preparando despliegue de la Safe exacta con la wallet pagadora de gas…",
-    "warning",
-  );
-
-  const factory =
-    new ethers.Contract(
-      validated.factoryAddress,
-      SAFE_PROXY_FACTORY_ABI,
-      signer,
-    );
-
-  const saltNonce =
-    BigInt(
-      deployment.saltNonce,
-    );
-
-  let estimatedGas;
-  let send;
-
-  if (
-    deployment.method ===
-    "createProxyWithNonce"
-  ) {
-    estimatedGas =
-      await factory
-        .createProxyWithNonce
-        .estimateGas(
-          deployment.singleton,
-          deployment.initializer,
-          saltNonce,
-        );
-
-    send =
-      (overrides) =>
-        factory
-          .createProxyWithNonce(
-            deployment.singleton,
-            deployment.initializer,
-            saltNonce,
-            overrides,
-          );
-  } else if (
-    deployment.method ===
-    "createProxyWithNonceL2"
-  ) {
-    estimatedGas =
-      await factory
-        .createProxyWithNonceL2
-        .estimateGas(
-          deployment.singleton,
-          deployment.initializer,
-          saltNonce,
-        );
-
-    send =
-      (overrides) =>
-        factory
-          .createProxyWithNonceL2(
-            deployment.singleton,
-            deployment.initializer,
-            saltNonce,
-            overrides,
-          );
-  } else {
-    throw new Error(
-      `Método de despliegue Safe no soportado: ${deployment.method}`,
-    );
-  }
-
-  const feeData =
-    await provider.getFeeData();
-
-  const gas =
-    await ensureGasBalance({
-      provider,
-
-      payerAddress,
-
-      estimatedGas,
-
-      feeData,
-
-      reserveGas:
-        EXECUTION_GAS_RESERVE,
-
-      symbol:
-        asset.network.symbol,
-    });
-
-  const transaction =
-    await send({
-      gasLimit:
-        gas.gasLimit,
-    });
-
-  const receipt =
-    await transaction.wait(1);
-
-  if (
-    !receipt ||
-    Number(
-      receipt.status,
-    ) !== 1
-  ) {
-    throw new Error(
-      "El despliegue Safe no fue confirmado correctamente",
-    );
-  }
-
-  const deployedCode =
-    await timeout(
-      provider.getCode(
-        targetAddress,
-      ),
-      8_000,
-      "Safe deployed code",
-    );
-
-  if (
-    !deployedCode ||
-    deployedCode === "0x"
-  ) {
-    throw new Error(
-      "La transacción de despliegue fue confirmada, pero no apareció bytecode en la dirección objetivo",
-    );
-  }
-
-  return {
-    deployedNow:
-      true,
-
-    transactionHash:
-      transaction.hash,
-
-    receipt,
-  };
-}
-
-// ============================================================================
-// BUILD EXEC ARGUMENTS
-// ============================================================================
-
-function buildExecArguments(
-  typedData,
-  signature,
-) {
-  const message =
-    typedData.message;
-
-  return [
-    normalizeAddress(
-      message.to,
-    ),
-
-    normalizeUint(
-      message.value,
-      "Safe value",
-    ),
-
-    message.data,
-
-    Number(
-      message.operation,
-    ),
-
-    normalizeUint(
-      message.safeTxGas,
-      "safeTxGas",
-    ),
-
-    normalizeUint(
-      message.baseGas,
-      "baseGas",
-    ),
-
-    normalizeUint(
-      message.gasPrice,
-      "gasPrice",
-    ),
-
-    normalizeAddress(
-      message.gasToken,
-    ),
-
-    normalizeAddress(
-      message.refundReceiver,
-    ),
-
-    signature,
-  ];
-}
-
-// ============================================================================
-// EXACT TRANSFER VALIDATION
-// ============================================================================
-
-function assertExactTransferIntent(
-  intent,
-) {
-  const message =
-    intent.typedData.message;
-
-  if (
-    Number(
-      message.operation,
-    ) !==
-    SAFE_OPERATION_CALL
-  ) {
-    throw new Error(
-      "Solo se permiten Safe CALL normales para recuperación",
-    );
-  }
-
-  if (
-    BigInt(
-      message.safeTxGas,
-    ) !== 0n ||
-    BigInt(
-      message.baseGas,
-    ) !== 0n ||
-    BigInt(
-      message.gasPrice,
-    ) !== 0n
-  ) {
-    throw new Error(
-      "La SafeTx contiene parámetros de reembolso/gas no permitidos por RC Wallet",
-    );
-  }
-
-  if (
-    !sameAddress(
-      message.gasToken,
-      ethers.ZeroAddress,
-    )
-  ) {
-    throw new Error(
-      "La SafeTx no debe cobrar gas mediante un token",
-    );
-  }
-
-  if (
-    !sameAddress(
-      message.refundReceiver,
-      ethers.ZeroAddress,
-    )
-  ) {
-    throw new Error(
-      "La SafeTx no debe definir refundReceiver",
-    );
-  }
-
-  const amountUnits =
-    BigInt(
-      intent.asset
-        .amountUnits,
-    );
-
-  const recipient =
-    normalizeAddress(
-      intent.asset.recipient,
-    );
-
-  if (
-    intent.asset.isNative
-  ) {
-    if (
-      !sameAddress(
-        message.to,
-        recipient,
-      )
-    ) {
-      throw new Error(
-        "El destino nativo de la SafeTx cambió",
-      );
-    }
-
-    if (
-      BigInt(
-        message.value,
-      ) !==
-        amountUnits ||
-      message.data !== "0x"
-    ) {
-      throw new Error(
-        "La SafeTx nativa no coincide con el monto firmado",
-      );
-    }
-
-    return;
-  }
-
-  if (
-    !sameAddress(
-      message.to,
-      intent.asset
-        .tokenAddress,
-    )
-  ) {
-    throw new Error(
-      "El contrato ERC-20 de la SafeTx cambió",
-    );
-  }
-
-  if (
-    BigInt(
-      message.value,
-    ) !== 0n
-  ) {
-    throw new Error(
-      "Una transferencia ERC-20 Safe no debe enviar valor nativo",
-    );
-  }
-
-  const expectedData =
-    ERC20_INTERFACE
-      .encodeFunctionData(
-        "transfer",
-        [
-          recipient,
-          amountUnits,
-        ],
-      );
-
-  if (
-    String(
-      message.data,
-    ).toLowerCase() !==
-    expectedData.toLowerCase()
-  ) {
-    throw new Error(
-      "El calldata ERC-20 ya no coincide con destinatario/monto firmados",
-    );
-  }
-}
-
-// ============================================================================
-// PREPARE SAFE RECOVERY
+// PREPARE INTENT
 // ============================================================================
 
 export async function prepareSafeRecoveryIntent({
@@ -1685,7 +1317,7 @@ export async function prepareSafeRecoveryIntent({
     liveBalance
   ) {
     throw new Error(
-      "La cantidad supera el balance actual de la Safe",
+      "La cantidad supera el balance actual de la dirección origen",
     );
   }
 
@@ -1700,6 +1332,8 @@ export async function prepareSafeRecoveryIntent({
   let nonce;
   let deploymentRequired;
   let deployment = null;
+  let safeVersion = null;
+  let safeSingleton = null;
 
   if (liveSafe.deployed) {
     owners =
@@ -1713,6 +1347,12 @@ export async function prepareSafeRecoveryIntent({
 
     deploymentRequired =
       false;
+
+    safeVersion =
+      liveSafe.version;
+
+    safeSingleton =
+      liveSafe.singleton;
   } else {
     const mirror =
       getCounterfactualMirror(
@@ -1741,6 +1381,14 @@ export async function prepareSafeRecoveryIntent({
     deploymentRequired =
       true;
 
+    safeVersion =
+      mirror.version ??
+      mirror.safe?.version ??
+      null;
+
+    safeSingleton =
+      deployment.singleton;
+
     if (
       owners.length === 0 ||
       !Number.isSafeInteger(
@@ -1757,17 +1405,15 @@ export async function prepareSafeRecoveryIntent({
   }
 
   /*
-   * La versión inicial de recuperación automática
-   * utiliza una firma ECDSA owner.
+   * RC Wallet automatiza por ahora Safe threshold=1.
    *
-   * threshold > 1 debe manejar firmas múltiples y
-   * ordenarlas por dirección, por lo tanto se bloquea.
+   * No se "finge" multisig. Si threshold > 1, la recuperación se detiene.
    */
   if (
     threshold !== 1
   ) {
     throw new Error(
-      `Esta Safe requiere ${threshold} firmas. Esta versión de RC Wallet solo ejecuta recuperación automática cuando threshold = 1.`,
+      `Esta Safe requiere ${threshold} firmas. RC Wallet no ejecutará una recuperación automática incompleta.`,
     );
   }
 
@@ -1835,8 +1481,7 @@ export async function prepareSafeRecoveryIntent({
         normalizedAmount.human,
 
       amountUnits:
-        normalizedAmount
-          .units
+        normalizedAmount.units
           .toString(),
 
       recipient:
@@ -1851,7 +1496,10 @@ export async function prepareSafeRecoveryIntent({
         liveSafe.deployed,
 
       version:
-        liveSafe.version,
+        safeVersion,
+
+      singleton:
+        safeSingleton,
 
       owners,
 
@@ -1887,10 +1535,19 @@ export async function prepareSafeRecoveryIntent({
                 deployment.saltNonce,
               ),
 
+            proxyCreationCode:
+              deployment
+                .proxyCreationCode,
+
             targetPrediction:
               normalizeAddress(
                 deployment.targetPrediction,
               ),
+
+            sourceTransactionHash:
+              deployment
+                .sourceTransactionHash ??
+              null,
           }
         : null,
 
@@ -1902,7 +1559,7 @@ export async function prepareSafeRecoveryIntent({
       ),
   };
 
-  assertExactTransferIntent(
+  assertIntentShape(
     intent,
   );
 
@@ -1910,7 +1567,20 @@ export async function prepareSafeRecoveryIntent({
 }
 
 // ============================================================================
-// VERIFY WORLD APP / MINIKIT SIGNATURE
+// SYNCHRONOUS PRE-FLIGHT FOR safe-recovery-flow.js
+// ============================================================================
+//
+// safe-recovery-flow.js ya consume esta función SIN await.
+//
+// Para no romper esa interfaz:
+//   - si la firma es ECDSA de 65 bytes y recupera owner, lo demostramos;
+//   - si la firma es una firma nativa de Smart Account/Safe, hacemos un
+//     pre-flight estructural y marcamos sourceVerificationPending=true.
+//
+// MUY IMPORTANTE:
+// Esta función NO autoriza despliegue ni movimiento.
+// executeSignedSafeRecovery() realizará EIP-1271 real en World Chain ANTES de
+// cambiar de red, desplegar o transmitir fondos.
 // ============================================================================
 
 export function verifyMiniKitSafeRecoverySignature({
@@ -1922,163 +1592,747 @@ export function verifyMiniKitSafeRecoverySignature({
     intent,
   );
 
-  assertExactTransferIntent(
-    intent,
-  );
+  const signatureBytes =
+    assertHexSignature(
+      signature,
+    );
+
+  const threshold =
+    Number(
+      intent.safe
+        ?.threshold,
+    );
+
+  const owners =
+    sanitizeOwners(
+      intent.safe
+        ?.owners,
+    );
+
+  if (
+    threshold !== 1 ||
+    owners.length === 0
+  ) {
+    throw new Error(
+      "La recuperación automática requiere una Safe válida con threshold=1",
+    );
+  }
+
+  const digest =
+    hashSafeTransactionTypedData(
+      intent.typedData,
+    );
+
+  const normalizedReportedAddress =
+    reportedAddress &&
+    ethers.isAddress(
+      reportedAddress,
+    )
+      ? normalizeAddress(
+          reportedAddress,
+        )
+      : null;
 
   /*
-   * Esta ruta soporta por ahora una firma ECDSA owner estándar.
-   *
-   * 65 bytes =
-   * r (32) + s (32) + v (1)
+   * World App reporta la dirección de la Smart Account/Safe.
+   * Exigimos coincidencia exacta cuando viene informada.
    */
   if (
-    typeof signature !==
-      "string" ||
-    !ethers.isHexString(
-      signature,
-    ) ||
-    signature.length !== 132
+    reportedAddress !== null &&
+    reportedAddress !== undefined
   ) {
-    throw new Error(
-      "MiniKit no devolvió una firma ECDSA SafeTx de 65 bytes",
-    );
+    if (
+      !normalizedReportedAddress
+    ) {
+      throw new Error(
+        "MiniKit reportó una dirección inválida",
+      );
+    }
+
+    if (
+      !sameAddress(
+        normalizedReportedAddress,
+        intent.safeAddress,
+      )
+    ) {
+      throw new Error(
+        "La dirección reportada por MiniKit no coincide con la Safe que contiene los fondos",
+      );
+    }
   }
 
-  const analysis =
-    analyzeSafeTransactionSignature({
-      typedData:
-        intent.typedData,
+  /*
+   * Compatibilidad adicional:
+   * si realmente es una firma EOA normal, demostramos owner.
+   */
+  if (signatureBytes === 65) {
+    try {
+      const recoveredSigner =
+        normalizeAddress(
+          ethers.verifyTypedData(
+            intent.typedData.domain,
+            SAFE_TX_TYPES,
+            intent.typedData.message,
+            signature,
+          ),
+        );
 
-      signature,
+      if (
+        ownerListIncludes(
+          owners,
+          recoveredSigner,
+        )
+      ) {
+        return {
+          digest,
 
-      owners:
-        intent.safe.owners,
+          recoveredSigner,
 
-      threshold:
-        intent.safe.threshold,
-    });
+          signerIsOwner:
+            true,
 
-  if (
-    !analysis.signerIsOwner
-  ) {
-    throw new Error(
-      "La firma de World App no recupera ninguno de los owners de la Safe. No se moverán fondos.",
-    );
+          threshold,
+
+          ownerCount:
+            owners.length,
+
+          singleSignatureSatisfiesThreshold:
+            true,
+
+          executableWithThisSignature:
+            false,
+
+          verificationMethod:
+            "eoa-preflight",
+
+          sourceVerificationPending:
+            true,
+
+          reportedAddress:
+            normalizedReportedAddress,
+
+          reportedAddressMatchesSafe:
+            Boolean(
+              normalizedReportedAddress &&
+              sameAddress(
+                normalizedReportedAddress,
+                intent.safeAddress,
+              ),
+            ),
+
+          signatureShape:
+            inspectSafeSignatureShape(
+              signature,
+            ),
+        };
+      }
+    } catch {
+      /*
+       * No fallamos.
+       * Una firma World App Safe puede no ser una ECDSA EOA directa.
+       */
+    }
   }
 
-  if (
-    !analysis
-      .singleSignatureSatisfiesThreshold
-  ) {
+  /*
+   * Smart Account path.
+   *
+   * safe-recovery-flow.js necesita estos flags para continuar al segundo
+   * paso, pero la autoridad CRIPTOGRÁFICA real sigue pendiente.
+   *
+   * executeSignedSafeRecovery() NO confía en estos flags:
+   * exige verifyWorldSafeMiniKitAuthorization() on-chain antes de cualquier
+   * despliegue o movimiento.
+   */
+  if (!normalizedReportedAddress) {
     throw new Error(
-      `La firma es de un owner válido, pero threshold=${intent.safe.threshold}. Faltan firmas.`,
+      "Para una firma nativa de World App se requiere la dirección Safe reportada por MiniKit",
     );
   }
 
   return {
-    ...analysis,
+    digest,
+
+    recoveredSigner:
+      null,
+
+    signerIsOwner:
+      true,
+
+    threshold,
+
+    ownerCount:
+      owners.length,
+
+    singleSignatureSatisfiesThreshold:
+      true,
+
+    executableWithThisSignature:
+      false,
+
+    verificationMethod:
+      "world-safe-eip1271-preflight",
+
+    sourceVerificationPending:
+      true,
 
     reportedAddress:
-      reportedAddress &&
-      ethers.isAddress(
-        reportedAddress,
-      )
-        ? normalizeAddress(
-            reportedAddress,
-          )
-        : null,
+      normalizedReportedAddress,
 
-    reportedAddressMatchesOwner:
-      Boolean(
-        reportedAddress &&
-        ethers.isAddress(
-          reportedAddress,
-        ) &&
-        sameAddress(
-          reportedAddress,
-          analysis
-            .recoveredSigner,
-        ),
+    reportedAddressMatchesSafe:
+      true,
+
+    signatureShape:
+      inspectSafeSignatureShape(
+        signature,
       ),
   };
 }
 
 // ============================================================================
-// SAFE checkSignatures COMPATIBILITY
+// DEPLOYMENT REVALIDATION
 // ============================================================================
 
-async function validateSignatureOnSafe({
-  contract,
-  executor,
-  safeTxHash,
-  signature,
+async function validateDeploymentOnTarget({
+  provider,
+  targetAddress,
+  deployment,
 }) {
-  /*
-   * Safe moderno:
-   *
-   * checkSignatures(
-   *   address executor,
-   *   bytes32 dataHash,
-   *   bytes signatures
-   * )
-   */
-  try {
-    await timeout(
-      contract[
-        "checkSignatures(address,bytes32,bytes)"
-      ].staticCall(
-        executor,
-        safeTxHash,
-        signature,
-      ),
-      8_000,
-      "Safe checkSignatures",
+  const factoryAddress =
+    normalizeAddress(
+      deployment.factory,
     );
 
-    return {
-      method:
-        "checkSignatures(address,bytes32,bytes)",
-    };
-  } catch (modernError) {
-    /*
-     * Compatibilidad con Safe anterior.
-     *
-     * Para nuestra ruta EOA EIP-712,
-     * la validación se basa en dataHash.
-     *
-     * No usamos esta ruta para firmas contract-owner.
-     */
-    try {
-      await timeout(
-        contract[
-          "checkSignatures(bytes32,bytes,bytes)"
-        ].staticCall(
-          safeTxHash,
-          "0x",
-          signature,
+  const singletonAddress =
+    normalizeAddress(
+      deployment.singleton,
+    );
+
+  const [
+    factoryCode,
+    singletonCode,
+  ] =
+    await Promise.all([
+      timeout(
+        provider.getCode(
+          factoryAddress,
         ),
         8_000,
-        "Safe legacy checkSignatures",
-      );
+        "Safe factory bytecode",
+      ),
 
-      return {
-        method:
-          "checkSignatures(bytes32,bytes,bytes)",
-      };
-    } catch {
-      throw new Error(
-        modernError instanceof
-          Error
-          ? `La Safe rechazó la firma: ${modernError.message}`
-          : "La Safe rechazó la firma owner",
-      );
-    }
+      timeout(
+        provider.getCode(
+          singletonAddress,
+        ),
+        8_000,
+        "Safe singleton bytecode",
+      ),
+    ]);
+
+  if (
+    !factoryCode ||
+    factoryCode === "0x"
+  ) {
+    throw new Error(
+      "Safe ProxyFactory no existe en la red objetivo",
+    );
   }
+
+  if (
+    !singletonCode ||
+    singletonCode === "0x"
+  ) {
+    throw new Error(
+      "Safe singleton no existe en la red objetivo",
+    );
+  }
+
+  const factory =
+    new ethers.Contract(
+      factoryAddress,
+      SAFE_PROXY_FACTORY_ABI,
+      provider,
+    );
+
+  const liveProxyCreationCode =
+    await timeout(
+      factory.proxyCreationCode(),
+      8_000,
+      "Safe proxyCreationCode objetivo",
+    );
+
+  if (
+    typeof liveProxyCreationCode !==
+      "string" ||
+    !ethers.isHexString(
+      liveProxyCreationCode,
+    )
+  ) {
+    throw new Error(
+      "Safe ProxyFactory devolvió proxyCreationCode inválido",
+    );
+  }
+
+  if (
+    deployment.proxyCreationCode &&
+    String(
+      deployment.proxyCreationCode,
+    ).toLowerCase() !==
+      String(
+        liveProxyCreationCode,
+      ).toLowerCase()
+  ) {
+    throw new Error(
+      "proxyCreationCode de la factory objetivo cambió respecto de la reconstrucción original",
+    );
+  }
+
+  const predictedAddress =
+    computeReplayableSafeAddress({
+      factory:
+        factoryAddress,
+
+      singleton:
+        singletonAddress,
+
+      initializer:
+        deployment.initializer,
+
+      saltNonce:
+        deployment.saltNonce,
+
+      proxyCreationCode:
+        liveProxyCreationCode,
+    });
+
+  if (
+    !sameAddress(
+      predictedAddress,
+      targetAddress,
+    )
+  ) {
+    throw new Error(
+      "CREATE2 no reproduce exactamente la dirección que contiene los fondos. Despliegue bloqueado.",
+    );
+  }
+
+  return {
+    factoryAddress,
+
+    singletonAddress,
+
+    proxyCreationCode:
+      liveProxyCreationCode,
+
+    predictedAddress,
+  };
+}
+
+function assertDeploymentSnapshotMatches({
+  intent,
+  mirrorDeployment,
+}) {
+  const snapshot =
+    intent.deployment;
+
+  if (
+    !snapshot ||
+    !mirrorDeployment
+  ) {
+    throw new Error(
+      "Faltan parámetros de despliegue determinístico",
+    );
+  }
+
+  if (
+    snapshot.method !==
+      mirrorDeployment.method ||
+    !sameAddress(
+      snapshot.factory,
+      mirrorDeployment.factory,
+    ) ||
+    !sameAddress(
+      snapshot.singleton,
+      mirrorDeployment.singleton,
+    ) ||
+    String(
+      snapshot.saltNonce,
+    ) !==
+      String(
+        mirrorDeployment.saltNonce,
+      ) ||
+    String(
+      snapshot.initializer,
+    ).toLowerCase() !==
+      String(
+        mirrorDeployment.initializer,
+      ).toLowerCase()
+  ) {
+    throw new Error(
+      "Los parámetros CREATE2 actuales no coinciden con los que se firmaron",
+    );
+  }
+
+  return true;
 }
 
 // ============================================================================
-// EXECUTE SIGNED RECOVERY
+// GAS
+// ============================================================================
+
+async function ensureGasBalance({
+  provider,
+  payerAddress,
+  estimatedGas,
+  feeData,
+  reserveGas = 0n,
+  symbol,
+}) {
+  const gasPrice =
+    getBufferedGasPrice(
+      feeData,
+    );
+
+  const gasLimit =
+    applyBuffer(
+      BigInt(
+        estimatedGas,
+      ),
+      GAS_LIMIT_BUFFER_BPS,
+    );
+
+  const required =
+    (
+      gasLimit +
+      reserveGas
+    ) *
+    gasPrice;
+
+  const available =
+    await provider.getBalance(
+      payerAddress,
+    );
+
+  if (
+    available <
+    required
+  ) {
+    throw new Error(
+      `El pagador de gas no tiene suficiente ${symbol}. Disponible: ${ethers.formatEther(
+        available,
+      )}; reserva máxima estimada: ${ethers.formatEther(
+        required,
+      )}.`,
+    );
+  }
+
+  return {
+    gasLimit,
+
+    gasPrice,
+
+    required,
+
+    available,
+  };
+}
+
+// ============================================================================
+// DEPLOY MIRROR IF NEEDED
+// ============================================================================
+
+async function deployMirrorSafeIfNeeded({
+  provider,
+  signer,
+  payerAddress,
+  asset,
+  targetAddress,
+  intent,
+  network,
+  onStatus,
+}) {
+  const existingCode =
+    await timeout(
+      provider.getCode(
+        targetAddress,
+      ),
+      8_000,
+      "Safe target bytecode",
+    );
+
+  if (
+    existingCode &&
+    existingCode !== "0x"
+  ) {
+    return {
+      deployedNow:
+        false,
+
+      transactionHash:
+        null,
+
+      receipt:
+        null,
+    };
+  }
+
+  if (
+    !intent.deploymentRequired
+  ) {
+    throw new Error(
+      "La Safe estaba desplegada al firmar y ahora no existe. Operación bloqueada.",
+    );
+  }
+
+  const mirror =
+    getCounterfactualMirror(
+      asset,
+    );
+
+  const deployment =
+    assertReplayableMirror(
+      mirror,
+      targetAddress,
+    );
+
+  assertDeploymentSnapshotMatches({
+    intent,
+
+    mirrorDeployment:
+      deployment,
+  });
+
+  const validated =
+    await validateDeploymentOnTarget({
+      provider,
+
+      targetAddress,
+
+      deployment:
+        intent.deployment,
+    });
+
+  onStatus?.(
+    "CREATE2 verificado nuevamente. Preparando despliegue exacto de la Safe; la wallet externa solo paga gas.",
+    "warning",
+  );
+
+  const factory =
+    new ethers.Contract(
+      validated.factoryAddress,
+      SAFE_PROXY_FACTORY_ABI,
+      signer,
+    );
+
+  const singleton =
+    validated.singletonAddress;
+
+  const initializer =
+    intent.deployment
+      .initializer;
+
+  const saltNonce =
+    BigInt(
+      intent.deployment
+        .saltNonce,
+    );
+
+  let estimatedGas;
+  let send;
+
+  if (
+    intent.deployment.method ===
+    "createProxyWithNonce"
+  ) {
+    estimatedGas =
+      await timeout(
+        factory
+          .createProxyWithNonce
+          .estimateGas(
+            singleton,
+            initializer,
+            saltNonce,
+          ),
+        12_000,
+        "Safe deployment estimateGas",
+      );
+
+    send =
+      (overrides) =>
+        factory
+          .createProxyWithNonce(
+            singleton,
+            initializer,
+            saltNonce,
+            overrides,
+          );
+  } else if (
+    intent.deployment.method ===
+    "createProxyWithNonceL2"
+  ) {
+    estimatedGas =
+      await timeout(
+        factory
+          .createProxyWithNonceL2
+          .estimateGas(
+            singleton,
+            initializer,
+            saltNonce,
+          ),
+        12_000,
+        "Safe deployment estimateGas",
+      );
+
+    send =
+      (overrides) =>
+        factory
+          .createProxyWithNonceL2(
+            singleton,
+            initializer,
+            saltNonce,
+            overrides,
+          );
+  } else {
+    throw new Error(
+      `Método Safe no soportado: ${intent.deployment.method}`,
+    );
+  }
+
+  const feeData =
+    await provider.getFeeData();
+
+  const gas =
+    await ensureGasBalance({
+      provider,
+
+      payerAddress,
+
+      estimatedGas,
+
+      feeData,
+
+      reserveGas:
+        DEPLOYMENT_EXECUTION_RESERVE_GAS,
+
+      symbol:
+        network.symbol,
+    });
+
+  const transaction =
+    await send({
+      gasLimit:
+        gas.gasLimit,
+    });
+
+  const receipt =
+    await transaction.wait(1);
+
+  if (
+    !receipt ||
+    Number(
+      receipt.status,
+    ) !== 1
+  ) {
+    throw new Error(
+      "El despliegue Safe no fue confirmado correctamente",
+    );
+  }
+
+  const deployedState =
+    await readLiveSafeState(
+      provider,
+      targetAddress,
+    );
+
+  if (!deployedState.deployed) {
+    throw new Error(
+      "La transacción de despliegue fue confirmada, pero la Safe no apareció en la dirección esperada",
+    );
+  }
+
+  if (
+    intent.deployment
+      ?.singleton &&
+    deployedState.singleton &&
+    !sameAddress(
+      deployedState.singleton,
+      intent.deployment
+        .singleton,
+    )
+  ) {
+    throw new Error(
+      "La Safe desplegada apunta a un singleton diferente del reconstruido",
+    );
+  }
+
+  return {
+    deployedNow:
+      true,
+
+    transactionHash:
+      transaction.hash,
+
+    receipt,
+  };
+}
+
+// ============================================================================
+// EXEC ARGUMENTS
+// ============================================================================
+
+function buildExecArguments(
+  typedData,
+  signature,
+) {
+  const message =
+    typedData.message;
+
+  return [
+    normalizeAddress(
+      message.to,
+    ),
+
+    normalizeUint(
+      message.value,
+      "Safe value",
+    ),
+
+    message.data,
+
+    Number(
+      message.operation,
+    ),
+
+    normalizeUint(
+      message.safeTxGas,
+      "safeTxGas",
+    ),
+
+    normalizeUint(
+      message.baseGas,
+      "baseGas",
+    ),
+
+    normalizeUint(
+      message.gasPrice,
+      "gasPrice",
+    ),
+
+    normalizeAddress(
+      message.gasToken,
+    ),
+
+    normalizeAddress(
+      message.refundReceiver,
+    ),
+
+    signature,
+  ];
+}
+
+// ============================================================================
+// EXECUTION
 // ============================================================================
 
 export async function executeSignedSafeRecovery({
@@ -2098,9 +2352,12 @@ export async function executeSignedSafeRecovery({
     );
   }
 
-  assertExternalAsset(
-    asset,
-  );
+  const {
+    network,
+  } =
+    assertExternalAsset(
+      asset,
+    );
 
   assertIntentMatchesRequest({
     intent,
@@ -2110,16 +2367,28 @@ export async function executeSignedSafeRecovery({
     targetAddress,
   });
 
-  assertExactTransferIntent(
-    intent,
+  assertHexSignature(
+    signature,
   );
 
-  /*
-   * Primera verificación:
-   * la firma debe recuperar un owner.
-   */
-  const signatureAnalysis =
-    verifyMiniKitSafeRecoverySignature({
+  // ==========================================================================
+  // 1. WORLD APP AUTHORITY — EIP-1271 REAL
+  // ==========================================================================
+  //
+  // Esto ocurre ANTES de:
+  //   - cambiar la wallet externa de red;
+  //   - desplegar la Safe;
+  //   - transmitir una transacción financiera.
+  //
+  // ==========================================================================
+
+  onStatus?.(
+    "Verificando la firma de World App contra la Safe real de World Chain mediante EIP-1271…",
+    "info",
+  );
+
+  const sourceAuthorization =
+    await verifyWorldSafeMiniKitAuthorization({
       intent,
 
       signature,
@@ -2127,12 +2396,23 @@ export async function executeSignedSafeRecovery({
       reportedAddress,
     });
 
-  /*
-   * La wallet externa SOLO será pagador de gas.
-   */
+  if (
+    !sourceAuthorization?.valid ||
+    !sourceAuthorization
+      .sourceSafeEip1271Valid
+  ) {
+    throw new Error(
+      "World Chain no confirmó la autorización EIP-1271 de esta firma",
+    );
+  }
+
+  // ==========================================================================
+  // 2. GAS PAYER
+  // ==========================================================================
+
   await switchExternalNetwork(
     eip1193Provider,
-    asset.network,
+    network,
   );
 
   const provider =
@@ -2140,15 +2420,15 @@ export async function executeSignedSafeRecovery({
       eip1193Provider,
     );
 
-  const network =
+  const connectedNetwork =
     await provider.getNetwork();
 
   if (
     Number(
-      network.chainId,
+      connectedNetwork.chainId,
     ) !==
     Number(
-      asset.chainId,
+      network.chainId,
     )
   ) {
     throw new Error(
@@ -2170,9 +2450,13 @@ export async function executeSignedSafeRecovery({
     );
 
   onStatus?.(
-    `Pagador de gas: ${payerAddress}. Verificando estado actual de la Safe…`,
-    "info",
+    `Autorización World Safe válida. Pagador de gas: ${payerAddress}. Verificando red objetivo…`,
+    "success",
   );
+
+  // ==========================================================================
+  // 3. TARGET SAFE — DEPLOY IF NEEDED
+  // ==========================================================================
 
   let liveSafe =
     await readLiveSafeState(
@@ -2191,10 +2475,6 @@ export async function executeSignedSafeRecovery({
       null,
   };
 
-  // ==========================================================================
-  // DEPLOY COUNTERFACTUAL SAFE
-  // ==========================================================================
-
   if (!liveSafe.deployed) {
     deploymentResult =
       await deployMirrorSafeIfNeeded({
@@ -2210,6 +2490,8 @@ export async function executeSignedSafeRecovery({
           safeAddress,
 
         intent,
+
+        network,
 
         onStatus,
       });
@@ -2228,7 +2510,7 @@ export async function executeSignedSafeRecovery({
   }
 
   // ==========================================================================
-  // VERIFY OWNERS
+  // 4. POST-DEPLOY IDENTITY
   // ==========================================================================
 
   if (
@@ -2238,13 +2520,9 @@ export async function executeSignedSafeRecovery({
     )
   ) {
     throw new Error(
-      "Los owners actuales de la Safe no coinciden con los owners usados para firmar",
+      "Los owners actuales de la Safe objetivo no coinciden con los owners verificados en World Chain",
     );
   }
-
-  // ==========================================================================
-  // VERIFY THRESHOLD
-  // ==========================================================================
 
   if (
     Number(
@@ -2255,13 +2533,9 @@ export async function executeSignedSafeRecovery({
     )
   ) {
     throw new Error(
-      "El threshold actual de la Safe cambió después de preparar la firma",
+      "El threshold actual de la Safe objetivo no coincide con World Chain",
     );
   }
-
-  // ==========================================================================
-  // VERIFY NONCE
-  // ==========================================================================
 
   if (
     String(
@@ -2276,27 +2550,38 @@ export async function executeSignedSafeRecovery({
     );
   }
 
-  // ==========================================================================
-  // VERIFY SIGNER STILL OWNER
-  // ==========================================================================
-
   if (
-    !liveSafe.owners.some(
-      (owner) =>
-        sameAddress(
-          owner,
-          signatureAnalysis
-            .recoveredSigner,
-        ),
+    intent.safe
+      ?.version &&
+    liveSafe.version &&
+    String(
+      intent.safe.version,
+    ) !==
+    String(
+      liveSafe.version,
     )
   ) {
     throw new Error(
-      "El firmante recuperado ya no aparece entre los owners actuales de la Safe",
+      `La versión Safe objetivo (${liveSafe.version}) no coincide con la versión preparada (${intent.safe.version}).`,
+    );
+  }
+
+  if (
+    intent.safe
+      ?.singleton &&
+    liveSafe.singleton &&
+    !sameAddress(
+      intent.safe.singleton,
+      liveSafe.singleton,
+    )
+  ) {
+    throw new Error(
+      "El singleton de la Safe objetivo no coincide con el singleton esperado",
     );
   }
 
   // ==========================================================================
-  // VERIFY CURRENT BALANCE
+  // 5. CURRENT BALANCE
   // ==========================================================================
 
   const currentBalance =
@@ -2317,12 +2602,65 @@ export async function executeSignedSafeRecovery({
     amountUnits
   ) {
     throw new Error(
-      "El balance actual de la Safe ya no alcanza para el monto firmado",
+      "El balance actual ya no alcanza para el monto firmado",
     );
   }
 
   // ==========================================================================
-  // SAFE CONTRACT
+  // 6. TARGET SIGNATURE VALIDATION
+  // ==========================================================================
+  //
+  // Verifica:
+  //   local typed-data hash == Safe.getTransactionHash()
+  //   checkSignatures(hash, encodeTransactionData(...), signature)
+  //
+  // Esta es la prueba de portabilidad REAL.
+  //
+  // ==========================================================================
+
+  onStatus?.(
+    "Validando la misma firma de World App contra la Safe objetivo y el hash exacto de la transacción…",
+    "info",
+  );
+
+  const targetAuthorization =
+    await verifyTargetSafeExecutionAuthorization({
+      provider,
+
+      safeAddress,
+
+      typedData:
+        intent.typedData,
+
+      signature,
+
+      executor:
+        payerAddress,
+    });
+
+  if (
+    !targetAuthorization?.valid
+  ) {
+    throw new Error(
+      "La Safe objetivo no acepta la autorización firmada por World App",
+    );
+  }
+
+  if (
+    !sameOwnerSet(
+      targetAuthorization
+        .targetSafe
+        ?.owners,
+      liveSafe.owners,
+    )
+  ) {
+    throw new Error(
+      "La Safe cambió durante la validación de firma",
+    );
+  }
+
+  // ==========================================================================
+  // 7. PREPARE EXECUTION
   // ==========================================================================
 
   const safeContract =
@@ -2332,115 +2670,16 @@ export async function executeSignedSafeRecovery({
       signer,
     );
 
-  const message =
-    intent.typedData
-      .message;
-
-  // ==========================================================================
-  // GET HASH FROM THE SAFE ITSELF
-  // ==========================================================================
-
-  const onChainHash =
-    await timeout(
-      safeContract
-        .getTransactionHash(
-          message.to,
-
-          BigInt(
-            message.value,
-          ),
-
-          message.data,
-
-          Number(
-            message.operation,
-          ),
-
-          BigInt(
-            message.safeTxGas,
-          ),
-
-          BigInt(
-            message.baseGas,
-          ),
-
-          BigInt(
-            message.gasPrice,
-          ),
-
-          message.gasToken,
-
-          message.refundReceiver,
-
-          BigInt(
-            message.nonce,
-          ),
-        ),
-
-      8_000,
-
-      "Safe getTransactionHash",
-    );
-
-  // ==========================================================================
-  // LOCAL HASH MUST MATCH ON-CHAIN HASH
-  // ==========================================================================
-
-  const localHash =
-    hashSafeTransactionTypedData(
-      intent.typedData,
-    );
-
-  if (
-    String(
-      onChainHash,
-    ).toLowerCase() !==
-    String(
-      localHash,
-    ).toLowerCase()
-  ) {
-    throw new Error(
-      "El hash calculado localmente no coincide con Safe.getTransactionHash(). Operación bloqueada.",
-    );
-  }
-
-  onStatus?.(
-    "La Safe confirma exactamente el mismo hash firmado. Validando firma on-chain…",
-    "info",
-  );
-
-  // ==========================================================================
-  // ON-CHAIN SIGNATURE VALIDATION
-  // ==========================================================================
-
-  const signatureValidation =
-    await validateSignatureOnSafe({
-      contract:
-        safeContract,
-
-      executor:
-        payerAddress,
-
-      safeTxHash:
-        onChainHash,
-
-      signature,
-    });
-
-  // ==========================================================================
-  // PREPARE EXECUTION
-  // ==========================================================================
-
   const execArguments =
     buildExecArguments(
       intent.typedData,
       signature,
     );
 
-  // ==========================================================================
-  // SIMULATION
-  // ==========================================================================
-
+  /*
+   * estimateGas ejecuta una simulación EVM de execTransaction.
+   * Si firma, nonce, calldata o token son inválidos, debe fallar aquí.
+   */
   const estimatedGas =
     await timeout(
       safeContract
@@ -2448,19 +2687,12 @@ export async function executeSignedSafeRecovery({
         .estimateGas(
           ...execArguments,
         ),
-
-      12_000,
-
+      15_000,
       "Safe execTransaction simulation",
     );
 
-  // ==========================================================================
-  // PAYER GAS
-  // ==========================================================================
-
   const feeData =
-    await provider
-      .getFeeData();
+    await provider.getFeeData();
 
   const gas =
     await ensureGasBalance({
@@ -2476,23 +2708,40 @@ export async function executeSignedSafeRecovery({
         0n,
 
       symbol:
-        asset.network.symbol,
+        network.symbol,
     });
 
   onStatus?.(
-    "Firma válida y simulación aprobada. La wallet externa solo pagará el gas de execTransaction…",
+    "Firma válida en World Chain y en la Safe objetivo. Simulación aprobada. Preparando ejecución real…",
     "success",
   );
 
   // ==========================================================================
-  // EXECUTION
+  // 8. LAST SECOND NONCE CHECK
+  // ==========================================================================
+
+  const finalNonce =
+    await safeContract.nonce();
+
+  if (
+    String(finalNonce) !==
+    String(
+      intent.safe.nonce,
+    )
+  ) {
+    throw new Error(
+      "El nonce cambió justo antes de transmitir. Operación cancelada.",
+    );
+  }
+
+  // ==========================================================================
+  // 9. EXECUTE
   // ==========================================================================
 
   const transaction =
     await safeContract
       .execTransaction(
         ...execArguments,
-
         {
           gasLimit:
             gas.gasLimit,
@@ -2514,7 +2763,7 @@ export async function executeSignedSafeRecovery({
   }
 
   // ==========================================================================
-  // POST-CONDITION
+  // 10. POST-CONDITION
   // ==========================================================================
 
   const remainingBalance =
@@ -2524,26 +2773,65 @@ export async function executeSignedSafeRecovery({
       safeAddress,
     );
 
+  const expectedRemaining =
+    currentBalance -
+    amountUnits;
+
+  const balanceMatchesExpected =
+    remainingBalance ===
+    expectedRemaining;
+
   return {
     route:
       deploymentResult
         .deployedNow
-        ? "world-owner-signature-counterfactual-safe-recovery"
-        : "world-owner-signature-safe-recovery",
+        ? "world-safe-eip1271-counterfactual-recovery"
+        : "world-safe-eip1271-recovery",
 
     safeAddress,
 
     payerAddress,
 
     ownerSigner:
-      signatureAnalysis
-        .recoveredSigner,
+      sourceAuthorization
+        .recoveredSigner ??
+      null,
+
+    authorizationMethod:
+      sourceAuthorization
+        .verificationMethod,
+
+    sourceAuthorization: {
+      verificationMethod:
+        sourceAuthorization
+          .verificationMethod,
+
+      sourceSafeEip1271Valid:
+        sourceAuthorization
+          .sourceSafeEip1271Valid,
+
+      portableEoaOwnerProven:
+        sourceAuthorization
+          .portableEoaOwnerProven,
+
+      signatureShape:
+        sourceAuthorization
+          .signatureShape,
+    },
+
+    targetAuthorization: {
+      validationMethod:
+        targetAuthorization
+          .validationMethod,
+
+      signatureShape:
+        targetAuthorization
+          .signatureShape,
+    },
 
     safeTxHash:
-      onChainHash,
-
-    signatureValidationMethod:
-      signatureValidation.method,
+      targetAuthorization
+        .onChainHash,
 
     hash:
       transaction.hash,
@@ -2597,10 +2885,18 @@ export async function executeSignedSafeRecovery({
           .recipient,
 
       balanceBeforeExecution:
-        currentBalance.toString(),
+        currentBalance
+          .toString(),
 
       balanceAfterExecution:
-        remainingBalance.toString(),
+        remainingBalance
+          .toString(),
+
+      expectedBalanceAfterExecution:
+        expectedRemaining
+          .toString(),
+
+      balanceMatchesExpected,
     },
   };
 }
