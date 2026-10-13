@@ -2713,7 +2713,7 @@ function prepareTransfer({
 // ============================================================================
 
 // Balances shown from a scan may already be stale by the time the user sends.
-async function assertCurrentAssetBalance(provider, asset, owner, amountUnits) {
+export async function assertCurrentAssetBalance(provider, asset, owner, amountUnits) {
   const currentBalance = asset.isNative
     ? await provider.getBalance(owner)
     : await new ethers.Contract(normalizeAddress(asset.address), ERC20_ABI, provider)
@@ -2833,6 +2833,19 @@ async function sendDirectTransfer({
 // SAFE SIGNATURE
 // ============================================================================
 
+export function isSafeTypedDataUnsupported(error) {
+  const code = error?.code ?? error?.info?.error?.code;
+  const text = String(error?.message ?? "");
+  // A refusal (4001 / ACTION_REJECTED) is NEVER permission to request
+  // another signature with different semantics.
+  return code === "UNSUPPORTED_OPERATION" ||
+    code === 4200 ||
+    code === -32601 ||
+    (/method not found|method not supported|unsupported method/i.test(text) &&
+      code !== 4001 && code !== "ACTION_REJECTED");
+}
+
+
 async function signSafeTransaction({
   signer,
   signerAddress,
@@ -2951,14 +2964,7 @@ async function signSafeTransaction({
     return signature;
   } catch (typedError) {
     // Do not turn a rejected typed-data prompt into a second signature prompt.
-    const code = typedError?.code ?? typedError?.info?.error?.code;
-    const text = String(typedError?.message ?? "");
-    const unsupported =
-      code === "UNSUPPORTED_OPERATION" ||
-      code === 4200 ||
-      code === -32601 ||
-      /method not found|method not supported|unsupported method/i.test(text);
-    if (!unsupported) throw typedError;
+    if (!isSafeTypedDataUnsupported(typedError)) throw typedError;
 
     // Fallback Safe ETH_SIGN only if typed-data signing is unsupported.
     const rawSignature =
