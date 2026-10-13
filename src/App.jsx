@@ -4142,9 +4142,11 @@ export default function App() {
               <div className="recovery-explanation">
                 <strong>Esta red no puede firmarse con MiniKit.</strong>
                 <p>
-                  Conecta un proveedor externo. La transferencia solo se
-                  habilita si ese proveedor expone exactamente{" "}
-                  <code>{compactAddress(targetAddress)}</code>.
+                  Conecta una wallet autorizada que pueda firmar en esta red.
+                  Para cuentas EOA su dirección debe coincidir exactamente con{" "}
+                  <code>{compactAddress(targetAddress)}</code>. Las cuentas
+                  Safe requieren verificaciones y firmas adicionales; conectar
+                  un pagador de gas no demuestra propiedad.
                 </p>
                 {false && (
                   <div className="watch-only-box">
@@ -4186,6 +4188,36 @@ export default function App() {
                       onClick={() => connectExternal("injected")}
                     >
                       Wallet del navegador / extensión
+                    </button>
+                  )}
+                  {connectedExternalAddress && !externalMatches && (
+                    <button
+                      className="button button--secondary"
+                      type="button"
+                      disabled={sending || scanning}
+                      onClick={() => {
+                        const confirmed = window.confirm(
+                          `¿Cambiar la cuenta de análisis a ${connectedExternalAddress}? Solo podrás enviar fondos que esta wallet externa autorice; la dirección World App anterior dejará de ser la cuenta seleccionada.`,
+                        );
+                        if (!confirmed) return;
+                        scanRunnerRef.current.cancel();
+                        setAssets([]);
+                        setScannedOwner("");
+                        setSelectedAssetId("");
+                        setNetworkStates({});
+                        setAuthenticated(false);
+                        setAuthenticatedWorldAddress("");
+                        authenticatedWorldAddressRef.current = "";
+                        authenticatedRef.current = false;
+                        setTargetAddress(connectedExternalAddress);
+                        setManualAddress(connectedExternalAddress);
+                        showStatus(
+                          "Dirección de la wallet externa seleccionada. Escanea sus saldos antes de enviar.",
+                          "warning",
+                        );
+                      }}
+                    >
+                      Usar mi wallet externa para escanear y enviar
                     </button>
                   )}
                   {connectedExternalAddress && (

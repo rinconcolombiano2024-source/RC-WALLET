@@ -125,3 +125,24 @@ un cambio de cuenta sea reutilizado para autorizar operaciones desde una
 dirección distinta. Al iniciar cualquier escaneo se invalida el owner
 confirmado y al completarlo se establece el owner de la respuesta más nueva.
 Las firmas finales siguen siendo obligatorias y verificadas por proveedor.
+
+## Endurecimiento de movimientos autorizados en redes externas
+
+- EIP-3326 / EIP-3085: se verifica `eth_chainId` **después** de
+  `wallet_switchEthereumChain`; añadir una red no implica seleccionarla.
+  Si la wallet no confirma la red objetivo, no hay firma. Verificación repetida
+  acotada para eventos `chainChanged` asíncronos.
+- Transferencia directa en red externa: se vuelve a comprobar el balance
+  del token o moneda nativa **en cadena** antes de solicitar la firma, se
+  valida la red nuevamente antes de `sendTransaction` y se exige
+  `receipt.status === 1`.
+- Safe con owner autorizado: se valida balance on-chain antes de firmar;
+  la ruta de firma personal no se intenta automáticamente después de un
+  rechazo del usuario a EIP-712.
+- UI: una wallet externa con dirección distinta puede ser elegida
+  explícitamente para análisis/transferencia de **sus propios fondos**.
+  El usuario debe confirmar el cambio; se borran sesiones y balances
+  anteriores. No confundir esto con recuperación de la dirección World App.
+- Este diseño **no** concede autoridad a una dirección Smart Account
+  no desplegada en la red de origen. Solo una firma/autorización compatible
+  verificada en esa red puede mover tales fondos.
