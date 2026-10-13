@@ -94,3 +94,16 @@ sobrescribir el trabajo original de RPC/chainId validado. En particular:
 Un `npm run build` exitoso NO valida funcionamiento del producto o de firmas.
 No se ejecutaron transacciones financieras. Se requiere revisar pruebas en el
 último SHA antes del merge y Vercel sigue necesitando verificación.
+
+### Protección de cambio de sesión durante reautenticación
+
+El frontend mutaba `targetAddress` **antes** de comparar la dirección
+autenticada durante una acción sensible. Una sesión distinta podía cambiar el
+contexto de fondos en pantalla incluso cuando la confirmación fallaba. Ahora
+`performWorldLogin` valida `expectedAddress` antes de cambiar la cuenta,
+y `confirmWorldAction` pasa la dirección activa. Sigue pendiente E2E real
+en World App; la corrección es por revisión de flujo y compilación, no una
+simulación de firma de producción.
+
+Se corrigieron instrucciones de ejemplo: el repositorio incluye
+`env.example`, no `.env.example`.

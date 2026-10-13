@@ -1401,7 +1401,7 @@ export default function App() {
   }, []);
 
   const performWorldLogin = useCallback(
-    async (contextLabel = "sesión de wallet") => {
+    async (contextLabel = "sesión de wallet", expectedAddress = null) => {
       const ready = await waitForMiniKitReady();
       setMiniKitReady(ready);
 
@@ -1450,6 +1450,13 @@ export default function App() {
       }
 
       const address = normalizeAddress(verification.address);
+      // An action re-auth must not silently switch the account under review.
+      // Check BEFORE updating targetAddress or launching a new balance scan.
+      if (expectedAddress && normalizeAddress(expectedAddress) !== address) {
+        throw new Error(
+          "La wallet autenticada no coincide con la cuenta activa. Acción cancelada sin cambiar de cuenta.",
+        );
+      }
       setTargetAddress(address);
       setManualAddress(address);
       setAuthenticatedWorldAddress(address);
@@ -1466,6 +1473,7 @@ export default function App() {
       try {
         const verifiedAddress = await performWorldLogin(
           `Confirmar ${actionLabel} en RC Wallet`,
+          targetAddress || null,
         );
 
         if (
