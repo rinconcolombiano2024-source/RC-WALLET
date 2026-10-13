@@ -12,7 +12,7 @@ Crea un proyecto gratuito en:
 
 https://dashboard.reown.com
 
-Copia `.env.example` como `.env.local` y completa:
+Copia `env.example` como `.env.local` y completa:
 
 ```text
 VITE_REOWN_PROJECT_ID=aa5427a18f0efc9d533439359b0031b3
