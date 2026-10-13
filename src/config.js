@@ -263,6 +263,7 @@ export const NETWORKS = Object.freeze([
     symbol: "ETH",
     rpcUrls: [
       "https://worldchain-mainnet.g.alchemy.com/public",
+      "https://480.rpc.thirdweb.com",
     ],
     explorer: "https://worldscan.org",
     writableWithMiniKit: true,
@@ -327,6 +328,7 @@ export const NETWORKS = Object.freeze([
     symbol: "ETH",
     rpcUrls: [
       "https://worldchain-sepolia.g.alchemy.com/public",
+      "https://4801.rpc.thirdweb.com",
     ],
     explorer: "https://sepolia.worldscan.org",
     writableWithMiniKit: false,
