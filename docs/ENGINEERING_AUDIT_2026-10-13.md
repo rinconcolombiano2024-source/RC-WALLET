@@ -159,3 +159,11 @@ destruye el proveedor cacheado, se rota al siguiente RPC y se reintenta
 **una sola vez** tras 200 ms. La condición de cancelación impide continuar
 si el usuario cambió de cuenta. Esto se aplica exclusivamente a lecturas;
 ninguna transacción financiera es reenviada de manera automática.
+
+### Safe EIP-1271 — control de red justo antes de emitir operaciones
+
+La firma MiniKit de World App y la autorización EIP-1271 se siguen
+comprobando como ya existían. Se añade `assertExternalNetwork` justo antes
+de emitir la creación CREATE2 o `execTransaction`, además de la selección
+de red inicial. Si el pagador cambia de cadena durante preparación o
+simulación, se cancela sin enviar la operación.

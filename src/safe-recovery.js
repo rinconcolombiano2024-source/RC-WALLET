@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 
 import {
+  assertExternalNetwork,
   getProvider,
   normalizeAddress,
   switchExternalNetwork,
@@ -2044,6 +2045,7 @@ async function ensureGasBalance({
 
 async function deployMirrorSafeIfNeeded({
   provider,
+  eip1193Provider,
   signer,
   payerAddress,
   asset,
@@ -2219,6 +2221,8 @@ async function deployMirrorSafeIfNeeded({
         network.symbol,
     });
 
+  // Fail closed if the gas payer changed chains during gas estimation.
+  await assertExternalNetwork(eip1193Provider, network);
   const transaction =
     await send({
       gasLimit:
@@ -2480,6 +2484,8 @@ export async function executeSignedSafeRecovery({
       await deployMirrorSafeIfNeeded({
         provider,
 
+        eip1193Provider,
+
         signer,
 
         payerAddress,
@@ -2738,6 +2744,8 @@ export async function executeSignedSafeRecovery({
   // 9. EXECUTE
   // ==========================================================================
 
+  // Do not broadcast to a different chain after Safe signature verification.
+  await assertExternalNetwork(eip1193Provider, network);
   const transaction =
     await safeContract
       .execTransaction(
