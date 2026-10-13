@@ -7,9 +7,9 @@ Repositorio **RC-WALLET**, rama base `main` en commit `1c063edb15246c6fd228686fb
 | --- | --- | --- |
 | Compilador | Vite 7.3.7 (parche de seguridad) + React 19, Node 24 | `package.json`, `vite.config.js`, `vercel.json` |
 | Problemas AJV/CRACO/CRA | No presentes en el árbol actual | No existen `react-scripts`, `craco.config.js` ni `ajv` directos |
-| Instalación reproducible | Implementada en esta rama, pendiente de resultado CI | `package-lock.json` generado con npm (no creado manualmente), `npm ci` |
-| Detección de direcciones | Corregida, pruebas automatizadas | Preservar checksum EIP-55 en `src/blockchain.js` |
-| Validación RPC | Corregida, pruebas automatizadas | `eth_chainId` real antes de cachear `JsonRpcProvider` |
+| Instalación reproducible | VERIFICADA en GitHub Actions | `package-lock.json` generado con npm (no creado manualmente), `npm ci` |
+| Detección de direcciones | VERIFICADA en pruebas unitarias | Preservar checksum EIP-55 en `src/blockchain.js` |
+| Validación RPC | VERIFICADA con servidores JSON-RPC simulados | `eth_chainId` real antes de cachear `JsonRpcProvider` |
 | Escaneo parcialmente fallido | Corregida, pruebas funcionales pendientes | Fallos ERC-20 ya no se etiquetan como resultado completo `online` |
 | World Chain RPC secundario | Configurado, comprobación remota pendiente | Endpoint alternativo documentado públicamente, se verifica chain ID al usarlo |
 | Autenticación MiniKit/World App | Implementada sin prueba en dispositivo | `MiniKit.walletAuth()` + validación SIWE en API |
@@ -51,7 +51,7 @@ El pipeline `.github/workflows/ci.yml` ejecuta en Node 24:
 4. `npm run build`.
 5. `npm audit --audit-level=high`.
 
-Los resultados concretos y enlaces a los logs de GitHub Actions deben revisarse antes del merge. **Ninguna transacción real ni prueba World App móvil se ejecuta desde este pipeline.**
+**Evidencia ejecutada:** workflow [RC Wallet CI #38328158331](https://github.com/rinconcolombiano2024-source/RC-WALLET/actions/runs/38328158331), rama `engineering/rc-wallet-hardening-20261013`, resultado **success** el 13-10-2026: `npm ci` OK, `npm ls` OK, **4/4 pruebas**, `vite build` OK (**5,15 segundos**, con advertencias Rollup y tamaño del bundle), `npm audit --audit-level=high` OK (**0 alertas altas en ese informe**). **Persisten 13 vulnerabilidades moderadas de dependencias:** requieren triage y corrección, no ignorarlas. Esta evidencia es CI de una versión de la rama previa al último cambio documental; debe pasar nuevamente sobre el SHA definitivo antes del merge. **No se ejecutaron transferencias reales ni pruebas World App móvil.**
 
 ## Riesgos conocidos para una versión de producción financiera
 
