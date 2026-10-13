@@ -32,6 +32,7 @@ import {
 // ============================================================================
 
 const providerCache = new Map();
+const rpcFallbackCursor = new Map();
 const safeDeploymentCache = new Map();
 
 const ERC1271_MAGIC_VALUE = "0x1626ba7e";
@@ -394,8 +395,14 @@ export async function getProvider(
 
   let lastError = null;
 
+  const urls = network.rpcUrls ?? [];
+  const cursor = rpcFallbackCursor.get(network.chainId) ?? 0;
+  const orderedUrls = [
+    ...urls.slice(cursor),
+    ...urls.slice(0, cursor),
+  ];
   for (
-    const rpcUrl of network.rpcUrls ?? []
+    const rpcUrl of orderedUrls
   ) {
     let provider;
     try {
@@ -2118,11 +2125,10 @@ async function readToken(
       `${definition.symbol} code`,
     );
 
-  if (
-    !code ||
-    code === "0x"
-  ) {
-    return null;
+  if (!code || code === "0x") {
+    throw new Error(
+      `${definition.symbol}: contrato ERC-20 no desplegado en ${network.name} (${address}); no se puede interpretar como saldo cero.`,
+    );
   }
 
   const contract =
@@ -2391,6 +2397,7 @@ async function scanNetwork(
       tokenErrors.push({
         symbol: definitions[index].symbol,
         address: definitions[index].addresses?.[network.chainId] ?? "",
+        reason: result.reason instanceof Error ? result.reason.message : "Lectura ERC-20 fallida",
       });
       console.warn(`[TOKEN ${network.name}]`, result.reason);
     }
@@ -2403,6 +2410,37 @@ async function scanNetwork(
     assets,
     tokenErrors,
   };
+}
+
+// A previously healthy public RPC may fail after it has been cached.
+// Retry the complete READ scan once on the next configured RPC, not forever.
+export async function scanNetworkWithRpcFailover(network, owner, customTokens = [], signal, execute = scanNetwork) {
+  try {
+    return await execute(network, owner, customTokens, signal);
+  } catch (firstError) {
+    assertScanActive(signal);
+    const current = providerCache.get(network.chainId);
+    const urls = network.rpcUrls ?? [];
+    if (!current || urls.length < 2) throw firstError;
+
+    // Evict only if this scan was still using the same provider.
+    providerCache.delete(network.chainId);
+    current.destroy();
+    rpcFallbackCursor.set(
+      network.chainId,
+      ((rpcFallbackCursor.get(network.chainId) ?? 0) + 1) % urls.length,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assertScanActive(signal);
+    try {
+      return await execute(network, owner, customTokens, signal);
+    } catch (secondError) {
+      throw new AggregateError(
+        [firstError, secondError],
+        `${network.name}: RPC principal y reintento alternativo fallaron. Saldos no verificables.`,
+      );
+    }
+  }
 }
 
 export async function scanAllNetworks(
@@ -2418,7 +2456,7 @@ export async function scanAllNetworks(
   // Three networks concurrently, four token reads per network maximum.
   const results = await mapSettledWithConcurrency(
     NETWORKS,
-    (network) => scanNetwork(network, owner, customTokens, signal),
+    (network) => scanNetworkWithRpcFailover(network, owner, customTokens, signal),
     { limit: 3, signal },
   );
   assertScanActive(signal);

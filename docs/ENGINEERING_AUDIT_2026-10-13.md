@@ -146,3 +146,16 @@ Las firmas finales siguen siendo obligatorias y verificadas por proveedor.
 - Este diseño **no** concede autoridad a una dirección Smart Account
   no desplegada en la red de origen. Solo una firma/autorización compatible
   verificada en esa red puede mover tales fondos.
+
+### Lecturas ERC-20 inexistentes y fallback de RPC cacheado
+
+Un contrato configurado pero sin bytecode en esa cadena NO implica saldo
+cero: ahora produce un error clasificado en `tokenErrors`, provocando
+`network.status = partial`. Los errores exponen la dirección del contrato y
+su motivo, sin representar el activo como inexistente.
+
+Cuando un RPC previamente válido falla durante el escaneo de red, se
+destruye el proveedor cacheado, se rota al siguiente RPC y se reintenta
+**una sola vez** tras 200 ms. La condición de cancelación impide continuar
+si el usuario cambió de cuenta. Esto se aplica exclusivamente a lecturas;
+ninguna transacción financiera es reenviada de manera automática.
