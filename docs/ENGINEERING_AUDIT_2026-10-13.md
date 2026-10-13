@@ -167,3 +167,20 @@ comprobando como ya existían. Se añade `assertExternalNetwork` justo antes
 de emitir la creación CREATE2 o `execTransaction`, además de la selección
 de red inicial. Si el pagador cambia de cadena durante preparación o
 simulación, se cancela sin enviar la operación.
+
+## Verificación de transferencias EVM — corte de ingeniería actualizado
+
+**Commit de código:** `073de93e2d7872075dddc85d4625998d45472c39`.
+**GitHub Actions:** https://github.com/rinconcolombiano2024-source/RC-WALLET/actions/runs/38462486744
+
+- `npm ci`: PASS; `node --check`: PASS.
+- `npm test`: **24/24**, 0 fallidas (simulaciones locales; sin transmitir fondos).
+- `npm run build`: PASS, Vite **6,78 s**.
+- `npm audit --audit-level=high`: PASS, **13 moderadas** pendientes.
+- Confirmación de red EIP-1193 **antes** de firmar y antes de
+  desplegar/ejecutar Safe; validación de saldo vivo para operaciones directas.
+- Se mantiene **DRAFT** porque aún faltan ensayos World App Android,
+  Vercel (build rate limit), pruebas reales en testnet, auditoría de contratos,
+  E2E y traducciones completas.
+- No afirmar que la app puede mover la misma dirección de World App en otra
+  cadena sin una autoridad criptográfica admisible por esa otra cadena.
