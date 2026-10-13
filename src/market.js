@@ -140,8 +140,14 @@ export function getTradeUrl(action, asset, market) {
 
   const selectedAddress =
     market?.selectedToken?.address ?? marketTokenAddress(asset);
-  const quoteAddress =
+  let quoteAddress =
     market?.quoteToken?.address ?? DEFAULT_QUOTE_TOKEN[asset.chainId];
+  // Stablecoin assets may themselves be the default quote token.
+  // Never direct a user to a token->same-token swap.
+  if (selectedAddress && quoteAddress &&
+      selectedAddress.toLowerCase() === quoteAddress.toLowerCase()) {
+    quoteAddress = WRAPPED_NATIVE[asset.chainId] ?? null;
+  }
   if (!selectedAddress || !quoteAddress) return market?.pairUrl ?? null;
 
   const buying = action === "buy";

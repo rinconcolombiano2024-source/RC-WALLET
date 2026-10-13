@@ -2276,8 +2276,8 @@ export default function App() {
 
           setPreparedSafeRecovery(prepared);
           showStatus(
-            "SafeTx firmada y owner verificado. Revisa otra vez destino y monto. Después conecta una wallet con gas y confirma una segunda vez para ejecutar.",
-            "success",
+            "Firma SafeTx recibida. AÚN falta verificar EIP-1271 on-chain y la autoridad en la red destino. Revisa destino, monto y posibles costes de gas antes de confirmar la ejecución.",
+            "warning",
           );
           return;
         }

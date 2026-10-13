@@ -13,6 +13,9 @@ test("trade URL does not crash when market quote is absent", () => {
   const url = new URL(link);
   assert.equal(url.hostname, "app.uniswap.org");
   assert.equal(url.searchParams.get("chain"), "mainnet");
+  const input = url.searchParams.get("inputCurrency");
+  const output = url.searchParams.get("outputCurrency");
+  assert.notEqual(input?.toLowerCase(), output?.toLowerCase());
 });
 
 test("BNB transfers to PancakeSwap only through official DEX link", () => {

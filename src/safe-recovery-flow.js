@@ -931,8 +931,8 @@ export async function prepareAndSignWorldSafeRecovery({
   };
 
   onStatus?.(
-    `Firma Safe válida. Owner recuperado: ${signatureAnalysis.recoveredSigner}. Ahora conecta una wallet externa únicamente para pagar el gas.`,
-    "success",
+    "Firma recibida. La verificación criptográfica EIP-1271 on-chain y su validez en la red destino siguen pendientes. La wallet externa solo puede pagar gas.",
+    "warning",
   );
 
   return prepared;
@@ -1187,7 +1187,7 @@ export function inspectPreparedSafeRecovery({
           .singleSignatureSatisfiesThreshold,
 
       message:
-        "La SafeTx está firmada por un owner válido. Falta o puede continuar la ejecución con un pagador de gas.",
+        "Firma SafeTx recibida; la autoridad on-chain todavía debe verificarse antes de ejecutar. El gas pagado no es reembolsable si alguna operación falla.",
     };
   } catch (error) {
     const message =
