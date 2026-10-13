@@ -208,6 +208,32 @@ export function normalizeAddress(value) {
   );
 }
 
+/**
+ * User-supplied destinations require EIP-55 validation, unlike token catalog
+ * entries. Transaction-shaped EIP-681 QR codes are not simple recipients.
+ */
+export function normalizeRecipientAddress(value, expectedChainId = null) {
+  const cleaned = cleanAddressInput(value);
+  const uri = cleaned.match(/^ethereum:(0x[a-fA-F0-9]{40})(?:@(\d+))?$/i);
+  if (/^ethereum:/i.test(cleaned) && !uri) {
+    throw new Error("El QR contiene una solicitud de transacción, no una dirección receptora simple.");
+  }
+  if (uri?.[2] && expectedChainId !== null &&
+      Number(uri[2]) !== Number(expectedChainId)) {
+    throw new Error("El QR corresponde a una blockchain distinta de la red seleccionada.");
+  }
+  const candidate = uri ? uri[1] : cleaned;
+  if (!/^0x[a-fA-F0-9]{40}$/.test(candidate)) {
+    throw new Error("Introduce una dirección receptora EVM válida.");
+  }
+  try {
+    // Preserve mixed case: ethers checks its EIP-55 checksum.
+    return ethers.getAddress(candidate);
+  } catch {
+    throw new Error("La dirección receptora tiene un checksum incorrecto. Verifica los caracteres.");
+  }
+}
+
 export function isValidEvmAddressInput(
   value,
 ) {
@@ -2598,8 +2624,9 @@ function prepareTransfer({
     );
 
   const destination =
-    normalizeAddress(
+    normalizeRecipientAddress(
       recipient,
+      asset.chainId,
     );
 
   if (

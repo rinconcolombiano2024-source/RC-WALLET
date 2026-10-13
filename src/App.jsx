@@ -11,6 +11,7 @@ import {
   formatBalance,
   isValidEvmAddressInput,
   normalizeAddress,
+  normalizeRecipientAddress,
   scanAllNetworks,
   sendWithExternalWallet,
 } from "./blockchain.js";
@@ -487,12 +488,8 @@ function qrImageUrl(value, size = 260) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}`;
 }
 
-function extractEvmAddressFromQr(value) {
-  try {
-    return normalizeAddress(value);
-  } catch {
-    throw new Error("El QR no contiene una dirección EVM válida");
-  }
+function extractEvmAddressFromQr(value, chainId) {
+  return normalizeRecipientAddress(value, chainId);
 }
 
 async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
@@ -1402,18 +1399,18 @@ export default function App() {
   }, []);
 
   const performWorldLogin = useCallback(
-    async (contextLabel = "sesión World ID") => {
+    async (contextLabel = "sesión de wallet") => {
       const ready = await waitForMiniKitReady();
       setMiniKitReady(ready);
 
       if (!ready) {
-        throw new Error("Abre RC Wallet dentro de World App para verificar World ID");
+        throw new Error("Abre RC Wallet dentro de World App para autenticar tu wallet");
       }
       if (typeof MiniKit.walletAuth !== "function") {
         throw new Error("Wallet Auth no está disponible en este entorno de World App");
       }
 
-      showStatus(`Solicitando verificación segura con World ID: ${contextLabel}…`);
+      showStatus(`Solicitando firma Wallet Auth (SIWE) desde World App: ${contextLabel}…`);
       const nonceResponse = await fetch("/api/nonce", {
         credentials: "include",
         cache: "no-store",
@@ -1446,7 +1443,7 @@ export default function App() {
 
       if (!verifyResponse.ok || !verification.isValid) {
         throw new Error(
-          verification.error ?? "La verificación World ID no pudo validarse",
+          verification.error ?? "La firma SIWE de World App no pudo validarse",
         );
       }
 
@@ -1474,20 +1471,20 @@ export default function App() {
           normalizeAddress(verifiedAddress) !== normalizeAddress(targetAddress)
         ) {
           showStatus(
-            "La sesión World ID verificada no coincide con la wallet activa.",
+            "La dirección autenticada mediante SIWE no coincide con la wallet activa.",
             "error",
           );
           return false;
         }
 
-        showStatus("World ID verificado. Puedes continuar.", "success");
+        showStatus("Firma SIWE verificada. Puedes continuar.", "success");
         return true;
       } catch (error) {
         console.error("[WORLD CONFIRMATION]", error);
         showStatus(
           error instanceof Error
             ? error.message
-            : "La verificación World ID fue cancelada o falló",
+            : "La autenticación SIWE fue cancelada o falló",
           "error",
         );
         return false;
@@ -1660,8 +1657,8 @@ export default function App() {
 
   const loginWithWorldApp = useCallback(async () => {
     try {
-      await performWorldLogin("Iniciar sesión con World ID en RC Wallet");
-      showStatus("Sesión World ID iniciada correctamente.", "success");
+      await performWorldLogin("Iniciar sesión con Wallet Auth en RC Wallet");
+      showStatus("Wallet de World App autenticada correctamente por SIWE.", "success");
     } catch (error) {
       console.error("[WORLD AUTH]", error);
       showStatus(
@@ -1691,7 +1688,7 @@ export default function App() {
     }
 
     showStatus(
-      "Sesión guardada detectada. Pulsa “Iniciar sesión con World ID” para validarla.",
+      "Dirección guardada detectada. Pulsa “Iniciar sesión con World App” para validarla mediante SIWE.",
       "info",
     );
   }, [authenticated, miniKitReady, showStatus]);
@@ -1959,7 +1956,7 @@ export default function App() {
           const barcodes = await detector.detect(qrVideoRef.current);
           const rawValue = barcodes?.[0]?.rawValue;
           if (rawValue) {
-            const address = extractEvmAddressFromQr(rawValue);
+            const address = extractEvmAddressFromQr(rawValue, selectedAsset?.chainId);
             setRecipient(address);
             stopQrScanner();
             showStatus("Dirección receptora cargada desde QR.", "success");
@@ -1980,7 +1977,7 @@ export default function App() {
       setQrScannerError(message);
       showStatus(message, "warning");
     }
-  }, [showStatus, stopQrScanner]);
+  }, [selectedAsset, showStatus, stopQrScanner]);
 
   const addCustomToken = useCallback(() => {
     try {
@@ -2160,7 +2157,7 @@ export default function App() {
     if (!selectedAsset || sending) return;
 
     try {
-      const destination = normalizeAddress(recipient);
+      const destination = normalizeRecipientAddress(recipient, selectedAsset.chainId);
       const owner = normalizeAddress(targetAddress);
 
       if (destination === owner) {
@@ -3313,7 +3310,7 @@ export default function App() {
                 type="button"
                 onClick={loginWithWorldApp}
               >
-                {miniKitReady ? "Ingresar con World ID" : "Conectar World ID"}
+                {miniKitReady ? "Ingresar con World App" : "Conectar World App"}
               </button>
               <button
                 className="button button--secondary"
@@ -3489,8 +3486,8 @@ export default function App() {
             onClick={loginWithWorldApp}
           >
             {miniKitReady
-              ? "Iniciar sesión con World ID"
-              : "Conectar World ID"}
+              ? "Iniciar sesión con World App"
+              : "Conectar World App"}
           </button>
 
           <div className="separator">
