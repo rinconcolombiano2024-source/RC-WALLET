@@ -203,9 +203,9 @@ export function normalizeAddress(value) {
     );
   }
 
-  return ethers.getAddress(
-    candidate.toLowerCase(),
-  );
+  // Preserve EIP-55 checksum validation for mixed-case addresses.
+  // Lowercasing before getAddress would silently accept mistyped checksums.
+  return ethers.getAddress(candidate);
 }
 
 export function isValidEvmAddressInput(
@@ -367,28 +367,28 @@ export async function getProvider(
   for (
     const rpcUrl of network.rpcUrls ?? []
   ) {
+    let provider;
     try {
-      const provider =
-        new ethers.JsonRpcProvider(
-          rpcUrl,
-          network.chainId,
-          {
-            staticNetwork: true,
-            batchMaxCount: 1,
-          },
-        );
+      provider = new ethers.JsonRpcProvider(
+        rpcUrl,
+        network.chainId,
+        {
+          staticNetwork: true,
+          batchMaxCount: 1,
+        },
+      );
 
-      const providerNetwork =
-        await timeout(
-          provider.getNetwork(),
-          7_000,
-          network.name,
-        );
-
+      // getNetwork() reflects the configured staticNetwork and does not
+      // independently prove the endpoint's real chain. Query the RPC itself.
+      const reportedChainId = await timeout(
+        provider.send("eth_chainId", []),
+        7_000,
+        `${network.name} eth_chainId`,
+      );
       if (
-        Number(
-          providerNetwork.chainId,
-        ) !== network.chainId
+        typeof reportedChainId !== "string" ||
+        !/^0x[0-9a-f]+$/i.test(reportedChainId) ||
+        BigInt(reportedChainId) !== BigInt(network.chainId)
       ) {
         throw new Error(
           "El RPC respondió con una chainId incorrecta",
@@ -408,12 +408,10 @@ export async function getProvider(
 
       return provider;
     } catch (error) {
+      // A failed endpoint must not leave open polling/timers.
+      provider?.destroy();
       lastError = error;
-
-      console.warn(
-        `[RPC ${network.name}] ${rpcUrl}`,
-        error,
-      );
+      console.warn(`[RPC ${network.name}] ${rpcUrl}`, error);
     }
   }
 
@@ -2345,42 +2343,29 @@ async function scanNetwork(
       ),
     );
 
-  for (
-    const result of tokenResults
-  ) {
-    if (
-      result.status ===
-        "fulfilled" &&
-      result.value
-    ) {
+  const tokenErrors = [];
+  for (const [index, result] of tokenResults.entries()) {
+    if (result.status === "fulfilled" && result.value) {
       assets.push({
         ...result.value,
-
-        accountKind:
-          accountState.kind,
-
+        accountKind: accountState.kind,
         accountState,
       });
-    } else if (
-      result.status ===
-      "rejected"
-    ) {
-      console.warn(
-        `[TOKEN ${network.name}]`,
-        result.reason,
-      );
+    } else if (result.status === "rejected") {
+      tokenErrors.push({
+        symbol: definitions[index].symbol,
+        address: definitions[index].addresses?.[network.chainId] ?? "",
+      });
+      console.warn(`[TOKEN ${network.name}]`, result.reason);
     }
   }
 
   return {
     network,
-
-    accountKind:
-      accountState.kind,
-
+    accountKind: accountState.kind,
     accountState,
-
     assets,
+    tokenErrors,
   };
 }
 
@@ -2421,18 +2406,16 @@ export async function scanAllNetworks(
           ...result.value.assets,
         );
 
-        networks[
-          network.chainId
-        ] = {
-          status: "online",
-
-          accountKind:
-            result.value
-              .accountKind,
-
-          accountState:
-            result.value
-              .accountState,
+        const tokenErrors = result.value.tokenErrors;
+        networks[network.chainId] = {
+          status: tokenErrors.length > 0 ? "partial" : "online",
+          accountKind: result.value.accountKind,
+          accountState: result.value.accountState,
+          failedTokenCount: tokenErrors.length,
+          tokenErrors,
+          error: tokenErrors.length > 0
+            ? `${tokenErrors.length} contrato(s) ERC-20 no pudieron consultarse. No equivalen a saldo cero.`
+            : null,
         };
       } else {
         networks[
