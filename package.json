@@ -20,9 +20,12 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "5.0.0",
-    "vite": "7.0.0"
+    "vite": "7.3.7"
   },
   "engines": {
     "node": "24.x"
+  },
+  "overrides": {
+    "ws": "8.22.0"
   }
 }
