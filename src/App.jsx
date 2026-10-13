@@ -1587,15 +1587,20 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    let intervalId;
+    let marketRequestInFlight = false;
 
     const refreshMarket = async () => {
+      // No hidden-tab traffic or overlapping requests on slow mobile networks.
+      if (
+        document.visibilityState === "hidden" ||
+        controller.signal.aborted ||
+        marketRequestInFlight
+      ) return;
+
+      marketRequestInFlight = true;
       try {
         if (mountedRef.current) setMarketLoading(true);
-        const result = await loadMarket(
-          selectedAsset,
-          controller.signal,
-        );
+        const result = await loadMarket(selectedAsset, controller.signal);
         if (!controller.signal.aborted && mountedRef.current) {
           setMarket(result);
           setMarketError(
@@ -1603,27 +1608,29 @@ export default function App() {
           );
         }
       } catch (error) {
-        if (error?.name !== "AbortError" && mountedRef.current) {
+        if (error?.name !== "AbortError" && !controller.signal.aborted && mountedRef.current) {
           setMarket(null);
           setMarketError(
-            error instanceof Error
-              ? error.message
-              : "No se pudo cargar el mercado",
+            error instanceof Error ? error.message : "No se pudo cargar el mercado",
           );
         }
       } finally {
-        if (!controller.signal.aborted && mountedRef.current) {
-          setMarketLoading(false);
-        }
+        marketRequestInFlight = false;
+        if (!controller.signal.aborted && mountedRef.current) setMarketLoading(false);
       }
     };
 
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refreshMarket();
+    };
     void refreshMarket();
-    intervalId = window.setInterval(refreshMarket, 30_000);
+    const intervalId = window.setInterval(() => void refreshMarket(), 30_000);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       controller.abort();
       window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [selectedAsset]);
 

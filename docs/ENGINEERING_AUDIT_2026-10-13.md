@@ -107,3 +107,12 @@ simulación de firma de producción.
 
 Se corrigieron instrucciones de ejemplo: el repositorio incluye
 `env.example`, no `.env.example`.
+
+### Rendimiento de mercados y ciclo de vida React
+
+Se impide el solapamiento de peticiones DexScreener en redes móviles lentas;
+los refrescos se suspenden si el documento está oculto y se reanudan al
+volver a primer plano. Se cancelan solicitudes en desmontaje/cambio de token,
+se libera el temporizador y el listener `visibilitychange`. La optimización
+requiere medir CPU y consumo de red en un Android real, que no ha sido
+simulado ni medido en CI.
