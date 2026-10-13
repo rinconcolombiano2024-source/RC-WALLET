@@ -1,0 +1,31 @@
+# Temporary workflow to regenerate lockfile for the audited dependency remediation.
+# Deletes itself from the feature branch after it completes.
+name: Regenerate RC Wallet dependency lockfile
+on:
+  push:
+    branches:
+      - audit/secure-build-and-wallet-flow-20261013
+jobs:
+  regenerate:
+    if: github.repository == 'rinconcolombiano2024-source/RC-WALLET'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+      - name: Resolve npm overrides and regenerate official lockfile without scripts
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          test -s package-lock.json
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile is already in sync."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "build: refresh npm lockfile for audited ws and Vite"
+          git push origin HEAD:audit/secure-build-and-wallet-flow-20261013
