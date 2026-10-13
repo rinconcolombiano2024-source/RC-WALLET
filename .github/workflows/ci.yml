@@ -1,0 +1,28 @@
+name: RC Wallet CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install from committed lockfile
+        run: npm ci
+      - name: Node and npm versions
+        run: node --version && npm --version && npm ls --depth=0
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Security audit
+        run: npm audit --audit-level=high
