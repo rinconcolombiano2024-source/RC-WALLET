@@ -2096,7 +2096,7 @@ async function inspectAccount(
 // TOKEN SCAN
 // ============================================================================
 
-async function readToken(
+export async function readToken(
   provider,
   network,
   owner,
