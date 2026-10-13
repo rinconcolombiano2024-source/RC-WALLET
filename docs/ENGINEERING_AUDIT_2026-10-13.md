@@ -5,7 +5,7 @@ Repositorio **RC-WALLET**, rama base `main` en commit `1c063edb15246c6fd228686fb
 
 | Sistema | Estado a fecha de la revisión | Evidencia / límite |
 | --- | --- | --- |
-| Compilador | Vite 7 + React 19, Node 24 | `package.json`, `vite.config.js`, `vercel.json` |
+| Compilador | Vite 7.3.7 (parche de seguridad) + React 19, Node 24 | `package.json`, `vite.config.js`, `vercel.json` |
 | Problemas AJV/CRACO/CRA | No presentes en el árbol actual | No existen `react-scripts`, `craco.config.js` ni `ajv` directos |
 | Instalación reproducible | Implementada en esta rama, pendiente de resultado CI | `package-lock.json` generado con npm (no creado manualmente), `npm ci` |
 | Detección de direcciones | Corregida, pruebas automatizadas | Preservar checksum EIP-55 en `src/blockchain.js` |
@@ -27,7 +27,8 @@ Repositorio **RC-WALLET**, rama base `main` en commit `1c063edb15246c6fd228686fb
 2. **Escaneo incompleto informado como completado (riesgo medio):** `Promise.allSettled()` descartaba errores de balance/metadata de tokens, pero la red quedaba en estado `online`; un usuario podía interpretar ausencia de activos como saldo cero. **Solución:** guardar `tokenErrors`, informar estado `partial` y mostrar aviso visible de resultados incompletos.
 3. **Checksum EIP-55 ignorado (riesgo medio):** el normalizador convertía a minúsculas antes de validar una dirección mixta, eliminando la señal de un posible error de escritura. **Solución:** usar `ethers.getAddress(candidate)` conservando la validación; las direcciones completamente minúsculas siguen aceptándose.
 4. **Un único RPC de World Chain y Sepolia (resiliencia):** añadir endpoints alternativos de lectura, seleccionados solo cuando validan su chain ID real. **No** garantiza uptime.
-5. **Sin lockfile ni CI en `main` (riesgo de build):** se añadió `package-lock.json` generado con npm, pruebas Node y un workflow de integración continua. No se cambian las versiones directas ni se migra Vite/React porque el repo actual ya utiliza Vite y no CRA.
+5. **Sin lockfile ni CI en `main` (riesgo de build):** se añadió `package-lock.json` generado con npm, pruebas Node y un workflow de integración continua. No se migra Vite/React porque el repo actual ya utiliza Vite y no CRA.
+6. **Dependencias con avisos de alta severidad (confirmado por GitHub Actions):** `npm audit` informó fallos en Vite 7.0.0 y en `ws` transitivo. Se actualizó Vite a 7.3.7 y se impuso `ws` 8.22.0 mediante `overrides` de npm, conservando los demás paquetes directos. La eliminación real de alertas debe comprobarse con el audit del nuevo lockfile; **no** se han ocultado vulnerabilidades ni deshabilitado controles.
 
 ## Referencias oficiales consultadas
 - World App Wallet Authentication: https://docs.world.org/mini-apps/commands/wallet-auth
@@ -60,6 +61,7 @@ Los resultados concretos y enlaces a los logs de GitHub Actions deben revisarse 
 - `src/wallet-core.js` conserva utilidades de llave privada cifrada heredadas, aunque el flujo principal evita solicitarlas. Auditar/eliminar solo cuando se confirme que no hay consumidores.
 - `src/App.jsx` y `src/blockchain.js` son módulos grandes: requieren pruebas de regresión de reconexión, listeners, Android, World App y rutas EIP-1271/4337.
 - Los contratos `contracts/RCRescueVault.sol` requieren compilación, revisión de amenazas y auditoría separada antes de uso con fondos reales.
+- Auditar también vulnerabilidades de severidad moderada restantes; un `npm audit --audit-level=high` verde **no** significa ausencia de riesgos moderados.
 - Las recuperaciones no son posibles sin una firma autorizada válida en la red donde están los activos. SIWE, una dirección pública o World ID no proporcionan control multichain.
 
 ## Criterio de merge
