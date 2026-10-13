@@ -67,3 +67,30 @@ El pipeline `.github/workflows/ci.yml` ejecuta en Node 24:
 ## Criterio de merge
 
 Solo fusionar tras revisión del PR, CI verde, auditoría de dependencias sin vulnerabilidades altas sin tratar y validación manual independiente de World App / Vercel Preview. La aplicación no se declara **lista para producción** mientras falten estas evidencias.
+
+## Consolidación técnica — 13-10-2026 (PR #3)
+
+PR #3 consolida las correcciones de ambas ramas de ingeniería abiertas sin
+sobrescribir el trabajo original de RPC/chainId validado. En particular:
+
+- Escaneo ahora integra de verdad `createLatestScanRunner` en React; la versión
+  anterior tenía el coordinador en el repositorio pero no estaba conectado a la UI.
+  Un nuevo escaneo reemplaza al anterior incluso si está en curso.
+- Escaneo ERC-20 con concurrencia máxima 4 por red, hasta 3 redes simultáneas;
+  abortos best effort (ethers RPC en tránsito puede seguir hasta timeout).
+  No se promueve un RPC fallido a saldo cero.
+- Envíos y QR de destino deben validar checksum EIP-55 y la red indicada
+  por un URI `ethereum:address@chainId`.
+- Evitado crash de `market.dexId` cuando DexScreener no ofrece mercado y
+  par de intercambio token->sí mismo.
+- Backend SIWE verifica exactamente el statement enviado por walletAuth,
+  y la UI deja de presentar Wallet Auth como si fuera prueba World ID.
+- Prevalidación Safe explícitamente provisional hasta demostrar autorización
+  real EIP-1271 en red origen/destino.
+- Añadidas pruebas de cancelación, concurrencia, nonce, destinatarios y DEX.
+- GitHub Actions pasa a checkout v6 / setup-node v7, comprueba sintaxis;
+  **no se alteró** `vercel.json` ni se retiraron componentes.
+
+Un `npm run build` exitoso NO valida funcionamiento del producto o de firmas.
+No se ejecutaron transacciones financieras. Se requiere revisar pruebas en el
+último SHA antes del merge y Vercel sigue necesitando verificación.

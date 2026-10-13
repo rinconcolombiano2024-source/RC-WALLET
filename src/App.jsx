@@ -11,6 +11,7 @@ import {
   formatBalance,
   isValidEvmAddressInput,
   normalizeAddress,
+  normalizeRecipientAddress,
   scanAllNetworks,
   sendWithExternalWallet,
 } from "./blockchain.js";
@@ -37,6 +38,7 @@ import {
   inspectPreparedSafeRecovery,
   prepareAndSignWorldSafeRecovery,
 } from "./safe-recovery-flow.js";
+import { createLatestScanRunner } from "./scan-coordinator.js";
 import {
   connectInjectedProvider,
   connectWalletConnectProvider,
@@ -487,12 +489,8 @@ function qrImageUrl(value, size = 260) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}`;
 }
 
-function extractEvmAddressFromQr(value) {
-  try {
-    return normalizeAddress(value);
-  } catch {
-    throw new Error("El QR no contiene una dirección EVM válida");
-  }
+function extractEvmAddressFromQr(value, chainId) {
+  return normalizeRecipientAddress(value, chainId);
 }
 
 async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
@@ -902,7 +900,8 @@ function stopQrScannerStream(stream) {
 
 export default function App() {
   const mountedRef = useRef(false);
-  const scanIdRef = useRef(0);
+  const scanRunnerRef = useRef(null);
+  if (!scanRunnerRef.current) scanRunnerRef.current = createLatestScanRunner();
   const externalConnectionRef = useRef(null);
   const autoLoginAttemptedRef = useRef(false);
   const authenticatedRef = useRef(false);
@@ -1402,18 +1401,18 @@ export default function App() {
   }, []);
 
   const performWorldLogin = useCallback(
-    async (contextLabel = "sesión World ID") => {
+    async (contextLabel = "sesión de wallet") => {
       const ready = await waitForMiniKitReady();
       setMiniKitReady(ready);
 
       if (!ready) {
-        throw new Error("Abre RC Wallet dentro de World App para verificar World ID");
+        throw new Error("Abre RC Wallet dentro de World App para autenticar tu wallet");
       }
       if (typeof MiniKit.walletAuth !== "function") {
         throw new Error("Wallet Auth no está disponible en este entorno de World App");
       }
 
-      showStatus(`Solicitando verificación segura con World ID: ${contextLabel}…`);
+      showStatus(`Solicitando autenticación SIWE de World App: ${contextLabel}…`);
       const nonceResponse = await fetch("/api/nonce", {
         credentials: "include",
         cache: "no-store",
@@ -1446,7 +1445,7 @@ export default function App() {
 
       if (!verifyResponse.ok || !verification.isValid) {
         throw new Error(
-          verification.error ?? "La verificación World ID no pudo validarse",
+          verification.error ?? "La autenticación SIWE no pudo validarse",
         );
       }
 
@@ -1474,20 +1473,20 @@ export default function App() {
           normalizeAddress(verifiedAddress) !== normalizeAddress(targetAddress)
         ) {
           showStatus(
-            "La sesión World ID verificada no coincide con la wallet activa.",
+            "La sesión SIWE no coincide con la wallet activa.",
             "error",
           );
           return false;
         }
 
-        showStatus("World ID verificado. Puedes continuar.", "success");
+        showStatus("Sesión SIWE verificada. Puedes continuar.", "success");
         return true;
       } catch (error) {
         console.error("[WORLD CONFIRMATION]", error);
         showStatus(
           error instanceof Error
             ? error.message
-            : "La verificación World ID fue cancelada o falló",
+            : "La verificación SIWE fue cancelada o falló",
           "error",
         );
         return false;
@@ -1514,7 +1513,7 @@ export default function App() {
 
     return () => {
       mountedRef.current = false;
-      scanIdRef.current += 1;
+      scanRunnerRef.current.cancel();
       externalConnectionRef.current?.cleanup?.();
       qrScanActiveRef.current = false;
       stopQrScannerStream(qrStreamRef.current);
@@ -1660,8 +1659,8 @@ export default function App() {
 
   const loginWithWorldApp = useCallback(async () => {
     try {
-      await performWorldLogin("Iniciar sesión con World ID en RC Wallet");
-      showStatus("Sesión World ID iniciada correctamente.", "success");
+      await performWorldLogin("Iniciar sesión mediante Wallet Auth en RC Wallet");
+      showStatus("Wallet autenticada mediante SIWE.", "success");
     } catch (error) {
       console.error("[WORLD AUTH]", error);
       showStatus(
@@ -1691,7 +1690,7 @@ export default function App() {
     }
 
     showStatus(
-      "Sesión guardada detectada. Pulsa “Iniciar sesión con World ID” para validarla.",
+      "Sesión guardada detectada. Pulsa “Iniciar sesión con World App” para validarla.",
       "info",
     );
   }, [authenticated, miniKitReady, showStatus]);
@@ -1714,48 +1713,48 @@ export default function App() {
   }, [manualAddress, showStatus]);
 
   const scan = useCallback(async () => {
-    if (!targetAddress || scanning) return;
-
-    const currentScanId = scanIdRef.current + 1;
-    scanIdRef.current = currentScanId;
-    setScanning(true);
-    showStatus("Escaneando redes y contratos configurados…");
-
-    try {
-      const result = await scanAllNetworks(targetAddress, customTokens);
-      if (!mountedRef.current || scanIdRef.current !== currentScanId) return;
-
-      setAssets(result.assets);
-      setNetworkStates(result.networks);
-      setSelectedAssetId((current) =>
-        result.assets.some((asset) => asset.id === current)
-          ? current
-          : (result.assets[0]?.id ?? ""),
-      );
-
-      const incomplete = Object.values(result.networks).filter(
-        (network) => network.status !== "online",
-      ).length;
-      showStatus(
-        incomplete
-          ? `Escaneo parcial: ${incomplete} red(es) con errores o tokens sin leer. Los datos no consultados NO significan saldo cero.`
-          : result.assets.length
-            ? `Escaneo completado: ${result.assets.length} activo(s) con balance.`
-            : "No se encontraron balances entre los activos configurados.",
-        incomplete ? "warning" : "success",
-      );
-    } catch (error) {
-      console.error("[SCAN]", error);
-      showStatus(
-        error instanceof Error ? error.message : "Falló el escaneo",
-        "error",
-      );
-    } finally {
-      if (mountedRef.current && scanIdRef.current === currentScanId) {
-        setScanning(false);
-      }
-    }
-  }, [customTokens, scanning, showStatus, targetAddress]);
+    if (!targetAddress) return;
+    await scanRunnerRef.current.run({
+      execute: (signal) => scanAllNetworks(targetAddress, customTokens, { signal }),
+      onStart: () => {
+        if (!mountedRef.current) return;
+        setScanning(true);
+        // Never keep old account balances on screen during a new-account scan.
+        setAssets([]);
+        setNetworkStates({});
+        setSelectedAssetId("");
+        showStatus("Escaneando redes y contratos configurados…");
+      },
+      onSuccess: (result) => {
+        if (!mountedRef.current) return;
+        setAssets(result.assets);
+        setNetworkStates(result.networks);
+        setSelectedAssetId(result.assets[0]?.id ?? "");
+        const incomplete = Object.values(result.networks).filter(
+          (network) => network.status !== "online",
+        ).length;
+        showStatus(
+          incomplete
+            ? `Escaneo parcial: ${incomplete} red(es) con errores o tokens sin leer. Los datos no consultados NO significan saldo cero.`
+            : result.assets.length
+              ? `Escaneo completado: ${result.assets.length} activo(s) con balance.`
+              : "No se encontraron balances entre los activos configurados.",
+          incomplete ? "warning" : "success",
+        );
+      },
+      onError: (error) => {
+        if (!mountedRef.current) return;
+        console.error("[SCAN]", error);
+        showStatus(
+          error instanceof Error ? error.message : "Falló el escaneo",
+          "error",
+        );
+      },
+      onFinish: () => {
+        if (mountedRef.current) setScanning(false);
+      },
+    });
+  }, [customTokens, showStatus, targetAddress]);
 
   useEffect(() => {
     if (targetAddress) void scan();
@@ -1956,7 +1955,7 @@ export default function App() {
           const barcodes = await detector.detect(qrVideoRef.current);
           const rawValue = barcodes?.[0]?.rawValue;
           if (rawValue) {
-            const address = extractEvmAddressFromQr(rawValue);
+            const address = extractEvmAddressFromQr(rawValue, selectedAsset?.chainId);
             setRecipient(address);
             stopQrScanner();
             showStatus("Dirección receptora cargada desde QR.", "success");
@@ -1977,7 +1976,7 @@ export default function App() {
       setQrScannerError(message);
       showStatus(message, "warning");
     }
-  }, [showStatus, stopQrScanner]);
+  }, [selectedAsset?.chainId, showStatus, stopQrScanner]);
 
   const addCustomToken = useCallback(() => {
     try {
@@ -2157,7 +2156,7 @@ export default function App() {
     if (!selectedAsset || sending) return;
 
     try {
-      const destination = normalizeAddress(recipient);
+      const destination = normalizeRecipientAddress(recipient, selectedAsset.chainId);
       const owner = normalizeAddress(targetAddress);
 
       if (destination === owner) {
@@ -2273,8 +2272,8 @@ export default function App() {
 
           setPreparedSafeRecovery(prepared);
           showStatus(
-            "SafeTx firmada y owner verificado. Revisa otra vez destino y monto. Después conecta una wallet con gas y confirma una segunda vez para ejecutar.",
-            "success",
+            "Firma SafeTx recibida. La autoridad EIP-1271 on-chain todavía NO está verificada. Comprueba destino, monto y posibles gastos de red antes de continuar.",
+            "warning",
           );
           return;
         }
@@ -3310,7 +3309,7 @@ export default function App() {
                 type="button"
                 onClick={loginWithWorldApp}
               >
-                {miniKitReady ? "Ingresar con World ID" : "Conectar World ID"}
+                {miniKitReady ? "Ingresar con World App" : "Conectar World App"}
               </button>
               <button
                 className="button button--secondary"
@@ -3486,8 +3485,8 @@ export default function App() {
             onClick={loginWithWorldApp}
           >
             {miniKitReady
-              ? "Iniciar sesión con World ID"
-              : "Conectar World ID"}
+              ? "Iniciar sesión con World App"
+              : "Conectar World App"}
           </button>
 
           <div className="separator">

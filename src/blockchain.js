@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { mapSettledWithConcurrency } from "./scan-coordinator.js";
 
 import {
   ERC1271_ABI,
@@ -206,6 +207,35 @@ export function normalizeAddress(value) {
   // Preserve EIP-55 checksum validation for mixed-case addresses.
   // Lowercasing before getAddress would silently accept mistyped checksums.
   return ethers.getAddress(candidate);
+}
+
+// Unlike a catalog address, a user-supplied destination MUST preserve the
+// mixed-case EIP-55 checksum and must not silently discard EIP-681 instructions.
+export function normalizeRecipientAddress(value, expectedChainId = null) {
+  const cleaned = cleanAddressInput(value);
+  const uri = cleaned.match(/^ethereum:(0x[a-fA-F0-9]{40})(?:@(\d+))?$/i);
+  if (/^ethereum:/i.test(cleaned) && !uri) {
+    throw new Error("El QR contiene instrucciones de transacción, no una dirección receptora simple.");
+  }
+  if (uri?.[2] && expectedChainId !== null &&
+      Number(uri[2]) !== Number(expectedChainId)) {
+    throw new Error("El QR pertenece a otra red. Selecciona la blockchain correcta.");
+  }
+  const candidate = uri ? uri[1] : cleaned;
+  if (!/^0x[a-fA-F0-9]{40}$/.test(candidate)) {
+    throw new Error("Introduce una dirección EVM válida.");
+  }
+  try {
+    return ethers.getAddress(candidate);
+  } catch {
+    throw new Error("Checksum incorrecto en el destinatario. Revisa todos los caracteres.");
+  }
+}
+
+function assertScanActive(signal) {
+  if (signal?.aborted) {
+    throw new DOMException("Scan cancelled", "AbortError");
+  }
 }
 
 export function isValidEvmAddressInput(
@@ -2214,11 +2244,14 @@ async function scanNetwork(
   network,
   owner,
   customTokens,
+  signal,
 ) {
+  assertScanActive(signal);
   const provider =
     await getProvider(
       network,
     );
+  assertScanActive(signal);
 
   const [
     accountCode,
@@ -2241,6 +2274,7 @@ async function scanNetwork(
     ),
   ]);
 
+  assertScanActive(signal);
   const accountState =
     await inspectAccount(
       provider,
@@ -2249,6 +2283,7 @@ async function scanNetwork(
       accountCode,
       nativeBalance,
     );
+  assertScanActive(signal);
 
   const assets = [];
 
@@ -2330,18 +2365,19 @@ async function scanNetwork(
       })),
   ];
 
-  const tokenResults =
-    await Promise.allSettled(
-      definitions.map(
-        (definition) =>
-          readToken(
-            provider,
-            network,
-            owner,
-            definition,
-          ),
+  // Bound ERC-20 fanout to avoid overwhelming mobile networks and public RPCs.
+  const tokenResults = await mapSettledWithConcurrency(
+    definitions,
+    (definition) =>
+      readToken(
+        provider,
+        network,
+        owner,
+        definition,
       ),
-    );
+    { limit: 4, signal },
+  );
+  assertScanActive(signal);
 
   const tokenErrors = [];
   for (const [index, result] of tokenResults.entries()) {
@@ -2372,23 +2408,20 @@ async function scanNetwork(
 export async function scanAllNetworks(
   ownerAddress,
   customTokens = [],
+  { signal } = {},
 ) {
   const owner =
     normalizeAddress(
       ownerAddress,
     );
-
-  const results =
-    await Promise.allSettled(
-      NETWORKS.map(
-        (network) =>
-          scanNetwork(
-            network,
-            owner,
-            customTokens,
-          ),
-      ),
-    );
+  assertScanActive(signal);
+  // Three networks concurrently, four token reads per network maximum.
+  const results = await mapSettledWithConcurrency(
+    NETWORKS,
+    (network) => scanNetwork(network, owner, customTokens, signal),
+    { limit: 3, signal },
+  );
+  assertScanActive(signal);
 
   const assets = [];
   const networks = {};
@@ -2572,8 +2605,9 @@ function prepareTransfer({
     );
 
   const destination =
-    normalizeAddress(
+    normalizeRecipientAddress(
       recipient,
+      asset.chainId,
     );
 
   if (
