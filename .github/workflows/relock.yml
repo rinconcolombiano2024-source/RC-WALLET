@@ -1,0 +1,29 @@
+name: Regenerate npm lockfile (temporary)
+on:
+  push:
+    branches: [engineering/rc-wallet-hardening-20261013]
+permissions:
+  contents: write
+concurrency:
+  group: rc-wallet-relock
+  cancel-in-progress: false
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Synchronize and regenerate lockfile
+        run: |
+          git fetch origin "$GITHUB_REF_NAME"
+          git checkout "$GITHUB_REF_NAME"
+          git reset --hard "origin/$GITHUB_REF_NAME"
+          npm install --package-lock-only --ignore-scripts --no-fund
+          git add package-lock.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'build: regenerate npm lock for patched dependencies'
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
