@@ -923,6 +923,8 @@ export default function App() {
   const [externalConnectionName, setExternalConnectionName] = useState("");
   const [externalConnecting, setExternalConnecting] = useState(false);
   const [assets, setAssets] = useState([]);
+  // Financial actions must be bound to the address that produced the balances.
+  const [scannedOwner, setScannedOwner] = useState("");
   const [networkStates, setNetworkStates] = useState({});
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [bridgeDestinationChainId, setBridgeDestinationChainId] =
@@ -1736,6 +1738,7 @@ export default function App() {
         setScanning(true);
         // Never keep old account balances on screen during a new-account scan.
         setAssets([]);
+        setScannedOwner("");
         setNetworkStates({});
         setSelectedAssetId("");
         showStatus("Escaneando redes y contratos configurados…");
@@ -1743,6 +1746,7 @@ export default function App() {
       onSuccess: (result) => {
         if (!mountedRef.current) return;
         setAssets(result.assets);
+        setScannedOwner(result.owner);
         setNetworkStates(result.networks);
         setSelectedAssetId(result.assets[0]?.id ?? "");
         const incomplete = Object.values(result.networks).filter(
@@ -2171,6 +2175,11 @@ export default function App() {
     if (!selectedAsset || sending) return;
 
     try {
+      if (!scannedOwner || normalizeAddress(scannedOwner) !== normalizeAddress(targetAddress)) {
+        throw new Error(
+          "Los saldos disponibles pertenecen a otra dirección o todavía no se han confirmado. Escanea esta wallet antes de enviar.",
+        );
+      }
       const destination = normalizeRecipientAddress(recipient, selectedAsset.chainId);
       const owner = normalizeAddress(targetAddress);
 
@@ -2430,6 +2439,7 @@ export default function App() {
     selectedSafeRecoveryCandidate,
     sendFromWorldChain,
     sending,
+    scannedOwner,
     showStatus,
     targetAddress,
   ]);

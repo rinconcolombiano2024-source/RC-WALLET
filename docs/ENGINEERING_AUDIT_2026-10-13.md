@@ -116,3 +116,12 @@ volver a primer plano. Se cancelan solicitudes en desmontaje/cambio de token,
 se libera el temporizador y el listener `visibilitychange`. La optimización
 requiere medir CPU y consumo de red en un Android real, que no ha sido
 simulado ni medido en CI.
+
+### Protección adicional entre escaneos y autorización de envío
+
+El envío requiere que `scannedOwner` corresponda exactamente a
+`targetAddress`. Esto impide que un balance mostrado brevemente durante
+un cambio de cuenta sea reutilizado para autorizar operaciones desde una
+dirección distinta. Al iniciar cualquier escaneo se invalida el owner
+confirmado y al completarlo se establece el owner de la respuesta más nueva.
+Las firmas finales siguen siendo obligatorias y verificadas por proveedor.
