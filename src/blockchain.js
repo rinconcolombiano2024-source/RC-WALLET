@@ -2345,6 +2345,8 @@ async function scanNetwork(
       ),
     );
 
+  let failedTokenReads = 0;
+
   for (
     const result of tokenResults
   ) {
@@ -2365,6 +2367,7 @@ async function scanNetwork(
       result.status ===
       "rejected"
     ) {
+      failedTokenReads += 1;
       console.warn(
         `[TOKEN ${network.name}]`,
         result.reason,
@@ -2374,6 +2377,7 @@ async function scanNetwork(
 
   return {
     network,
+    failedTokenReads,
 
     accountKind:
       accountState.kind,
@@ -2424,7 +2428,12 @@ export async function scanAllNetworks(
         networks[
           network.chainId
         ] = {
-          status: "online",
+          status: result.value.failedTokenReads > 0 ? "partial" : "online",
+          failedTokenReads: result.value.failedTokenReads,
+          assetCount: result.value.assets.length,
+          error: result.value.failedTokenReads > 0
+            ? `${result.value.failedTokenReads} contrato(s) ERC-20 no pudieron leerse o validarse; los saldos pueden estar incompletos.`
+            : null,
 
           accountKind:
             result.value

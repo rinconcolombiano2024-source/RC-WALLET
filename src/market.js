@@ -150,7 +150,7 @@ export function getTradeUrl(action, asset, market) {
 
   if (
     asset.chainId === 56 ||
-    String(market.dexId).toLowerCase().includes("pancake")
+    String(market?.dexId ?? "").toLowerCase().includes("pancake")
   ) {
     return pancakeUrl(inputCurrency, outputCurrency);
   }

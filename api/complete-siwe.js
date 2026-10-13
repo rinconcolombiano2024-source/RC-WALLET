@@ -1,14 +1,7 @@
 import { verifySiweMessage } from "@worldcoin/minikit-js/siwe";
 
-const WORLD_ID_STATEMENTS = [
-  "Iniciar sesión en RC Wallet Recovery",
-  "Iniciar sesión con World ID en RC Wallet",
-  "Reconectar sesión World ID en RC Wallet",
-  "Confirmar envío de activos en RC Wallet",
-  "Confirmar compra/venta/cambio de activo en RC Wallet",
-  "Confirmar conexión de wallet externa en RC Wallet",
-  "Confirmar enlace de wallet externa en RC Wallet",
-];
+// Must match the statement actually sent by src/App.jsx walletAuth().
+const WALLET_AUTH_STATEMENT = "Iniciar sesión en RC Wallet Recovery";
 
 function readCookie(cookieHeader, name) {
   if (!cookieHeader) return "";
@@ -38,21 +31,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    let verification = null;
-    let lastVerificationError = null;
-
-    for (const statement of WORLD_ID_STATEMENTS) {
-      try {
-        verification = await verifySiweMessage(payload, nonce, statement);
-        if (verification?.isValid) break;
-      } catch (error) {
-        lastVerificationError = error;
-      }
-    }
-
-    if (!verification) {
-      throw lastVerificationError ?? new Error("SIWE verification failed");
-    }
+    const verification = await verifySiweMessage(
+      payload,
+      nonce,
+      WALLET_AUTH_STATEMENT,
+    );
 
     if (!verification.isValid) {
       return res.status(401).json({

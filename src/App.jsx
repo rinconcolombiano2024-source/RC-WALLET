@@ -1714,7 +1714,9 @@ export default function App() {
   }, [manualAddress, showStatus]);
 
   const scan = useCallback(async () => {
-    if (!targetAddress || scanning) return;
+    // A new account scan must supersede an older in-flight request.
+    // scanIdRef prevents old responses from replacing balances for a new address.
+    if (!targetAddress) return;
 
     const currentScanId = scanIdRef.current + 1;
     scanIdRef.current = currentScanId;
@@ -1733,11 +1735,17 @@ export default function App() {
           : (result.assets[0]?.id ?? ""),
       );
 
+      const incompleteNetworks = Object.values(result.networks).filter(
+        (network) => network.status !== "online",
+      );
+      const summary = result.assets.length
+        ? `Escaneo completado: ${result.assets.length} activo(s) con balance.`
+        : "No se encontraron balances entre los activos configurados.";
       showStatus(
-        result.assets.length
-          ? `Escaneo completado: ${result.assets.length} activo(s) con balance.`
-          : "No se encontraron balances entre los activos configurados.",
-        "success",
+        incompleteNetworks.length
+          ? `${summary} Atención: ${incompleteNetworks.length} red(es) con lecturas incompletas o errores. Un token no detectado NO implica saldo cero.`
+          : summary,
+        incompleteNetworks.length ? "warning" : "success",
       );
     } catch (error) {
       console.error("[SCAN]", error);
@@ -1750,7 +1758,7 @@ export default function App() {
         setScanning(false);
       }
     }
-  }, [customTokens, scanning, showStatus, targetAddress]);
+  }, [customTokens, showStatus, targetAddress]);
 
   useEffect(() => {
     if (targetAddress) void scan();
