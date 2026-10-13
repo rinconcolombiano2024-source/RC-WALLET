@@ -1124,7 +1124,7 @@ export default function App() {
 
   const portfolioSummary = useMemo(() => {
     const onlineNetworks = Object.values(networkStates).filter(
-      (state) => state.status === "online",
+      (state) => state.status === "online" || state.status === "partial",
     ).length;
     const worldAssets = assets.filter(
       (asset) => asset.chainId === WORLD_CHAIN_ID,
@@ -1733,11 +1733,16 @@ export default function App() {
           : (result.assets[0]?.id ?? ""),
       );
 
+      const incomplete = Object.values(result.networks).filter(
+        (network) => network.status !== "online",
+      ).length;
       showStatus(
-        result.assets.length
-          ? `Escaneo completado: ${result.assets.length} activo(s) con balance.`
-          : "No se encontraron balances entre los activos configurados.",
-        "success",
+        incomplete
+          ? `Escaneo parcial: ${incomplete} red(es) con errores o tokens sin leer. Los datos no consultados NO significan saldo cero.`
+          : result.assets.length
+            ? `Escaneo completado: ${result.assets.length} activo(s) con balance.`
+            : "No se encontraron balances entre los activos configurados.",
+        incomplete ? "warning" : "success",
       );
     } catch (error) {
       console.error("[SCAN]", error);
@@ -3655,14 +3660,20 @@ export default function App() {
                 {NETWORKS.map((network) => {
                   const state = networkStates[network.chainId];
                   return (
-                    <div className="network-pill" key={network.chainId}>
+                    <div
+                      className="network-pill"
+                      key={network.chainId}
+                      title={state?.error || (state?.status === "online" ? "Lectura completada" : "Sin lectura confirmada")}
+                    >
                       <span
                         className={`dot ${
                           state?.status === "online"
                             ? "dot--green"
-                            : state?.status === "offline"
-                              ? "dot--red"
-                              : ""
+                            : state?.status === "partial"
+                              ? "dot--amber"
+                              : state?.status === "offline"
+                                ? "dot--red"
+                                : ""
                         }`}
                       />
                       <span>{network.name}</span>
