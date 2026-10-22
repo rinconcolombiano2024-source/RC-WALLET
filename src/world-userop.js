@@ -82,3 +82,17 @@ export function verifyWorldChainReceipt(transactionHash, receipt) {
     Number.isSafeInteger(receipt.blockNumber) &&
     receipt.blockNumber >= 1;
 }
+
+
+/** Keep a pending transfer trace after MiniKit submits, even if RPC is down. */
+export function upsertWorldTransferHistory(history, record, limit = 25) {
+  const hash = assertWorldUserOpHash(record?.userOpHash).toLowerCase();
+  const records = Array.isArray(history) ? history : [];
+  return [
+    record,
+    ...records.filter(
+      (entry) => typeof entry.userOpHash !== "string" ||
+        entry.userOpHash.toLowerCase() !== hash,
+    ),
+  ].slice(0, limit);
+}
