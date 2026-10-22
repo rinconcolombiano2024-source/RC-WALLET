@@ -88,8 +88,21 @@ export function verifyWorldChainReceipt(transactionHash, receipt) {
 export function upsertWorldTransferHistory(history, record, limit = 25) {
   const hash = assertWorldUserOpHash(record?.userOpHash).toLowerCase();
   const records = Array.isArray(history) ? history : [];
+  const existing = records.find((entry) =>
+    typeof entry.userOpHash === "string" &&
+    entry.userOpHash.toLowerCase() === hash,
+  );
+  // Preserve the authenticated sender across polling and restarts. An
+  // incoming update can NEVER reassign an accepted userOp to another owner.
+  if (existing?.sender && record.sender &&
+      existing.sender.toLowerCase() !== record.sender.toLowerCase()) {
+    throw integrityError("La operación MiniKit no puede cambiar de propietario.");
+  }
+  const updated = existing?.sender && !record.sender
+    ? { ...record, sender: existing.sender }
+    : record;
   return [
-    record,
+    updated,
     ...records.filter(
       (entry) => typeof entry.userOpHash !== "string" ||
         entry.userOpHash.toLowerCase() !== hash,
