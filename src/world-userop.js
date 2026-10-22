@@ -47,3 +47,38 @@ export function verifyWorldUserOpStatus(userOpHash, expectedSender, result) {
 
   return result;
 }
+
+
+/**
+ * A Developer Portal "success" is not itself an independently checked
+ * transaction receipt. The receipt must be fetched from a chainId-verified
+ * World Chain RPC before the UI calls the transfer confirmed.
+ *
+ * Returns false while the receipt is not yet indexed; never invent success.
+ */
+export function verifyWorldChainReceipt(transactionHash, receipt) {
+  if (typeof transactionHash !== "string" || !HEX32.test(transactionHash)) {
+    throw integrityError("El hash final de la transacción World Chain es inválido.");
+  }
+
+  if (receipt == null) {
+    return false; // Propagation / RPC indexing can lag the Developer Portal.
+  }
+
+  const observedHash = receipt.hash ?? receipt.transactionHash;
+  if (typeof observedHash !== "string" ||
+      !HEX32.test(observedHash) ||
+      observedHash.toLowerCase() !== transactionHash.toLowerCase()) {
+    throw integrityError("El recibo blockchain corresponde a otra transacción.");
+  }
+
+  if (receipt.status === 0) {
+    const error = new Error("La transacción fue revertida en World Chain. No repitas el envío sin revisar su estado.");
+    error.name = "WorldUserOperationFailed";
+    throw error;
+  }
+
+  return receipt.status === 1 &&
+    Number.isSafeInteger(receipt.blockNumber) &&
+    receipt.blockNumber >= 1;
+}
