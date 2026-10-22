@@ -41,6 +41,7 @@ import {
 } from "./safe-recovery-flow.js";
 import { createLatestScanRunner } from "./scan-coordinator.js";
 import { assertWorldUserOpHash, verifyWorldUserOpStatus, verifyWorldChainReceipt, upsertWorldTransferHistory } from "./world-userop.js";
+import { canReconcileWorldTransfer, reconcileWorldTransfer } from "./world-transfer-reconcile.js";
 import {
   connectInjectedProvider,
   connectWalletConnectProvider,
@@ -975,6 +976,7 @@ export default function App() {
   const [lastTransaction, setLastTransaction] = useState(null);
   const [transferHistory, setTransferHistory] = useState(readTransferHistory);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [recheckingWorldTransfers, setRecheckingWorldTransfers] = useState(false);
   const [historyDirectionFilter, setHistoryDirectionFilter] = useState("all");
   const [historyDateFilter, setHistoryDateFilter] = useState("all");
   const [proofChainId, setProofChainId] = useState(10);
@@ -2186,6 +2188,7 @@ export default function App() {
         token: asset.symbol,
         amount: ethers.formatUnits(recipientAmountUnits, asset.decimals),
         recipient: destination,
+        sender: sessionWorldAddress,
         direction: "sent",
         createdAt: new Date().toISOString(),
       };
@@ -2504,6 +2507,93 @@ export default function App() {
     scannedOwner,
     showStatus,
     targetAddress,
+  ]);
+
+  // Explicit read-only check for transactions that World App accepted but
+  // whose final on-chain receipt was not available (including after reload).
+  // Never re-sign or re-broadcast a pending transaction automatically.
+  const recheckPendingWorldTransfers = useCallback(async () => {
+    if (recheckingWorldTransfers) return;
+    const owner = authenticatedWorldAddressRef.current || authenticatedWorldAddress;
+    if (!authenticated || !miniKitReady || !owner) {
+      showStatus("Autentica tu billetera en World App antes de verificar operaciones pendientes.", "warning");
+      return;
+    }
+
+    const outstanding = transferHistory
+      .filter((entry) => canReconcileWorldTransfer(entry, owner))
+      .slice(0, 8);
+
+    if (!outstanding.length) {
+      showStatus(
+        "No hay operaciones pendientes verificables para esta billetera. Los registros antiguos sin remitente validado requieren revisión manual.",
+        "info",
+      );
+      return;
+    }
+
+    setRecheckingWorldTransfers(true);
+    let verified = 0;
+    let stillPending = 0;
+    let failedQueries = 0;
+
+    try {
+      for (const entry of outstanding) {
+        try {
+          const updated = await reconcileWorldTransfer(entry, {
+            authenticatedAddress: owner,
+            fetchUserOperation: async (userOpHash) => {
+              const response = await withMiniKitTimeout(
+                () => fetch(
+                  `https://developer.world.org/api/v2/minikit/userop/${assertWorldUserOpHash(userOpHash)}`,
+                  { cache: "no-store" },
+                ),
+                "Verificación de operación World App",
+                10_000,
+              );
+              if (!response.ok) throw new Error("World Developer Portal no respondió correctamente");
+              return response.json();
+            },
+            fetchReceipt: async (txHash) => {
+              const worldNetwork = NETWORKS.find((network) => network.chainId === WORLD_CHAIN_ID);
+              const provider = await getProvider(worldNetwork);
+              return withMiniKitTimeout(
+                () => provider.getTransactionReceipt(txHash),
+                "Verificación de recibo World Chain",
+                10_000,
+              );
+            },
+          });
+          if (!updated) {
+            stillPending += 1;
+            continue;
+          }
+          setTransferHistory((current) => upsertWorldTransferHistory(current, updated));
+          setLastTransaction((current) =>
+            current?.userOpHash?.toLowerCase() === updated.userOpHash.toLowerCase()
+              ? updated
+              : current,
+          );
+          verified += 1;
+        } catch (error) {
+          failedQueries += 1;
+          console.warn("[WORLD RECONCILIATION]", error);
+        }
+      }
+      showStatus(
+        `Operaciones verificadas: ${verified}. Pendientes: ${stillPending}. Sin respuesta verificable: ${failedQueries}. No se enviaron transacciones.`,
+        failedQueries ? "warning" : "success",
+      );
+    } finally {
+      if (mountedRef.current) setRecheckingWorldTransfers(false);
+    }
+  }, [
+    authenticated,
+    authenticatedWorldAddress,
+    miniKitReady,
+    recheckingWorldTransfers,
+    showStatus,
+    transferHistory,
   ]);
 
   const copyRecoveryReport = useCallback(async () => {
@@ -3266,6 +3356,16 @@ export default function App() {
             >
               <span className="eyebrow">Historial local</span>
               <h2 id="transfer-history-title">Transferencias</h2>
+              <button
+                className="button button--secondary"
+                type="button"
+                disabled={recheckingWorldTransfers || !authenticated || !miniKitReady}
+                onClick={() => void recheckPendingWorldTransfers()}
+              >
+                {recheckingWorldTransfers
+                  ? "Verificando operaciones pendientes…"
+                  : "Verificar operaciones pendientes en World Chain"}
+              </button>
               {transferHistory.length ? (
                 <>
                   <div className="history-filters">
