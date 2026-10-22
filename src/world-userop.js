@@ -39,6 +39,13 @@ export function verifyWorldUserOpStatus(userOpHash, expectedSender, result) {
     }
   }
 
+  // World Developer Portal defines sender, userOpHash and mined tx hash
+  // on successful responses; never accept incomplete success evidence.
+  if (result.status === "success" &&
+      (!result.userOpHash || !result.sender || !result.transaction_hash)) {
+    throw integrityError("World App no aportó datos suficientes para confirmar la transacción.");
+  }
+
   if (result.status === "success" && result.transaction_hash != null &&
       (typeof result.transaction_hash !== "string" ||
        !HEX32.test(result.transaction_hash))) {
