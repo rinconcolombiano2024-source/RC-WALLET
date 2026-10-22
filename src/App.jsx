@@ -9,6 +9,7 @@ import { ethers } from "ethers";
 import { MiniKit } from "@worldcoin/minikit-js";
 import {
   formatBalance,
+  getProvider,
   isValidEvmAddressInput,
   normalizeAddress,
   normalizeRecipientAddress,
@@ -39,7 +40,7 @@ import {
   prepareAndSignWorldSafeRecovery,
 } from "./safe-recovery-flow.js";
 import { createLatestScanRunner } from "./scan-coordinator.js";
-import { assertWorldUserOpHash, verifyWorldUserOpStatus } from "./world-userop.js";
+import { assertWorldUserOpHash, verifyWorldUserOpStatus, verifyWorldChainReceipt } from "./world-userop.js";
 import {
   connectInjectedProvider,
   connectWalletConnectProvider,
@@ -509,7 +510,28 @@ async function pollWorldUserOperation(userOpHash, asset, expectedSender, attempt
           await response.json(),
         );
         if (result.status === "success" && result.transaction_hash) {
-          return result;
+          // A successful Developer Portal lookup identifies the transaction,
+          // but an independent World Chain receipt must confirm it was mined.
+          try {
+            const worldNetwork = NETWORKS.find((network) => network.chainId === WORLD_CHAIN_ID);
+            const provider = await getProvider(worldNetwork);
+            const receipt = await withMiniKitTimeout(
+              () => provider.getTransactionReceipt(result.transaction_hash),
+              "Recibo World Chain",
+              8_000,
+            );
+            if (verifyWorldChainReceipt(result.transaction_hash, receipt)) {
+              return result;
+            }
+          } catch (error) {
+            if (error?.name === "WorldUserOperationFailed" ||
+                error?.name === "WorldUserOperationIntegrityError") {
+              throw error;
+            }
+            if (attempt === attempts - 1) {
+              console.warn("[WORLD RECEIPT] Confirmation still unavailable", error);
+            }
+          }
         }
         if (result.status === "failed") {
           const failure = new Error(
@@ -2152,8 +2174,16 @@ export default function App() {
         }
       }
 
+      if (result.data?.from &&
+          normalizeAddress(result.data.from) !== normalizeAddress(sessionWorldAddress)) {
+        throw new Error(
+          "World App devolvió una cuenta de origen diferente de la autenticada. " +
+          "La operación puede estar enviada: consulta su userOpHash antes de reintentar.",
+        );
+      }
+
       showStatus(
-        "Operación enviada. Esperando confirmación en World Chain…",
+        "Operación enviada. Verificando confirmación blockchain en World Chain…",
       );
       let operation;
       try {
