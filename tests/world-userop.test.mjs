@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   assertWorldUserOpHash,
   verifyWorldUserOpStatus,
+  verifyWorldChainReceipt,
 } from "../src/world-userop.js";
 
 const userOpHash = "0x" + "a".repeat(64);
@@ -70,4 +71,49 @@ test("rejects malformed mined transaction hashes without marking success", () =>
 test("preserves failed user operations for the existing error handler", () => {
   const failed = { status: "failed", userOpHash, sender: worldSafe, transaction_hash: null };
   assert.equal(verifyWorldUserOpStatus(userOpHash, worldSafe, failed), failed);
+});
+
+test("confirms only a mined, successful World Chain transaction receipt", () => {
+  assert.equal(verifyWorldChainReceipt(txHash, null), false);
+  assert.equal(verifyWorldChainReceipt(txHash, undefined), false);
+  assert.equal(verifyWorldChainReceipt(txHash, {
+    hash: txHash,
+    status: 1,
+    blockNumber: 12345,
+  }), true);
+});
+
+test("does not mark unmined or unknown-status receipts as confirmed", () => {
+  assert.equal(verifyWorldChainReceipt(txHash, {
+    hash: txHash,
+    status: null,
+    blockNumber: null,
+  }), false);
+  assert.equal(verifyWorldChainReceipt(txHash, {
+    hash: txHash,
+    status: 1,
+    blockNumber: null,
+  }), false);
+});
+
+test("rejects a receipt from a different transaction", () => {
+  assert.throws(
+    () => verifyWorldChainReceipt(txHash, {
+      hash: "0x" + "f".repeat(64),
+      status: 1,
+      blockNumber: 12345,
+    }),
+    /otra transacción/,
+  );
+});
+
+test("rejects reverted on-chain transactions even when the portal reports success", () => {
+  assert.throws(
+    () => verifyWorldChainReceipt(txHash, {
+      hash: txHash,
+      status: 0,
+      blockNumber: 12345,
+    }),
+    (error) => error.name === "WorldUserOperationFailed",
+  );
 });
