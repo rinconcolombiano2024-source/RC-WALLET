@@ -4,6 +4,7 @@ import {
   assertWorldUserOpHash,
   verifyWorldUserOpStatus,
   verifyWorldChainReceipt,
+  upsertWorldTransferHistory,
 } from "../src/world-userop.js";
 
 const userOpHash = "0x" + "a".repeat(64);
@@ -115,5 +116,32 @@ test("rejects reverted on-chain transactions even when the portal reports succes
       blockNumber: 12345,
     }),
     (error) => error.name === "WorldUserOperationFailed",
+  );
+});
+
+test("persists a MiniKit operation while its transaction receipt is pending", () => {
+  const pending = { userOpHash, pending: true, recipient: worldSafe };
+  const entries = upsertWorldTransferHistory([], pending);
+  assert.deepEqual(entries, [pending]);
+});
+
+test("replaces a pending operation on confirmation without duplicating the transfer", () => {
+  const pending = { userOpHash, pending: true, hash: null };
+  const older = { userOpHash: "0x" + "e".repeat(64), pending: false };
+  const confirmed = { userOpHash: userOpHash.toUpperCase().replace(/^0X/, "0x"), pending: false, hash: txHash };
+  const entries = upsertWorldTransferHistory([pending, older], confirmed);
+  assert.deepEqual(entries, [confirmed, older]);
+});
+
+test("keeps a failed operation identifiable by its original userOpHash", () => {
+  const pending = { userOpHash, pending: true };
+  const failed = { userOpHash, pending: false, failed: true };
+  assert.deepEqual(upsertWorldTransferHistory([pending], failed), [failed]);
+});
+
+test("rejects invalid pending operation hashes instead of corrupting history", () => {
+  assert.throws(
+    () => upsertWorldTransferHistory([], { userOpHash: "bad" }),
+    /userOpHash inválido/,
   );
 });
