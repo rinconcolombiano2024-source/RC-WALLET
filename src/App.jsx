@@ -935,6 +935,7 @@ export default function App() {
   const externalConnectionRef = useRef(null);
   const autoLoginAttemptedRef = useRef(false);
   const authenticatedRef = useRef(false);
+  const sendConfirmationLockRef = useRef(false);
   const authenticatedWorldAddressRef = useRef("");
   const sendSectionRef = useRef(null);
   const qrVideoRef = useRef(null);
@@ -971,6 +972,7 @@ export default function App() {
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [sending, setSending] = useState(false);
+  const [confirmingSend, setConfirmingSend] = useState(false);
   const [qrScanning, setQrScanning] = useState(false);
   const [qrScannerError, setQrScannerError] = useState("");
   const [lastTransaction, setLastTransaction] = useState(null);
@@ -3313,34 +3315,51 @@ export default function App() {
                 <button
                   className="button button--primary"
                   type="button"
-                  disabled={sending}
+                  disabled={sending || confirmingSend}
                   onClick={async () => {
-                    if (selectedAsset.chainId === WORLD_CHAIN_ID) {
-                      const confirmed = await confirmWorldAction(
-                        "envío de activos",
-                      );
-                      if (!confirmed) return;
-                    }
+                    // Guard even before the first React rerender: rapid taps
+                    // must not open multiple signing dialogs or send twice.
+                    if (sendConfirmationLockRef.current || sending) return;
+                    sendConfirmationLockRef.current = true;
+                    setConfirmingSend(true);
+                    try {
+                      if (selectedAsset.chainId === WORLD_CHAIN_ID) {
+                        const confirmed = await confirmWorldAction(
+                          "envío de activos",
+                        );
+                        if (!confirmed) return;
+                      }
 
-                    if (
-                      selectedSafeRecoveryCandidate &&
-                      !hasValidPreparedSafeRecovery
-                    ) {
-                      const confirmed = await confirmWorldAction(
-                        "firma Safe de recuperación",
-                      );
-                      if (!confirmed) return;
-                    }
+                      if (
+                        selectedSafeRecoveryCandidate &&
+                        !hasValidPreparedSafeRecovery
+                      ) {
+                        const confirmed = await confirmWorldAction(
+                          "firma Safe de recuperación",
+                        );
+                        if (!confirmed) return;
+                      }
 
-                    setShowSendConfirm(false);
-                    void send();
+                      setShowSendConfirm(false);
+                      await send();
+                    } catch (error) {
+                      showStatus(
+                        error instanceof Error ? error.message : "No se pudo confirmar la operación",
+                        "error",
+                      );
+                    } finally {
+                      sendConfirmationLockRef.current = false;
+                      if (mountedRef.current) setConfirmingSend(false);
+                    }
                   }}
                 >
-                  {selectedSafeRecoveryCandidate
-                    ? hasValidPreparedSafeRecovery
-                      ? "Confirmar ejecución Safe"
-                      : "Firmar SafeTx en World App"
-                    : "Confirmar y firmar"}
+                  {confirmingSend
+                    ? "Validando operación…"
+                    : selectedSafeRecoveryCandidate
+                      ? hasValidPreparedSafeRecovery
+                        ? "Confirmar ejecución Safe"
+                        : "Firmar SafeTx en World App"
+                      : "Confirmar y firmar"}
                 </button>
               </div>
             </section>
