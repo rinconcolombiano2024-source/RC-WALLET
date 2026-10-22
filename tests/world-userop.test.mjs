@@ -145,3 +145,24 @@ test("rejects invalid pending operation hashes instead of corrupting history", (
     /userOpHash inválido/,
   );
 });
+
+test("history updates cannot erase the original authenticated World Wallet sender", () => {
+  const owner = "0x" + "c".repeat(40);
+  const existing = { userOpHash, sender: owner, pending: true };
+  const next = upsertWorldTransferHistory([existing], {
+    userOpHash,
+    pending: false,
+    hash: txHash,
+  });
+  assert.equal(next[0].sender, owner);
+  assert.equal(next[0].pending, false);
+});
+
+test("history updates cannot overwrite a World user operation with another owner", () => {
+  const old = { userOpHash, sender: "0x" + "c".repeat(40), pending: true };
+  const other = { userOpHash, sender: "0x" + "d".repeat(40), pending: false };
+  assert.throws(
+    () => upsertWorldTransferHistory([old], other),
+    /no puede cambiar de propietario/,
+  );
+});
