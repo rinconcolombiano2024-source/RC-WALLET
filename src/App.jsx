@@ -2221,6 +2221,7 @@ export default function App() {
       return {
         route: "minikit",
         userOpHash: result.data.userOpHash,
+        sender: sessionWorldAddress, // Retain owner binding after a pending result is saved again.
         hash: operation.transaction_hash,
         pending: operation.status === "pending",
       };
