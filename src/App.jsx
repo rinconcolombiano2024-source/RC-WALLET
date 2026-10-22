@@ -40,7 +40,7 @@ import {
   prepareAndSignWorldSafeRecovery,
 } from "./safe-recovery-flow.js";
 import { createLatestScanRunner } from "./scan-coordinator.js";
-import { assertWorldUserOpHash, verifyWorldUserOpStatus, verifyWorldChainReceipt } from "./world-userop.js";
+import { assertWorldUserOpHash, verifyWorldUserOpStatus, verifyWorldChainReceipt, upsertWorldTransferHistory } from "./world-userop.js";
 import {
   connectInjectedProvider,
   connectWalletConnectProvider,
@@ -2174,11 +2174,29 @@ export default function App() {
         }
       }
 
+      // Persist the accepted MiniKit userOpHash before polling: interrupted
+      // RPC requests must not erase proof of a potentially submitted transfer.
+      const acceptedHash = assertWorldUserOpHash(result.data.userOpHash);
+      const pendingRecord = {
+        route: "minikit",
+        userOpHash: acceptedHash,
+        hash: null,
+        pending: true,
+        network: NETWORKS.find((network) => network.chainId === WORLD_CHAIN_ID),
+        token: asset.symbol,
+        amount: ethers.formatUnits(recipientAmountUnits, asset.decimals),
+        recipient: destination,
+        direction: "sent",
+        createdAt: new Date().toISOString(),
+      };
+      setLastTransaction(pendingRecord);
+      setTransferHistory((current) => upsertWorldTransferHistory(current, pendingRecord));
+
       if (result.data?.from &&
           normalizeAddress(result.data.from) !== normalizeAddress(sessionWorldAddress)) {
         throw new Error(
           "World App devolvió una cuenta de origen diferente de la autenticada. " +
-          "La operación puede estar enviada: consulta su userOpHash antes de reintentar.",
+          `La operación puede estar enviada (userOpHash: ${acceptedHash}). Comprueba su estado antes de reintentar.`,
         );
       }
 
@@ -2187,8 +2205,13 @@ export default function App() {
       );
       let operation;
       try {
-        operation = await pollWorldUserOperation(result.data.userOpHash, asset, sessionWorldAddress);
+        operation = await pollWorldUserOperation(acceptedHash, asset, sessionWorldAddress);
       } catch (error) {
+        if (error?.name === "WorldUserOperationFailed") {
+          const failedRecord = { ...pendingRecord, pending: false, failed: true };
+          setTransferHistory((current) => upsertWorldTransferHistory(current, failedRecord));
+          setLastTransaction(failedRecord);
+        }
         throw error;
       }
 
@@ -2435,7 +2458,9 @@ export default function App() {
 
       setLastTransaction(transactionRecord);
       setTransferHistory((current) =>
-        [transactionRecord, ...current].slice(0, 25),
+        result.route === "minikit"
+          ? upsertWorldTransferHistory(current, transactionRecord)
+          : [transactionRecord, ...current].slice(0, 25),
       );
       setRecipient("");
       setAmount("");
@@ -2881,7 +2906,7 @@ export default function App() {
                 </strong>
                 <span>
                   {item.network?.name || "Red"} ·{" "}
-                  {item.pending ? "Pendiente" : "Confirmada"}
+                  {item.failed ? "Fallida" : item.pending ? "Pendiente" : "Confirmada"}
                 </span>
               </div>
               <small>
@@ -3311,7 +3336,7 @@ export default function App() {
                         </strong>
                         <span>
                           {item.network?.name || "Red"} ·{" "}
-                          {item.pending ? "Pendiente" : "Confirmada"}
+                          {item.failed ? "Fallida" : item.pending ? "Pendiente" : "Confirmada"}
                         </span>
                       </div>
                       <small>
@@ -3644,9 +3669,11 @@ export default function App() {
             {lastTransaction ? (
               <div className="transaction-result">
                 <strong>
-                  {lastTransaction.pending
-                    ? "Operación pendiente"
-                    : "Operación confirmada"}
+                  {lastTransaction.failed
+                    ? "Operación fallida"
+                    : lastTransaction.pending
+                      ? "Operación pendiente"
+                      : "Operación confirmada"}
                 </strong>
                 <span>{lastTransaction.network?.name}</span>
                 {lastTransaction.hash ? (
@@ -4490,9 +4517,11 @@ export default function App() {
             {lastTransaction && (
               <div className="transaction-result">
                 <strong>
-                  {lastTransaction.pending
-                    ? "Operación pendiente"
-                    : "Operación confirmada"}
+                  {lastTransaction.failed
+                    ? "Operación fallida"
+                    : lastTransaction.pending
+                      ? "Operación pendiente"
+                      : "Operación confirmada"}
                 </strong>
                 {lastTransaction.hash ? (
                   <a
