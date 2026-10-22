@@ -76,7 +76,19 @@ export async function reconcileWorldTransfer(record, {
   }
 
   const receipt = await fetchReceipt(status.transaction_hash);
-  if (!verifyWorldChainReceipt(status.transaction_hash, receipt)) return null;
+  try {
+    if (!verifyWorldChainReceipt(status.transaction_hash, receipt)) return null;
+  } catch (error) {
+    if (error?.name === "WorldUserOperationFailed") {
+      return {
+        ...record,
+        pending: false,
+        failed: true,
+        hash: status.transaction_hash,
+      };
+    }
+    throw error;
+  }
 
   return {
     ...record,
