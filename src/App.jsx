@@ -39,6 +39,7 @@ import {
   prepareAndSignWorldSafeRecovery,
 } from "./safe-recovery-flow.js";
 import { createLatestScanRunner } from "./scan-coordinator.js";
+import { assertWorldUserOpHash, verifyWorldUserOpStatus } from "./world-userop.js";
 import {
   connectInjectedProvider,
   connectWalletConnectProvider,
@@ -493,7 +494,8 @@ function extractEvmAddressFromQr(value, chainId) {
   return normalizeRecipientAddress(value, chainId);
 }
 
-async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
+async function pollWorldUserOperation(userOpHash, asset, expectedSender, attempts = 30) {
+  assertWorldUserOpHash(userOpHash);
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(
@@ -501,7 +503,11 @@ async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
         { cache: "no-store" },
       );
       if (response.ok) {
-        const result = await response.json();
+        const result = verifyWorldUserOpStatus(
+          userOpHash,
+          expectedSender,
+          await response.json(),
+        );
         if (result.status === "success" && result.transaction_hash) {
           return result;
         }
@@ -514,7 +520,8 @@ async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
         }
       }
     } catch (error) {
-      if (error?.name === "WorldUserOperationFailed") {
+      if (error?.name === "WorldUserOperationFailed" ||
+          error?.name === "WorldUserOperationIntegrityError") {
         throw error;
       }
       if (attempt === attempts - 1) {
@@ -2150,7 +2157,7 @@ export default function App() {
       );
       let operation;
       try {
-        operation = await pollWorldUserOperation(result.data.userOpHash, asset);
+        operation = await pollWorldUserOperation(result.data.userOpHash, asset, sessionWorldAddress);
       } catch (error) {
         throw error;
       }
