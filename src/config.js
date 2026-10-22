@@ -321,6 +321,20 @@ export const NETWORKS = Object.freeze([
     writableWithMiniKit: false,
   },
 
+  // Solo lectura mediante RPC; MiniKit no puede firmar en Polygon.
+  {
+    name: "Polygon",
+    chainId: 137,
+    chainHex: "0x89",
+    symbol: "POL",
+    rpcUrls: [
+      "https://polygon-bor-rpc.publicnode.com",
+      "https://polygon.drpc.org",
+    ],
+    explorer: "https://polygonscan.com",
+    writableWithMiniKit: false,
+  },
+
   {
     name: "World Chain Sepolia",
     chainId: 4801,
@@ -376,6 +390,8 @@ export const TOKENS = Object.freeze([
       10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
       8453: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      // USDC nativo de Circle en Polygon PoS (no USDC.e puenteado).
+      137: "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
       4801: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",
     },
   },
