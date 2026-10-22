@@ -27,5 +27,21 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
-      - name: Security audit
-        run: npm audit --audit-level=high
+      # npm registry advisory API occasionally returns HTTP 503; retry the
+      # same security gate, but NEVER downgrade or ignore a failing audit.
+      - name: Security audit (bounded retries, fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Security audit attempt ${attempt}/3"
+            if npm audit --audit-level=high --fetch-retries=0 --fetch-timeout=25000; then
+              echo "Security audit passed"
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep 5
+            fi
+          done
+          echo "::error::Security audit did not pass after three attempts; release stays blocked."
+          exit 1
