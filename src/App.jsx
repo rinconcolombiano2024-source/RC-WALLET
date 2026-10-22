@@ -9,8 +9,10 @@ import { ethers } from "ethers";
 import { MiniKit } from "@worldcoin/minikit-js";
 import {
   formatBalance,
+  getProvider,
   isValidEvmAddressInput,
   normalizeAddress,
+  normalizeRecipientAddress,
   scanAllNetworks,
   sendWithExternalWallet,
 } from "./blockchain.js";
@@ -37,6 +39,10 @@ import {
   inspectPreparedSafeRecovery,
   prepareAndSignWorldSafeRecovery,
 } from "./safe-recovery-flow.js";
+import { createLatestScanRunner } from "./scan-coordinator.js";
+import { assertWorldUserOpHash, verifyWorldUserOpStatus, verifyWorldChainReceipt, upsertWorldTransferHistory } from "./world-userop.js";
+import { canReconcileWorldTransfer, reconcileWorldTransfer } from "./world-transfer-reconcile.js";
+import { normalizeUiLocale, uiText } from "./ui-i18n.js";
 import {
   connectInjectedProvider,
   connectWalletConnectProvider,
@@ -487,15 +493,12 @@ function qrImageUrl(value, size = 260) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}`;
 }
 
-function extractEvmAddressFromQr(value) {
-  try {
-    return normalizeAddress(value);
-  } catch {
-    throw new Error("El QR no contiene una dirección EVM válida");
-  }
+function extractEvmAddressFromQr(value, chainId) {
+  return normalizeRecipientAddress(value, chainId);
 }
 
-async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
+async function pollWorldUserOperation(userOpHash, asset, expectedSender, attempts = 30) {
+  assertWorldUserOpHash(userOpHash);
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(
@@ -503,9 +506,34 @@ async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
         { cache: "no-store" },
       );
       if (response.ok) {
-        const result = await response.json();
+        const result = verifyWorldUserOpStatus(
+          userOpHash,
+          expectedSender,
+          await response.json(),
+        );
         if (result.status === "success" && result.transaction_hash) {
-          return result;
+          // A successful Developer Portal lookup identifies the transaction,
+          // but an independent World Chain receipt must confirm it was mined.
+          try {
+            const worldNetwork = NETWORKS.find((network) => network.chainId === WORLD_CHAIN_ID);
+            const provider = await getProvider(worldNetwork);
+            const receipt = await withMiniKitTimeout(
+              () => provider.getTransactionReceipt(result.transaction_hash),
+              "Recibo World Chain",
+              8_000,
+            );
+            if (verifyWorldChainReceipt(result.transaction_hash, receipt)) {
+              return result;
+            }
+          } catch (error) {
+            if (error?.name === "WorldUserOperationFailed" ||
+                error?.name === "WorldUserOperationIntegrityError") {
+              throw error;
+            }
+            if (attempt === attempts - 1) {
+              console.warn("[WORLD RECEIPT] Confirmation still unavailable", error);
+            }
+          }
         }
         if (result.status === "failed") {
           const failure = new Error(
@@ -516,7 +544,8 @@ async function pollWorldUserOperation(userOpHash, asset, attempts = 30) {
         }
       }
     } catch (error) {
-      if (error?.name === "WorldUserOperationFailed") {
+      if (error?.name === "WorldUserOperationFailed" ||
+          error?.name === "WorldUserOperationIntegrityError") {
         throw error;
       }
       if (attempt === attempts - 1) {
@@ -902,10 +931,12 @@ function stopQrScannerStream(stream) {
 
 export default function App() {
   const mountedRef = useRef(false);
-  const scanIdRef = useRef(0);
+  const scanRunnerRef = useRef(null);
+  if (!scanRunnerRef.current) scanRunnerRef.current = createLatestScanRunner();
   const externalConnectionRef = useRef(null);
   const autoLoginAttemptedRef = useRef(false);
   const authenticatedRef = useRef(false);
+  const sendConfirmationLockRef = useRef(false);
   const authenticatedWorldAddressRef = useRef("");
   const sendSectionRef = useRef(null);
   const qrVideoRef = useRef(null);
@@ -913,6 +944,13 @@ export default function App() {
   const qrScanActiveRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState("home");
+  const [uiLocale, setUiLocale] = useState(() => {
+    try {
+      return normalizeUiLocale(localStorage.getItem("rc_wallet_ui_locale") || "es");
+    } catch {
+      return "es";
+    }
+  });
   const [miniKitReady, setMiniKitReady] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [authenticatedWorldAddress, setAuthenticatedWorldAddress] =
@@ -924,6 +962,8 @@ export default function App() {
   const [externalConnectionName, setExternalConnectionName] = useState("");
   const [externalConnecting, setExternalConnecting] = useState(false);
   const [assets, setAssets] = useState([]);
+  // Financial actions must be bound to the address that produced the balances.
+  const [scannedOwner, setScannedOwner] = useState("");
   const [networkStates, setNetworkStates] = useState({});
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [bridgeDestinationChainId, setBridgeDestinationChainId] =
@@ -940,11 +980,13 @@ export default function App() {
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [sending, setSending] = useState(false);
+  const [confirmingSend, setConfirmingSend] = useState(false);
   const [qrScanning, setQrScanning] = useState(false);
   const [qrScannerError, setQrScannerError] = useState("");
   const [lastTransaction, setLastTransaction] = useState(null);
   const [transferHistory, setTransferHistory] = useState(readTransferHistory);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [recheckingWorldTransfers, setRecheckingWorldTransfers] = useState(false);
   const [historyDirectionFilter, setHistoryDirectionFilter] = useState("all");
   const [historyDateFilter, setHistoryDateFilter] = useState("all");
   const [proofChainId, setProofChainId] = useState(10);
@@ -1124,7 +1166,7 @@ export default function App() {
 
   const portfolioSummary = useMemo(() => {
     const onlineNetworks = Object.values(networkStates).filter(
-      (state) => state.status === "online",
+      (state) => state.status === "online" || state.status === "partial",
     ).length;
     const worldAssets = assets.filter(
       (asset) => asset.chainId === WORLD_CHAIN_ID,
@@ -1402,18 +1444,18 @@ export default function App() {
   }, []);
 
   const performWorldLogin = useCallback(
-    async (contextLabel = "sesión World ID") => {
+    async (contextLabel = "sesión de wallet", expectedAddress = null) => {
       const ready = await waitForMiniKitReady();
       setMiniKitReady(ready);
 
       if (!ready) {
-        throw new Error("Abre RC Wallet dentro de World App para verificar World ID");
+        throw new Error("Abre RC Wallet dentro de World App para autenticar tu wallet");
       }
       if (typeof MiniKit.walletAuth !== "function") {
         throw new Error("Wallet Auth no está disponible en este entorno de World App");
       }
 
-      showStatus(`Solicitando verificación segura con World ID: ${contextLabel}…`);
+      showStatus(`Solicitando autenticación SIWE de World App: ${contextLabel}…`);
       const nonceResponse = await fetch("/api/nonce", {
         credentials: "include",
         cache: "no-store",
@@ -1446,11 +1488,18 @@ export default function App() {
 
       if (!verifyResponse.ok || !verification.isValid) {
         throw new Error(
-          verification.error ?? "La verificación World ID no pudo validarse",
+          verification.error ?? "La autenticación SIWE no pudo validarse",
         );
       }
 
       const address = normalizeAddress(verification.address);
+      // An action re-auth must not silently switch the account under review.
+      // Check BEFORE updating targetAddress or launching a new balance scan.
+      if (expectedAddress && normalizeAddress(expectedAddress) !== address) {
+        throw new Error(
+          "La wallet autenticada no coincide con la cuenta activa. Acción cancelada sin cambiar de cuenta.",
+        );
+      }
       setTargetAddress(address);
       setManualAddress(address);
       setAuthenticatedWorldAddress(address);
@@ -1467,6 +1516,7 @@ export default function App() {
       try {
         const verifiedAddress = await performWorldLogin(
           `Confirmar ${actionLabel} en RC Wallet`,
+          targetAddress || null,
         );
 
         if (
@@ -1474,20 +1524,20 @@ export default function App() {
           normalizeAddress(verifiedAddress) !== normalizeAddress(targetAddress)
         ) {
           showStatus(
-            "La sesión World ID verificada no coincide con la wallet activa.",
+            "La sesión SIWE no coincide con la wallet activa.",
             "error",
           );
           return false;
         }
 
-        showStatus("World ID verificado. Puedes continuar.", "success");
+        showStatus("Sesión SIWE verificada. Puedes continuar.", "success");
         return true;
       } catch (error) {
         console.error("[WORLD CONFIRMATION]", error);
         showStatus(
           error instanceof Error
             ? error.message
-            : "La verificación World ID fue cancelada o falló",
+            : "La verificación SIWE fue cancelada o falló",
           "error",
         );
         return false;
@@ -1514,12 +1564,21 @@ export default function App() {
 
     return () => {
       mountedRef.current = false;
-      scanIdRef.current += 1;
+      scanRunnerRef.current.cancel();
       externalConnectionRef.current?.cleanup?.();
       qrScanActiveRef.current = false;
       stopQrScannerStream(qrStreamRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("rc_wallet_ui_locale", uiLocale);
+      document.documentElement.lang = uiLocale;
+    } catch {
+      // Language preference must never block signing or scanning.
+    }
+  }, [uiLocale]);
 
   useEffect(() => {
     try {
@@ -1580,15 +1639,20 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    let intervalId;
+    let marketRequestInFlight = false;
 
     const refreshMarket = async () => {
+      // No hidden-tab traffic or overlapping requests on slow mobile networks.
+      if (
+        document.visibilityState === "hidden" ||
+        controller.signal.aborted ||
+        marketRequestInFlight
+      ) return;
+
+      marketRequestInFlight = true;
       try {
         if (mountedRef.current) setMarketLoading(true);
-        const result = await loadMarket(
-          selectedAsset,
-          controller.signal,
-        );
+        const result = await loadMarket(selectedAsset, controller.signal);
         if (!controller.signal.aborted && mountedRef.current) {
           setMarket(result);
           setMarketError(
@@ -1596,27 +1660,29 @@ export default function App() {
           );
         }
       } catch (error) {
-        if (error?.name !== "AbortError" && mountedRef.current) {
+        if (error?.name !== "AbortError" && !controller.signal.aborted && mountedRef.current) {
           setMarket(null);
           setMarketError(
-            error instanceof Error
-              ? error.message
-              : "No se pudo cargar el mercado",
+            error instanceof Error ? error.message : "No se pudo cargar el mercado",
           );
         }
       } finally {
-        if (!controller.signal.aborted && mountedRef.current) {
-          setMarketLoading(false);
-        }
+        marketRequestInFlight = false;
+        if (!controller.signal.aborted && mountedRef.current) setMarketLoading(false);
       }
     };
 
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refreshMarket();
+    };
     void refreshMarket();
-    intervalId = window.setInterval(refreshMarket, 30_000);
+    const intervalId = window.setInterval(() => void refreshMarket(), 30_000);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       controller.abort();
       window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [selectedAsset]);
 
@@ -1660,8 +1726,8 @@ export default function App() {
 
   const loginWithWorldApp = useCallback(async () => {
     try {
-      await performWorldLogin("Iniciar sesión con World ID en RC Wallet");
-      showStatus("Sesión World ID iniciada correctamente.", "success");
+      await performWorldLogin("Iniciar sesión mediante Wallet Auth en RC Wallet");
+      showStatus("Wallet autenticada mediante SIWE.", "success");
     } catch (error) {
       console.error("[WORLD AUTH]", error);
       showStatus(
@@ -1691,7 +1757,7 @@ export default function App() {
     }
 
     showStatus(
-      "Sesión guardada detectada. Pulsa “Iniciar sesión con World ID” para validarla.",
+      "Sesión guardada detectada. Pulsa “Iniciar sesión con World App” para validarla.",
       "info",
     );
   }, [authenticated, miniKitReady, showStatus]);
@@ -1714,43 +1780,50 @@ export default function App() {
   }, [manualAddress, showStatus]);
 
   const scan = useCallback(async () => {
-    if (!targetAddress || scanning) return;
-
-    const currentScanId = scanIdRef.current + 1;
-    scanIdRef.current = currentScanId;
-    setScanning(true);
-    showStatus("Escaneando redes y contratos configurados…");
-
-    try {
-      const result = await scanAllNetworks(targetAddress, customTokens);
-      if (!mountedRef.current || scanIdRef.current !== currentScanId) return;
-
-      setAssets(result.assets);
-      setNetworkStates(result.networks);
-      setSelectedAssetId((current) =>
-        result.assets.some((asset) => asset.id === current)
-          ? current
-          : (result.assets[0]?.id ?? ""),
-      );
-
-      showStatus(
-        result.assets.length
-          ? `Escaneo completado: ${result.assets.length} activo(s) con balance.`
-          : "No se encontraron balances entre los activos configurados.",
-        "success",
-      );
-    } catch (error) {
-      console.error("[SCAN]", error);
-      showStatus(
-        error instanceof Error ? error.message : "Falló el escaneo",
-        "error",
-      );
-    } finally {
-      if (mountedRef.current && scanIdRef.current === currentScanId) {
-        setScanning(false);
-      }
-    }
-  }, [customTokens, scanning, showStatus, targetAddress]);
+    if (!targetAddress) return;
+    await scanRunnerRef.current.run({
+      execute: (signal) => scanAllNetworks(targetAddress, customTokens, { signal }),
+      onStart: () => {
+        if (!mountedRef.current) return;
+        setScanning(true);
+        // Never keep old account balances on screen during a new-account scan.
+        setAssets([]);
+        setScannedOwner("");
+        setNetworkStates({});
+        setSelectedAssetId("");
+        showStatus("Escaneando redes y contratos configurados…");
+      },
+      onSuccess: (result) => {
+        if (!mountedRef.current) return;
+        setAssets(result.assets);
+        setScannedOwner(result.owner);
+        setNetworkStates(result.networks);
+        setSelectedAssetId(result.assets[0]?.id ?? "");
+        const incomplete = Object.values(result.networks).filter(
+          (network) => network.status !== "online",
+        ).length;
+        showStatus(
+          incomplete
+            ? `Escaneo parcial: ${incomplete} red(es) con errores o tokens sin leer. Los datos no consultados NO significan saldo cero.`
+            : result.assets.length
+              ? `Escaneo completado: ${result.assets.length} activo(s) con balance.`
+              : "No se encontraron balances entre los activos configurados.",
+          incomplete ? "warning" : "success",
+        );
+      },
+      onError: (error) => {
+        if (!mountedRef.current) return;
+        console.error("[SCAN]", error);
+        showStatus(
+          error instanceof Error ? error.message : "Falló el escaneo",
+          "error",
+        );
+      },
+      onFinish: () => {
+        if (mountedRef.current) setScanning(false);
+      },
+    });
+  }, [customTokens, showStatus, targetAddress]);
 
   useEffect(() => {
     if (targetAddress) void scan();
@@ -1951,7 +2024,7 @@ export default function App() {
           const barcodes = await detector.detect(qrVideoRef.current);
           const rawValue = barcodes?.[0]?.rawValue;
           if (rawValue) {
-            const address = extractEvmAddressFromQr(rawValue);
+            const address = extractEvmAddressFromQr(rawValue, selectedAsset?.chainId);
             setRecipient(address);
             stopQrScanner();
             showStatus("Dirección receptora cargada desde QR.", "success");
@@ -1972,7 +2045,7 @@ export default function App() {
       setQrScannerError(message);
       showStatus(message, "warning");
     }
-  }, [showStatus, stopQrScanner]);
+  }, [selectedAsset?.chainId, showStatus, stopQrScanner]);
 
   const addCustomToken = useCallback(() => {
     try {
@@ -2122,19 +2195,52 @@ export default function App() {
         }
       }
 
+      // Persist the accepted MiniKit userOpHash before polling: interrupted
+      // RPC requests must not erase proof of a potentially submitted transfer.
+      const acceptedHash = assertWorldUserOpHash(result.data.userOpHash);
+      const pendingRecord = {
+        route: "minikit",
+        userOpHash: acceptedHash,
+        hash: null,
+        pending: true,
+        network: NETWORKS.find((network) => network.chainId === WORLD_CHAIN_ID),
+        token: asset.symbol,
+        amount: ethers.formatUnits(recipientAmountUnits, asset.decimals),
+        recipient: destination,
+        sender: sessionWorldAddress,
+        direction: "sent",
+        createdAt: new Date().toISOString(),
+      };
+      setLastTransaction(pendingRecord);
+      setTransferHistory((current) => upsertWorldTransferHistory(current, pendingRecord));
+
+      if (result.data?.from &&
+          normalizeAddress(result.data.from) !== normalizeAddress(sessionWorldAddress)) {
+        throw new Error(
+          "World App devolvió una cuenta de origen diferente de la autenticada. " +
+          `La operación puede estar enviada (userOpHash: ${acceptedHash}). Comprueba su estado antes de reintentar.`,
+        );
+      }
+
       showStatus(
-        "Operación enviada. Esperando confirmación en World Chain…",
+        "Operación enviada. Verificando confirmación blockchain en World Chain…",
       );
       let operation;
       try {
-        operation = await pollWorldUserOperation(result.data.userOpHash, asset);
+        operation = await pollWorldUserOperation(acceptedHash, asset, sessionWorldAddress);
       } catch (error) {
+        if (error?.name === "WorldUserOperationFailed") {
+          const failedRecord = { ...pendingRecord, pending: false, failed: true };
+          setTransferHistory((current) => upsertWorldTransferHistory(current, failedRecord));
+          setLastTransaction(failedRecord);
+        }
         throw error;
       }
 
       return {
         route: "minikit",
         userOpHash: result.data.userOpHash,
+        sender: sessionWorldAddress, // Retain owner binding after a pending result is saved again.
         hash: operation.transaction_hash,
         pending: operation.status === "pending",
       };
@@ -2152,7 +2258,12 @@ export default function App() {
     if (!selectedAsset || sending) return;
 
     try {
-      const destination = normalizeAddress(recipient);
+      if (!scannedOwner || normalizeAddress(scannedOwner) !== normalizeAddress(targetAddress)) {
+        throw new Error(
+          "Los saldos disponibles pertenecen a otra dirección o todavía no se han confirmado. Escanea esta wallet antes de enviar.",
+        );
+      }
+      const destination = normalizeRecipientAddress(recipient, selectedAsset.chainId);
       const owner = normalizeAddress(targetAddress);
 
       if (destination === owner) {
@@ -2268,8 +2379,8 @@ export default function App() {
 
           setPreparedSafeRecovery(prepared);
           showStatus(
-            "SafeTx firmada y owner verificado. Revisa otra vez destino y monto. Después conecta una wallet con gas y confirma una segunda vez para ejecutar.",
-            "success",
+            "Firma SafeTx recibida. La autoridad EIP-1271 on-chain todavía NO está verificada. Comprueba destino, monto y posibles gastos de red antes de continuar.",
+            "warning",
           );
           return;
         }
@@ -2370,7 +2481,9 @@ export default function App() {
 
       setLastTransaction(transactionRecord);
       setTransferHistory((current) =>
-        [transactionRecord, ...current].slice(0, 25),
+        result.route === "minikit"
+          ? upsertWorldTransferHistory(current, transactionRecord)
+          : [transactionRecord, ...current].slice(0, 25),
       );
       setRecipient("");
       setAmount("");
@@ -2411,8 +2524,96 @@ export default function App() {
     selectedSafeRecoveryCandidate,
     sendFromWorldChain,
     sending,
+    scannedOwner,
     showStatus,
     targetAddress,
+  ]);
+
+  // Explicit read-only check for transactions that World App accepted but
+  // whose final on-chain receipt was not available (including after reload).
+  // Never re-sign or re-broadcast a pending transaction automatically.
+  const recheckPendingWorldTransfers = useCallback(async () => {
+    if (recheckingWorldTransfers) return;
+    const owner = authenticatedWorldAddressRef.current || authenticatedWorldAddress;
+    if (!authenticated || !miniKitReady || !owner) {
+      showStatus("Autentica tu billetera en World App antes de verificar operaciones pendientes.", "warning");
+      return;
+    }
+
+    const outstanding = transferHistory
+      .filter((entry) => canReconcileWorldTransfer(entry, owner))
+      .slice(0, 8);
+
+    if (!outstanding.length) {
+      showStatus(
+        "No hay operaciones pendientes verificables para esta billetera. Los registros antiguos sin remitente validado requieren revisión manual.",
+        "info",
+      );
+      return;
+    }
+
+    setRecheckingWorldTransfers(true);
+    let verified = 0;
+    let stillPending = 0;
+    let failedQueries = 0;
+
+    try {
+      for (const entry of outstanding) {
+        try {
+          const updated = await reconcileWorldTransfer(entry, {
+            authenticatedAddress: owner,
+            fetchUserOperation: async (userOpHash) => {
+              const response = await withMiniKitTimeout(
+                () => fetch(
+                  `https://developer.world.org/api/v2/minikit/userop/${assertWorldUserOpHash(userOpHash)}`,
+                  { cache: "no-store" },
+                ),
+                "Verificación de operación World App",
+                10_000,
+              );
+              if (!response.ok) throw new Error("World Developer Portal no respondió correctamente");
+              return response.json();
+            },
+            fetchReceipt: async (txHash) => {
+              const worldNetwork = NETWORKS.find((network) => network.chainId === WORLD_CHAIN_ID);
+              const provider = await getProvider(worldNetwork);
+              return withMiniKitTimeout(
+                () => provider.getTransactionReceipt(txHash),
+                "Verificación de recibo World Chain",
+                10_000,
+              );
+            },
+          });
+          if (!updated) {
+            stillPending += 1;
+            continue;
+          }
+          setTransferHistory((current) => upsertWorldTransferHistory(current, updated));
+          setLastTransaction((current) =>
+            current?.userOpHash?.toLowerCase() === updated.userOpHash.toLowerCase()
+              ? updated
+              : current,
+          );
+          verified += 1;
+        } catch (error) {
+          failedQueries += 1;
+          console.warn("[WORLD RECONCILIATION]", error);
+        }
+      }
+      showStatus(
+        `Operaciones verificadas: ${verified}. Pendientes: ${stillPending}. Sin respuesta verificable: ${failedQueries}. No se enviaron transacciones.`,
+        failedQueries ? "warning" : "success",
+      );
+    } finally {
+      if (mountedRef.current) setRecheckingWorldTransfers(false);
+    }
+  }, [
+    authenticated,
+    authenticatedWorldAddress,
+    miniKitReady,
+    recheckingWorldTransfers,
+    showStatus,
+    transferHistory,
   ]);
 
   const copyRecoveryReport = useCallback(async () => {
@@ -2815,7 +3016,7 @@ export default function App() {
                 </strong>
                 <span>
                   {item.network?.name || "Red"} ·{" "}
-                  {item.pending ? "Pendiente" : "Confirmada"}
+                  {uiText(uiLocale, item.failed ? "history.failed" : item.pending ? "history.pending" : "history.confirmed")}
                 </span>
               </div>
               <small>
@@ -2860,10 +3061,20 @@ export default function App() {
           <div className="hero__mark">RC</div>
           <div>
             <h1>RC Wallet</h1>
-            <p>
-              Detecta activos EVM y habilita movimientos únicamente cuando
-              existe una firma válida para la red correspondiente.
-            </p>
+            <p>{uiText(uiLocale, "hero.description")}</p>
+            <label htmlFor="rc-wallet-language" style={{ fontSize: "0.85rem" }}>
+              ES / EN / PL{" "}
+              <select
+                id="rc-wallet-language"
+                aria-label="Language / Idioma / Język"
+                value={uiLocale}
+                onChange={(event) => setUiLocale(normalizeUiLocale(event.target.value))}
+              >
+                <option value="es">Español</option>
+                <option value="en">English</option>
+                <option value="pl">Polski</option>
+              </select>
+            </label>
           </div>
         </header>
 
@@ -2877,14 +3088,14 @@ export default function App() {
                 type="button"
                 onClick={() => setTokenScreenOpen(false)}
               >
-                ← Atrás
+                ← {uiText(uiLocale, "button.back")}
               </button>
               <button
                 className="button button--danger"
                 type="button"
                 onClick={() => setTokenScreenOpen(false)}
               >
-                Cerrar
+                {uiText(uiLocale, "button.close")}
               </button>
             </div>
 
@@ -3131,34 +3342,51 @@ export default function App() {
                 <button
                   className="button button--primary"
                   type="button"
-                  disabled={sending}
+                  disabled={sending || confirmingSend}
                   onClick={async () => {
-                    if (selectedAsset.chainId === WORLD_CHAIN_ID) {
-                      const confirmed = await confirmWorldAction(
-                        "envío de activos",
-                      );
-                      if (!confirmed) return;
-                    }
+                    // Guard even before the first React rerender: rapid taps
+                    // must not open multiple signing dialogs or send twice.
+                    if (sendConfirmationLockRef.current || sending) return;
+                    sendConfirmationLockRef.current = true;
+                    setConfirmingSend(true);
+                    try {
+                      if (selectedAsset.chainId === WORLD_CHAIN_ID) {
+                        const confirmed = await confirmWorldAction(
+                          "envío de activos",
+                        );
+                        if (!confirmed) return;
+                      }
 
-                    if (
-                      selectedSafeRecoveryCandidate &&
-                      !hasValidPreparedSafeRecovery
-                    ) {
-                      const confirmed = await confirmWorldAction(
-                        "firma Safe de recuperación",
-                      );
-                      if (!confirmed) return;
-                    }
+                      if (
+                        selectedSafeRecoveryCandidate &&
+                        !hasValidPreparedSafeRecovery
+                      ) {
+                        const confirmed = await confirmWorldAction(
+                          "firma Safe de recuperación",
+                        );
+                        if (!confirmed) return;
+                      }
 
-                    setShowSendConfirm(false);
-                    void send();
+                      setShowSendConfirm(false);
+                      await send();
+                    } catch (error) {
+                      showStatus(
+                        error instanceof Error ? error.message : "No se pudo confirmar la operación",
+                        "error",
+                      );
+                    } finally {
+                      sendConfirmationLockRef.current = false;
+                      if (mountedRef.current) setConfirmingSend(false);
+                    }
                   }}
                 >
-                  {selectedSafeRecoveryCandidate
-                    ? hasValidPreparedSafeRecovery
-                      ? "Confirmar ejecución Safe"
-                      : "Firmar SafeTx en World App"
-                    : "Confirmar y firmar"}
+                  {confirmingSend
+                    ? "Validando operación…"
+                    : selectedSafeRecoveryCandidate
+                      ? hasValidPreparedSafeRecovery
+                        ? "Confirmar ejecución Safe"
+                        : "Firmar SafeTx en World App"
+                      : "Confirmar y firmar"}
                 </button>
               </div>
             </section>
@@ -3175,6 +3403,14 @@ export default function App() {
             >
               <span className="eyebrow">Historial local</span>
               <h2 id="transfer-history-title">Transferencias</h2>
+              <button
+                className="button button--secondary"
+                type="button"
+                disabled={recheckingWorldTransfers || !authenticated || !miniKitReady}
+                onClick={() => void recheckPendingWorldTransfers()}
+              >
+                {uiText(uiLocale, recheckingWorldTransfers ? "history.checking" : "history.check")}
+              </button>
               {transferHistory.length ? (
                 <>
                   <div className="history-filters">
@@ -3245,7 +3481,7 @@ export default function App() {
                         </strong>
                         <span>
                           {item.network?.name || "Red"} ·{" "}
-                          {item.pending ? "Pendiente" : "Confirmada"}
+                          {uiText(uiLocale, item.failed ? "history.failed" : item.pending ? "history.pending" : "history.confirmed")}
                         </span>
                       </div>
                       <small>
@@ -3305,7 +3541,7 @@ export default function App() {
                 type="button"
                 onClick={loginWithWorldApp}
               >
-                {miniKitReady ? "Ingresar con World ID" : "Conectar World ID"}
+                {miniKitReady ? "Ingresar con World App" : "Conectar World App"}
               </button>
               <button
                 className="button button--secondary"
@@ -3481,8 +3717,8 @@ export default function App() {
             onClick={loginWithWorldApp}
           >
             {miniKitReady
-              ? "Iniciar sesión con World ID"
-              : "Conectar World ID"}
+              ? "Iniciar sesión con World App"
+              : "Conectar World App"}
           </button>
 
           <div className="separator">
@@ -3578,9 +3814,11 @@ export default function App() {
             {lastTransaction ? (
               <div className="transaction-result">
                 <strong>
-                  {lastTransaction.pending
-                    ? "Operación pendiente"
-                    : "Operación confirmada"}
+                  {lastTransaction.failed
+                    ? "Operación fallida"
+                    : lastTransaction.pending
+                      ? "Operación pendiente"
+                      : "Operación confirmada"}
                 </strong>
                 <span>{lastTransaction.network?.name}</span>
                 {lastTransaction.hash ? (
@@ -3655,14 +3893,20 @@ export default function App() {
                 {NETWORKS.map((network) => {
                   const state = networkStates[network.chainId];
                   return (
-                    <div className="network-pill" key={network.chainId}>
+                    <div
+                      className="network-pill"
+                      key={network.chainId}
+                      title={state?.error || (state?.status === "online" ? "Lectura completada" : "Sin lectura confirmada")}
+                    >
                       <span
                         className={`dot ${
                           state?.status === "online"
                             ? "dot--green"
-                            : state?.status === "offline"
-                              ? "dot--red"
-                              : ""
+                            : state?.status === "partial"
+                              ? "dot--amber"
+                              : state?.status === "offline"
+                                ? "dot--red"
+                                : ""
                         }`}
                       />
                       <span>{network.name}</span>
@@ -4107,9 +4351,11 @@ export default function App() {
               <div className="recovery-explanation">
                 <strong>Esta red no puede firmarse con MiniKit.</strong>
                 <p>
-                  Conecta un proveedor externo. La transferencia solo se
-                  habilita si ese proveedor expone exactamente{" "}
-                  <code>{compactAddress(targetAddress)}</code>.
+                  Conecta una wallet autorizada que pueda firmar en esta red.
+                  Para cuentas EOA su dirección debe coincidir exactamente con{" "}
+                  <code>{compactAddress(targetAddress)}</code>. Las cuentas
+                  Safe requieren verificaciones y firmas adicionales; conectar
+                  un pagador de gas no demuestra propiedad.
                 </p>
                 {false && (
                   <div className="watch-only-box">
@@ -4151,6 +4397,36 @@ export default function App() {
                       onClick={() => connectExternal("injected")}
                     >
                       Wallet del navegador / extensión
+                    </button>
+                  )}
+                  {connectedExternalAddress && !externalMatches && (
+                    <button
+                      className="button button--secondary"
+                      type="button"
+                      disabled={sending || scanning}
+                      onClick={() => {
+                        const confirmed = window.confirm(
+                          `¿Cambiar la cuenta de análisis a ${connectedExternalAddress}? Solo podrás enviar fondos que esta wallet externa autorice; la dirección World App anterior dejará de ser la cuenta seleccionada.`,
+                        );
+                        if (!confirmed) return;
+                        scanRunnerRef.current.cancel();
+                        setAssets([]);
+                        setScannedOwner("");
+                        setSelectedAssetId("");
+                        setNetworkStates({});
+                        setAuthenticated(false);
+                        setAuthenticatedWorldAddress("");
+                        authenticatedWorldAddressRef.current = "";
+                        authenticatedRef.current = false;
+                        setTargetAddress(connectedExternalAddress);
+                        setManualAddress(connectedExternalAddress);
+                        showStatus(
+                          "Dirección de la wallet externa seleccionada. Escanea sus saldos antes de enviar.",
+                          "warning",
+                        );
+                      }}
+                    >
+                      Usar mi wallet externa para escanear y enviar
                     </button>
                   )}
                   {connectedExternalAddress && (
@@ -4386,9 +4662,11 @@ export default function App() {
             {lastTransaction && (
               <div className="transaction-result">
                 <strong>
-                  {lastTransaction.pending
-                    ? "Operación pendiente"
-                    : "Operación confirmada"}
+                  {lastTransaction.failed
+                    ? "Operación fallida"
+                    : lastTransaction.pending
+                      ? "Operación pendiente"
+                      : "Operación confirmada"}
                 </strong>
                 {lastTransaction.hash ? (
                   <a
@@ -4906,7 +5184,7 @@ export default function App() {
         </section>
 
         <footer>
-          RC Wallet · Sin custodia · Nunca compartas tu frase semilla
+          {uiText(uiLocale, "footer.safety")}
         </footer>
       </div>
 
@@ -4924,7 +5202,7 @@ export default function App() {
             }}
           >
             <span>{tab.icon}</span>
-            <small>{tab.label}</small>
+            <small>{uiText(uiLocale, `nav.${tab.id}`)}</small>
           </button>
         ))}
       </nav>

@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { mapSettledWithConcurrency } from "./scan-coordinator.js";
 
 import {
   ERC1271_ABI,
@@ -31,6 +32,7 @@ import {
 // ============================================================================
 
 const providerCache = new Map();
+const rpcFallbackCursor = new Map();
 const safeDeploymentCache = new Map();
 
 const ERC1271_MAGIC_VALUE = "0x1626ba7e";
@@ -203,9 +205,38 @@ export function normalizeAddress(value) {
     );
   }
 
-  return ethers.getAddress(
-    candidate.toLowerCase(),
-  );
+  // Preserve EIP-55 checksum validation for mixed-case addresses.
+  // Lowercasing before getAddress would silently accept mistyped checksums.
+  return ethers.getAddress(candidate);
+}
+
+// Unlike a catalog address, a user-supplied destination MUST preserve the
+// mixed-case EIP-55 checksum and must not silently discard EIP-681 instructions.
+export function normalizeRecipientAddress(value, expectedChainId = null) {
+  const cleaned = cleanAddressInput(value);
+  const uri = cleaned.match(/^ethereum:(0x[a-fA-F0-9]{40})(?:@(\d+))?$/i);
+  if (/^ethereum:/i.test(cleaned) && !uri) {
+    throw new Error("El QR contiene instrucciones de transacción, no una dirección receptora simple.");
+  }
+  if (uri?.[2] && expectedChainId !== null &&
+      Number(uri[2]) !== Number(expectedChainId)) {
+    throw new Error("El QR pertenece a otra red. Selecciona la blockchain correcta.");
+  }
+  const candidate = uri ? uri[1] : cleaned;
+  if (!/^0x[a-fA-F0-9]{40}$/.test(candidate)) {
+    throw new Error("Introduce una dirección EVM válida.");
+  }
+  try {
+    return ethers.getAddress(candidate);
+  } catch {
+    throw new Error("Checksum incorrecto en el destinatario. Revisa todos los caracteres.");
+  }
+}
+
+function assertScanActive(signal) {
+  if (signal?.aborted) {
+    throw new DOMException("Scan cancelled", "AbortError");
+  }
 }
 
 export function isValidEvmAddressInput(
@@ -364,31 +395,37 @@ export async function getProvider(
 
   let lastError = null;
 
+  const urls = network.rpcUrls ?? [];
+  const cursor = rpcFallbackCursor.get(network.chainId) ?? 0;
+  const orderedUrls = [
+    ...urls.slice(cursor),
+    ...urls.slice(0, cursor),
+  ];
   for (
-    const rpcUrl of network.rpcUrls ?? []
+    const rpcUrl of orderedUrls
   ) {
+    let provider;
     try {
-      const provider =
-        new ethers.JsonRpcProvider(
-          rpcUrl,
-          network.chainId,
-          {
-            staticNetwork: true,
-            batchMaxCount: 1,
-          },
-        );
+      provider = new ethers.JsonRpcProvider(
+        rpcUrl,
+        network.chainId,
+        {
+          staticNetwork: true,
+          batchMaxCount: 1,
+        },
+      );
 
-      const providerNetwork =
-        await timeout(
-          provider.getNetwork(),
-          7_000,
-          network.name,
-        );
-
+      // getNetwork() reflects the configured staticNetwork and does not
+      // independently prove the endpoint's real chain. Query the RPC itself.
+      const reportedChainId = await timeout(
+        provider.send("eth_chainId", []),
+        7_000,
+        `${network.name} eth_chainId`,
+      );
       if (
-        Number(
-          providerNetwork.chainId,
-        ) !== network.chainId
+        typeof reportedChainId !== "string" ||
+        !/^0x[0-9a-f]+$/i.test(reportedChainId) ||
+        BigInt(reportedChainId) !== BigInt(network.chainId)
       ) {
         throw new Error(
           "El RPC respondió con una chainId incorrecta",
@@ -408,12 +445,10 @@ export async function getProvider(
 
       return provider;
     } catch (error) {
+      // A failed endpoint must not leave open polling/timers.
+      provider?.destroy();
       lastError = error;
-
-      console.warn(
-        `[RPC ${network.name}] ${rpcUrl}`,
-        error,
-      );
+      console.warn(`[RPC ${network.name}] ${rpcUrl}`, error);
     }
   }
 
@@ -2061,7 +2096,7 @@ async function inspectAccount(
 // TOKEN SCAN
 // ============================================================================
 
-async function readToken(
+export async function readToken(
   provider,
   network,
   owner,
@@ -2090,11 +2125,10 @@ async function readToken(
       `${definition.symbol} code`,
     );
 
-  if (
-    !code ||
-    code === "0x"
-  ) {
-    return null;
+  if (!code || code === "0x") {
+    throw new Error(
+      `${definition.symbol}: contrato ERC-20 no desplegado en ${network.name} (${address}); no se puede interpretar como saldo cero.`,
+    );
   }
 
   const contract =
@@ -2216,11 +2250,14 @@ async function scanNetwork(
   network,
   owner,
   customTokens,
+  signal,
 ) {
+  assertScanActive(signal);
   const provider =
     await getProvider(
       network,
     );
+  assertScanActive(signal);
 
   const [
     accountCode,
@@ -2243,6 +2280,7 @@ async function scanNetwork(
     ),
   ]);
 
+  assertScanActive(signal);
   const accountState =
     await inspectAccount(
       provider,
@@ -2251,6 +2289,7 @@ async function scanNetwork(
       accountCode,
       nativeBalance,
     );
+  assertScanActive(signal);
 
   const assets = [];
 
@@ -2332,78 +2371,95 @@ async function scanNetwork(
       })),
   ];
 
-  const tokenResults =
-    await Promise.allSettled(
-      definitions.map(
-        (definition) =>
-          readToken(
-            provider,
-            network,
-            owner,
-            definition,
-          ),
+  // Bound ERC-20 fanout to avoid overwhelming mobile networks and public RPCs.
+  const tokenResults = await mapSettledWithConcurrency(
+    definitions,
+    (definition) =>
+      readToken(
+        provider,
+        network,
+        owner,
+        definition,
       ),
-    );
+    { limit: 4, signal },
+  );
+  assertScanActive(signal);
 
-  for (
-    const result of tokenResults
-  ) {
-    if (
-      result.status ===
-        "fulfilled" &&
-      result.value
-    ) {
+  const tokenErrors = [];
+  for (const [index, result] of tokenResults.entries()) {
+    if (result.status === "fulfilled" && result.value) {
       assets.push({
         ...result.value,
-
-        accountKind:
-          accountState.kind,
-
+        accountKind: accountState.kind,
         accountState,
       });
-    } else if (
-      result.status ===
-      "rejected"
-    ) {
-      console.warn(
-        `[TOKEN ${network.name}]`,
-        result.reason,
-      );
+    } else if (result.status === "rejected") {
+      tokenErrors.push({
+        symbol: definitions[index].symbol,
+        address: definitions[index].addresses?.[network.chainId] ?? "",
+        reason: result.reason instanceof Error ? result.reason.message : "Lectura ERC-20 fallida",
+      });
+      console.warn(`[TOKEN ${network.name}]`, result.reason);
     }
   }
 
   return {
     network,
-
-    accountKind:
-      accountState.kind,
-
+    accountKind: accountState.kind,
     accountState,
-
     assets,
+    tokenErrors,
   };
+}
+
+// A previously healthy public RPC may fail after it has been cached.
+// Retry the complete READ scan once on the next configured RPC, not forever.
+export async function scanNetworkWithRpcFailover(network, owner, customTokens = [], signal, execute = scanNetwork) {
+  try {
+    return await execute(network, owner, customTokens, signal);
+  } catch (firstError) {
+    assertScanActive(signal);
+    const current = providerCache.get(network.chainId);
+    const urls = network.rpcUrls ?? [];
+    if (!current || urls.length < 2) throw firstError;
+
+    // Evict only if this scan was still using the same provider.
+    providerCache.delete(network.chainId);
+    current.destroy();
+    rpcFallbackCursor.set(
+      network.chainId,
+      ((rpcFallbackCursor.get(network.chainId) ?? 0) + 1) % urls.length,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assertScanActive(signal);
+    try {
+      return await execute(network, owner, customTokens, signal);
+    } catch (secondError) {
+      throw new AggregateError(
+        [firstError, secondError],
+        `${network.name}: RPC principal y reintento alternativo fallaron. Saldos no verificables.`,
+      );
+    }
+  }
 }
 
 export async function scanAllNetworks(
   ownerAddress,
   customTokens = [],
+  { signal } = {},
 ) {
   const owner =
     normalizeAddress(
       ownerAddress,
     );
-
-  const results =
-    await Promise.allSettled(
-      NETWORKS.map(
-        (network) =>
-          scanNetwork(
-            network,
-            owner,
-            customTokens,
-          ),
-      ),
-    );
+  assertScanActive(signal);
+  // Three networks concurrently, four token reads per network maximum.
+  const results = await mapSettledWithConcurrency(
+    NETWORKS,
+    (network) => scanNetworkWithRpcFailover(network, owner, customTokens, signal),
+    { limit: 3, signal },
+  );
+  assertScanActive(signal);
 
   const assets = [];
   const networks = {};
@@ -2421,18 +2477,16 @@ export async function scanAllNetworks(
           ...result.value.assets,
         );
 
-        networks[
-          network.chainId
-        ] = {
-          status: "online",
-
-          accountKind:
-            result.value
-              .accountKind,
-
-          accountState:
-            result.value
-              .accountState,
+        const tokenErrors = result.value.tokenErrors;
+        networks[network.chainId] = {
+          status: tokenErrors.length > 0 ? "partial" : "online",
+          accountKind: result.value.accountKind,
+          accountState: result.value.accountState,
+          failedTokenCount: tokenErrors.length,
+          tokenErrors,
+          error: tokenErrors.length > 0
+            ? `${tokenErrors.length} contrato(s) ERC-20 no pudieron consultarse. No equivalen a saldo cero.`
+            : null,
         };
       } else {
         networks[
@@ -2507,70 +2561,78 @@ export async function scanAllNetworks(
 // NETWORK SWITCH
 // ============================================================================
 
-export async function switchExternalNetwork(
-  provider,
-  network,
-) {
-  if (
-    !provider?.request
-  ) {
+// EIP-3326 switching is only a request. A provider can reject, ignore, or
+// defer it; EIP-3085 explicitly does not select an added chain. Always verify.
+export async function assertExternalNetwork(provider, network) {
+  if (!provider?.request || !Number.isSafeInteger(network?.chainId) || network.chainId <= 0) {
+    throw new Error("Proveedor o red EIP-1193 inválidos");
+  }
+  const reported = await provider.request({ method: "eth_chainId" });
+  if (typeof reported !== "string" || !/^0x[0-9a-f]+$/i.test(reported)) {
+    throw new Error("La wallet no devolvió un eth_chainId EIP-1193 válido");
+  }
+  if (BigInt(reported) !== BigInt(network.chainId)) {
     throw new Error(
-      "Proveedor EIP-1193 inválido",
+      `Red incorrecta: la wallet está en ${reported}; se necesita ${network.chainHex}. Ninguna transferencia fue autorizada.`,
     );
+  }
+  return true;
+}
+
+export async function switchExternalNetwork(provider, network) {
+  if (!provider?.request || !Number.isSafeInteger(network?.chainId) ||
+      network.chainId <= 0 || network.chainHex !== `0x${network.chainId.toString(16)}`) {
+    throw new Error("Proveedor o red EIP-1193 inválidos");
+  }
+
+  // Avoid an unnecessary permission dialog on wallets already in this chain.
+  try {
+    await assertExternalNetwork(provider, network);
+    return;
+  } catch (error) {
+    if (!String(error?.message ?? "").startsWith("Red incorrecta:")) throw error;
   }
 
   try {
     await provider.request({
-      method:
-        "wallet_switchEthereumChain",
-
-      params: [
-        {
-          chainId:
-            network.chainHex,
-        },
-      ],
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: network.chainHex }],
     });
   } catch (error) {
-    if (
-      Number(error?.code) !==
-      4902
-    ) {
-      throw error;
+    if (Number(error?.code) !== 4902) throw error;
+    if (!network.rpcUrls?.length || !network.explorer) {
+      throw new Error("No hay metadatos verificados para agregar esta red");
     }
-
     await provider.request({
-      method:
-        "wallet_addEthereumChain",
-
-      params: [
-        {
-          chainId:
-            network.chainHex,
-
-          chainName:
-            network.name,
-
-          nativeCurrency: {
-            name:
-              network.symbol,
-
-            symbol:
-              network.symbol,
-
-            decimals: 18,
-          },
-
-          rpcUrls:
-            network.rpcUrls,
-
-          blockExplorerUrls: [
-            network.explorer,
-          ],
-        },
-      ],
+      method: "wallet_addEthereumChain",
+      params: [{
+        chainId: network.chainHex,
+        chainName: network.name,
+        nativeCurrency: { name: network.symbol, symbol: network.symbol, decimals: 18 },
+        rpcUrls: network.rpcUrls,
+        blockExplorerUrls: [network.explorer],
+      }],
+    });
+    // EIP-3085: adding a chain does NOT mean selecting it.
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: network.chainHex }],
     });
   }
+
+  // WalletConnect and injected providers may report chainChanged slightly late.
+  // Bounded verification: do not sign if they never confirm the target chain.
+  let lastError;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      await assertExternalNetwork(provider, network);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  throw lastError ?? new Error("La wallet no confirmó el cambio de red");
 }
 
 // ============================================================================
@@ -2589,8 +2651,9 @@ function prepareTransfer({
     );
 
   const destination =
-    normalizeAddress(
+    normalizeRecipientAddress(
       recipient,
+      asset.chainId,
     );
 
   if (
@@ -2684,15 +2747,31 @@ function prepareTransfer({
 }
 
 // ============================================================================
-// DIRECT EOA TRANSFER
+// DIRECT AUTHORIZED WALLET TRANSFER
 // ============================================================================
+
+// Balances shown from a scan may already be stale by the time the user sends.
+export async function assertCurrentAssetBalance(provider, asset, owner, amountUnits) {
+  const currentBalance = asset.isNative
+    ? await provider.getBalance(owner)
+    : await new ethers.Contract(normalizeAddress(asset.address), ERC20_ABI, provider)
+        .balanceOf(owner);
+  if (BigInt(currentBalance) < amountUnits) {
+    throw new Error(
+      `Saldo insuficiente en ${asset.networkName}: la cadena confirma ${ethers.formatUnits(currentBalance, asset.decimals)} ${asset.symbol}, menor que el importe solicitado. Reescanea.`,
+    );
+  }
+}
 
 async function sendDirectTransfer({
   provider,
+  eip1193Provider,
   signer,
   asset,
   transfer,
 }) {
+  await assertExternalNetwork(eip1193Provider, asset.network);
+  await assertCurrentAssetBalance(provider, asset, transfer.owner, transfer.amountUnits);
   const feeData =
     await provider.getFeeData();
 
@@ -2754,6 +2833,8 @@ async function sendDirectTransfer({
     );
   }
 
+  // Re-check the chain immediately before prompting for a transaction.
+  await assertExternalNetwork(eip1193Provider, asset.network);
   const transaction =
     await signer.sendTransaction({
       ...transfer.request,
@@ -2763,10 +2844,13 @@ async function sendDirectTransfer({
 
   const receipt =
     await transaction.wait(1);
+  if (!receipt || receipt.status !== 1) {
+    throw new Error("La transacción no confirmó ejecución correcta en la blockchain");
+  }
 
   return {
     route:
-      "direct-eoa",
+      "direct-authorized-wallet",
 
     hash:
       transaction.hash,
@@ -2786,6 +2870,19 @@ async function sendDirectTransfer({
 // ============================================================================
 // SAFE SIGNATURE
 // ============================================================================
+
+export function isSafeTypedDataUnsupported(error) {
+  const code = error?.code ?? error?.info?.error?.code;
+  const text = String(error?.message ?? "");
+  // A refusal (4001 / ACTION_REJECTED) is NEVER permission to request
+  // another signature with different semantics.
+  return code === "UNSUPPORTED_OPERATION" ||
+    code === 4200 ||
+    code === -32601 ||
+    (/method not found|method not supported|unsupported method/i.test(text) &&
+      code !== 4001 && code !== "ACTION_REJECTED");
+}
+
 
 async function signSafeTransaction({
   signer,
@@ -2904,13 +3001,23 @@ async function signSafeTransaction({
 
     return signature;
   } catch (typedError) {
-    // Fallback Safe ETH_SIGN.
+    // Do not turn a rejected typed-data prompt into a second signature prompt.
+    if (!isSafeTypedDataUnsupported(typedError)) throw typedError;
+
+    // Fallback Safe ETH_SIGN only if typed-data signing is unsupported.
     const rawSignature =
       await signer.signMessage(
         ethers.getBytes(
           safeTxHash,
         ),
       );
+
+    if (!sameAddress(
+      ethers.verifyMessage(ethers.getBytes(safeTxHash), rawSignature),
+      signerAddress,
+    )) {
+      throw new Error("La firma personal no corresponde al owner de la Safe");
+    }
 
     const parsed =
       ethers.Signature.from(
@@ -2973,6 +3080,7 @@ async function executeSafeTransfer({
   const safeAddress =
     transfer.owner;
 
+  await assertCurrentAssetBalance(provider, asset, safeAddress, transfer.amountUnits);
   const contract =
     new ethers.Contract(
       safeAddress,
@@ -3115,6 +3223,9 @@ async function executeSafeTransfer({
 
   const receipt =
     await transaction.wait(1);
+  if (!receipt || receipt.status !== 1) {
+    throw new Error("La ejecución Safe no se confirmó en la blockchain");
+  }
 
   return {
     route:
@@ -3515,6 +3626,8 @@ export async function sendWithExternalWallet({
     asset.network,
   );
 
+  // BrowserProvider is a signer adapter, NOT a source of new authority.
+  await assertExternalNetwork(provider, asset.network);
   const browserProvider =
     new ethers.BrowserProvider(
       provider,
@@ -3540,13 +3653,15 @@ export async function sendWithExternalWallet({
     )
   ) {
     onStatus?.(
-      "La wallet conectada controla directamente la dirección con fondos.",
+      "La wallet conectada expone la misma dirección con fondos. Se requiere su confirmación explícita para firmar.",
       "info",
     );
 
     return sendDirectTransfer({
       provider:
         browserProvider,
+
+      eip1193Provider: provider,
 
       signer,
 

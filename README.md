@@ -169,7 +169,7 @@ Crea un proyecto gratuito en https://dashboard.reown.com y copia el archivo de
 ejemplo:
 
 ```bash
-cp .env.example .env.local
+cp env.example .env.local
 ```
 
 Completa:

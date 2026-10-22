@@ -140,8 +140,16 @@ export function getTradeUrl(action, asset, market) {
 
   const selectedAddress =
     market?.selectedToken?.address ?? marketTokenAddress(asset);
-  const quoteAddress =
+  let quoteAddress =
     market?.quoteToken?.address ?? DEFAULT_QUOTE_TOKEN[asset.chainId];
+  if (
+    selectedAddress &&
+    quoteAddress &&
+    selectedAddress.toLowerCase() === quoteAddress.toLowerCase()
+  ) {
+    // Avoid suggesting a swap from USDC (or another quote asset) into itself.
+    quoteAddress = WRAPPED_NATIVE[asset.chainId] ?? null;
+  }
   if (!selectedAddress || !quoteAddress) return market?.pairUrl ?? null;
 
   const buying = action === "buy";
@@ -150,7 +158,7 @@ export function getTradeUrl(action, asset, market) {
 
   if (
     asset.chainId === 56 ||
-    String(market.dexId).toLowerCase().includes("pancake")
+    String(market?.dexId ?? "").toLowerCase().includes("pancake")
   ) {
     return pancakeUrl(inputCurrency, outputCurrency);
   }
