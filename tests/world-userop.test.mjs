@@ -166,3 +166,17 @@ test("history updates cannot overwrite a World user operation with another owner
     /no puede cambiar de propietario/,
   );
 });
+
+test("incomplete Developer Portal successes remain unconfirmed", () => {
+  for (const incomplete of [
+    { status: "success", userOpHash, transaction_hash: txHash, sender: null },
+    { status: "success", userOpHash, transaction_hash: txHash },
+    { status: "success", sender: worldSafe, transaction_hash: txHash },
+    { status: "success", userOpHash, sender: worldSafe },
+  ]) {
+    assert.throws(
+      () => verifyWorldUserOpStatus(userOpHash, worldSafe, incomplete),
+      /datos suficientes/,
+    );
+  }
+});
