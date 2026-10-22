@@ -98,14 +98,14 @@ test("a foreign sender or unexpected user operation fails closed", async () => {
   );
 });
 
-test("a reverted on-chain receipt must never confirm a transfer", async () => {
-  await assert.rejects(
-    reconcileWorldTransfer(pending, readers(
-      { status: "success", userOpHash: hash, sender, transaction_hash: minedHash },
-      { hash: minedHash, status: 0, blockNumber: 42 },
-    )),
-    (error) => error.name === "WorldUserOperationFailed",
-  );
+test("a reverted on-chain receipt is marked failed, never confirmed", async () => {
+  const result = await reconcileWorldTransfer(pending, readers(
+    { status: "success", userOpHash: hash, sender, transaction_hash: minedHash },
+    { hash: minedHash, status: 0, blockNumber: 42 },
+  ));
+  assert.equal(result.failed, true);
+  assert.equal(result.pending, false);
+  assert.equal(result.hash, minedHash);
 });
 
 test("missing signed ownership or provider functions cannot amend local history", async () => {
