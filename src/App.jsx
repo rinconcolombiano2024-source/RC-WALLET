@@ -42,6 +42,7 @@ import {
 import { createLatestScanRunner } from "./scan-coordinator.js";
 import { assertWorldUserOpHash, verifyWorldUserOpStatus, verifyWorldChainReceipt, upsertWorldTransferHistory } from "./world-userop.js";
 import { canReconcileWorldTransfer, reconcileWorldTransfer } from "./world-transfer-reconcile.js";
+import { normalizeUiLocale, uiText } from "./ui-i18n.js";
 import {
   connectInjectedProvider,
   connectWalletConnectProvider,
@@ -943,6 +944,13 @@ export default function App() {
   const qrScanActiveRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState("home");
+  const [uiLocale, setUiLocale] = useState(() => {
+    try {
+      return normalizeUiLocale(localStorage.getItem("rc_wallet_ui_locale") || "es");
+    } catch {
+      return "es";
+    }
+  });
   const [miniKitReady, setMiniKitReady] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [authenticatedWorldAddress, setAuthenticatedWorldAddress] =
@@ -1562,6 +1570,15 @@ export default function App() {
       stopQrScannerStream(qrStreamRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("rc_wallet_ui_locale", uiLocale);
+      document.documentElement.lang = uiLocale;
+    } catch {
+      // Language preference must never block signing or scanning.
+    }
+  }, [uiLocale]);
 
   useEffect(() => {
     try {
@@ -2999,7 +3016,7 @@ export default function App() {
                 </strong>
                 <span>
                   {item.network?.name || "Red"} ·{" "}
-                  {item.failed ? "Fallida" : item.pending ? "Pendiente" : "Confirmada"}
+                  {uiText(uiLocale, item.failed ? "history.failed" : item.pending ? "history.pending" : "history.confirmed")}
                 </span>
               </div>
               <small>
@@ -3044,10 +3061,20 @@ export default function App() {
           <div className="hero__mark">RC</div>
           <div>
             <h1>RC Wallet</h1>
-            <p>
-              Detecta activos EVM y habilita movimientos únicamente cuando
-              existe una firma válida para la red correspondiente.
-            </p>
+            <p>{uiText(uiLocale, "hero.description")}</p>
+            <label htmlFor="rc-wallet-language" style={{ fontSize: "0.85rem" }}>
+              ES / EN / PL{" "}
+              <select
+                id="rc-wallet-language"
+                aria-label="Language / Idioma / Język"
+                value={uiLocale}
+                onChange={(event) => setUiLocale(normalizeUiLocale(event.target.value))}
+              >
+                <option value="es">Español</option>
+                <option value="en">English</option>
+                <option value="pl">Polski</option>
+              </select>
+            </label>
           </div>
         </header>
 
@@ -3061,14 +3088,14 @@ export default function App() {
                 type="button"
                 onClick={() => setTokenScreenOpen(false)}
               >
-                ← Atrás
+                ← {uiText(uiLocale, "button.back")}
               </button>
               <button
                 className="button button--danger"
                 type="button"
                 onClick={() => setTokenScreenOpen(false)}
               >
-                Cerrar
+                {uiText(uiLocale, "button.close")}
               </button>
             </div>
 
@@ -3382,9 +3409,7 @@ export default function App() {
                 disabled={recheckingWorldTransfers || !authenticated || !miniKitReady}
                 onClick={() => void recheckPendingWorldTransfers()}
               >
-                {recheckingWorldTransfers
-                  ? "Verificando operaciones pendientes…"
-                  : "Verificar operaciones pendientes en World Chain"}
+                {uiText(uiLocale, recheckingWorldTransfers ? "history.checking" : "history.check")}
               </button>
               {transferHistory.length ? (
                 <>
@@ -3456,7 +3481,7 @@ export default function App() {
                         </strong>
                         <span>
                           {item.network?.name || "Red"} ·{" "}
-                          {item.failed ? "Fallida" : item.pending ? "Pendiente" : "Confirmada"}
+                          {uiText(uiLocale, item.failed ? "history.failed" : item.pending ? "history.pending" : "history.confirmed")}
                         </span>
                       </div>
                       <small>
@@ -5159,7 +5184,7 @@ export default function App() {
         </section>
 
         <footer>
-          RC Wallet · Sin custodia · Nunca compartas tu frase semilla
+          {uiText(uiLocale, "footer.safety")}
         </footer>
       </div>
 
@@ -5177,7 +5202,7 @@ export default function App() {
             }}
           >
             <span>{tab.icon}</span>
-            <small>{tab.label}</small>
+            <small>{uiText(uiLocale, `nav.${tab.id}`)}</small>
           </button>
         ))}
       </nav>
